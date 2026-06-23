@@ -1,0 +1,261 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  final Color primary = const Color(0xFF1A3B68);
+
+  // ដក Logout ចេញពីបញ្ជី
+  final List<SettingsItem> _allItems = const [
+    SettingsItem(
+      icon: Icons.notifications_none,
+      title: 'Notifications',
+    ),
+    SettingsItem(
+      icon: Icons.description,
+      title: 'Terms & Conditions',
+    ),
+    SettingsItem(
+      icon: Icons.telegram,
+      title: 'Telegram Notifications',
+    ),
+    SettingsItem(
+      icon: Icons.warning_amber_rounded,
+      title: 'Warning Popup',
+    ),
+    SettingsItem(
+      icon: Icons.info_outline,
+      title: 'About App',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F8FA),
+      appBar: AppBar(
+        title: const Text(
+          "Settings",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              ..._allItems.map((item) => _buildItem(item.icon, item.title, context)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItem(IconData icon, String title, BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        leading: Icon(icon, color: primary),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 16),
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        onTap: () {
+          if (title == 'Notifications') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+            );
+          } else if (title == 'About App') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AboutScreen()),
+            );
+          } else {
+            // For other items, show a snackbar
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('$title feature coming soon')),
+            );
+          }
+        },
+      ),
+    );
+  }
+}
+
+class SettingsItem {
+  final IconData icon;
+  final String title;
+
+  const SettingsItem({
+    required this.icon,
+    required this.title,
+  });
+}
+
+// ===================== NOTIFICATIONS SCREEN =====================
+class NotificationsScreen extends StatelessWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        backgroundColor: const Color(0xFF173B69),
+        foregroundColor: Colors.white,
+      ),
+      body: ListView(
+        children: const [
+          NotificationItem(
+            title: 'Leave request approved',
+            message: 'Your vacation request has been approved.',
+            time: '2 hours ago',
+          ),
+          NotificationItem(
+            title: 'Holiday reminder',
+            message: 'Office will be closed on Friday for Pchum Ben.',
+            time: 'Yesterday',
+          ),
+          NotificationItem(
+            title: 'Leave balance updated',
+            message: 'Your annual leave balance is now 12 days.',
+            time: '3 days ago',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class NotificationItem extends StatelessWidget {
+  final String title;
+  final String message;
+  final String time;
+
+  const NotificationItem({
+    super.key,
+    required this.title,
+    required this.message,
+    required this.time,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: ListTile(
+        leading: const Icon(Icons.notifications_active, color: Color(0xFF173B69)),
+        title: Text(title),
+        subtitle: Text(message),
+        trailing: Text(time, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        isThreeLine: true,
+      ),
+    );
+  }
+}
+
+// ===================== ABOUT SCREEN =====================
+class AboutScreen extends StatelessWidget {
+  const AboutScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1E457E),
+        elevation: 0,
+        centerTitle: true,
+        title: const Text('About Application', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 40),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: const Icon(Icons.school, size: 70, color: Color(0xFF1E457E)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Leave Request Mobile App",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E457E)),
+            ),
+            const SizedBox(height: 6),
+            const Text("Version 1.0.0", style: TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 30),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Card(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                elevation: 1,
+                color: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Application Description", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E457E))),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "This mobile leave request application is designed to modernize and streamline the leave-taking workflow for staff at Westland International School.",
+                        style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.5),
+                        textAlign: TextAlign.justify,
+                      ),
+                      const Divider(height: 30, thickness: 0.5),
+                      _buildInfoRow("Institution:", "Westland International School"),
+                      const SizedBox(height: 8),
+                      _buildInfoRow("Academic Year:", "2025 - 2026"),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 40),
+            const Text("© 2026 Westland International School. All Rights Reserved.", style: TextStyle(fontSize: 11, color: Colors.grey)),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500)),
+        Text(value, style: const TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+}
