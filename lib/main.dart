@@ -11,6 +11,8 @@ import 'screens/manager/manager_dashboard.dart';
 import 'screens/forgot_password.dart';
 import 'screens/admin/create_user.dart';
 import 'providers/auth_provider.dart';
+// ============ បន្ថែម Migration ============
+import 'migration/update_policy_notifications.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +22,15 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     print('✅ Firebase initialized successfully');
+    
+    // ============ ដំណើរការ Migration (ធ្វើតែម្តង) ============
+    // ប្រសិនបើអ្នកចង់ដំណើរការ Migration សូមដក comment បន្ទាត់ខាងក្រោម
+    // រួចរត់កម្មវិធីម្តង បន្ទាប់មកដាក់ comment វិញ
+    // await runMigration();
+    
+    // ============ ប្រសិនបើចង់ដំណើរការសម្រាប់ Policy តែមួយ ============
+    // await runSinglePolicyMigration('YOUR_POLICY_ID_HERE');
+    
   } catch (e) {
     print('❌ Firebase initialization error: $e');
   }

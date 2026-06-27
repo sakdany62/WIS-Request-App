@@ -23,6 +23,16 @@ class PolicyModel {
   final String secondRequestMessage;
   final String thirdRequestMessage;
 
+  // Notification Settings
+  final bool enableNotifications;
+  final String notificationTitle;
+  final String notificationBody;
+  final bool notifyOnRequestSubmit;
+  final bool notifyOnStatusChange;
+  final bool notifyOnApproval;
+  final bool notifyOnRejection;
+  final bool notifyAdminOnNewRequest;
+
   PolicyModel({
     required this.id,
     required this.name,
@@ -43,6 +53,14 @@ class PolicyModel {
     this.firstRequestMessage = "អ្នកនៅសល់ថ្ងៃឈប់ ១ ដងទៀត!",
     this.secondRequestMessage = "អ្នកអស់ថ្ងៃដែលត្រូវឈប់បន្តទៀតហើយ!",
     this.thirdRequestMessage = "សំណើរបស់អ្នកកំពុងរង់ចាំការអនុម័តពី Admin",
+    this.enableNotifications = true,
+    this.notificationTitle = "ការជូនដំណឹងអំពីសំណើឈប់",
+    this.notificationBody = "សំណើឈប់របស់អ្នកត្រូវបានដំណើរការ",
+    this.notifyOnRequestSubmit = true,
+    this.notifyOnStatusChange = true,
+    this.notifyOnApproval = true,
+    this.notifyOnRejection = true,
+    this.notifyAdminOnNewRequest = true,
   });
 
   factory PolicyModel.fromFirestore(Map<String, dynamic> data, String documentId) {
@@ -66,6 +84,14 @@ class PolicyModel {
       firstRequestMessage: data['firstRequestMessage'] ?? "អ្នកនៅសល់ថ្ងៃឈប់ ១ ដងទៀត!",
       secondRequestMessage: data['secondRequestMessage'] ?? "អ្នកអស់ថ្ងៃដែលត្រូវឈប់បន្តទៀតហើយ!",
       thirdRequestMessage: data['thirdRequestMessage'] ?? "សំណើរបស់អ្នកកំពុងរង់ចាំការអនុម័តពី Admin",
+      enableNotifications: data['enableNotifications'] ?? true,
+      notificationTitle: data['notificationTitle'] ?? "ការជូនដំណឹងអំពីសំណើឈប់",
+      notificationBody: data['notificationBody'] ?? "សំណើឈប់របស់អ្នកត្រូវបានដំណើរការ",
+      notifyOnRequestSubmit: data['notifyOnRequestSubmit'] ?? true,
+      notifyOnStatusChange: data['notifyOnStatusChange'] ?? true,
+      notifyOnApproval: data['notifyOnApproval'] ?? true,
+      notifyOnRejection: data['notifyOnRejection'] ?? true,
+      notifyAdminOnNewRequest: data['notifyAdminOnNewRequest'] ?? true,
     );
   }
 
@@ -89,6 +115,14 @@ class PolicyModel {
       'firstRequestMessage': firstRequestMessage,
       'secondRequestMessage': secondRequestMessage,
       'thirdRequestMessage': thirdRequestMessage,
+      'enableNotifications': enableNotifications,
+      'notificationTitle': notificationTitle,
+      'notificationBody': notificationBody,
+      'notifyOnRequestSubmit': notifyOnRequestSubmit,
+      'notifyOnStatusChange': notifyOnStatusChange,
+      'notifyOnApproval': notifyOnApproval,
+      'notifyOnRejection': notifyOnRejection,
+      'notifyAdminOnNewRequest': notifyAdminOnNewRequest,
     };
   }
 
@@ -117,5 +151,54 @@ class PolicyModel {
 
   bool needsAdminApproval(int requestNumber) {
     return !shouldAutoApprove(requestNumber);
+  }
+
+  // បន្ថែម Method សម្រាប់ពិនិត្យ Notification
+  bool shouldSendNotification(String eventType) {
+    if (!enableNotifications) return false;
+    
+    switch(eventType) {
+      case 'submit':
+        return notifyOnRequestSubmit;
+      case 'status_change':
+        return notifyOnStatusChange;
+      case 'approval':
+        return notifyOnApproval;
+      case 'rejection':
+        return notifyOnRejection;
+      case 'admin_new_request':
+        return notifyAdminOnNewRequest;
+      default:
+        return true;
+    }
+  }
+
+  Map<String, String> getNotificationMessage(String eventType) {
+    String title = notificationTitle;
+    String body = notificationBody;
+    
+    switch(eventType) {
+      case 'submit':
+        body = 'សំណើឈប់របស់អ្នកត្រូវបានដាក់ស្នើរដោយជោគជ័យ';
+        break;
+      case 'approval':
+        body = 'សំណើឈប់របស់អ្នកត្រូវបានអនុម័តដោយជោគជ័យ';
+        break;
+      case 'rejection':
+        body = 'សំណើឈប់របស់អ្នកត្រូវបានបដិសេធ';
+        break;
+      case 'status_change':
+        body = 'ស្ថានភាពសំណើឈប់របស់អ្នកបានផ្លាស់ប្តូរ';
+        break;
+      case 'admin_new_request':
+        title = 'មានសំណើឈប់ថ្មី';
+        body = 'មានបុគ្គលិកបានដាក់សំណើឈប់ថ្មី សូមពិនិត្យ';
+        break;
+    }
+    
+    return {
+      'title': title,
+      'body': body,
+    };
   }
 }

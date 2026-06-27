@@ -53,4 +53,21 @@ class PolicyService {
       }).toList();
     });
   }
+
+  // បន្ថែម Method សម្រាប់ទាញយក Policy តាម ID
+  Future<PolicyModel?> getPolicyById(String id) async {
+    try {
+      final doc = await _policiesCollection.doc(id).get();
+      if (doc.exists) {
+        return PolicyModel.fromFirestore(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
+      }
+      return null;
+    } catch (e) {
+      print('Error getting policy by id: $e');
+      return null;
+    }
+  }
 }
