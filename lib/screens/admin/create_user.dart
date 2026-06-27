@@ -48,6 +48,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
+      
 
       // ស្វែងរកឈ្មោះផ្នែកពី Department ID
       String departmentName = '';
