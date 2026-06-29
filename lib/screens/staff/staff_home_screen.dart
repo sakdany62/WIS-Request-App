@@ -214,6 +214,9 @@ class _HeaderSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final userId = user?.uid;
+
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -227,7 +230,11 @@ class _HeaderSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _UserHeader(userName: userName, isLoading: isLoading),
+          _UserHeader(
+            userName: userName, 
+            isLoading: isLoading,
+            userId: userId,
+          ),
           const SizedBox(height: 20),
           Text(
             'Your Leave Balance',
@@ -379,11 +386,17 @@ class _BalanceCardSmall extends StatelessWidget {
   }
 }
 
+// ================= USER HEADER WITH NOTIFICATION BADGE =================
 class _UserHeader extends StatelessWidget {
   final String userName;
   final bool isLoading;
+  final String? userId;
 
-  const _UserHeader({required this.userName, required this.isLoading});
+  const _UserHeader({
+    required this.userName,
+    required this.isLoading,
+    this.userId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -434,14 +447,81 @@ class _UserHeader extends StatelessWidget {
             ],
           ),
         ),
-        IconButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-          ),
-          icon: const Icon(Icons.notifications_none, color: Colors.white, size: 28),
-        ),
+        // ============ NOTIFICATION ICON WITH BADGE ============
+        _NotificationIconWithBadge(userId: userId),
       ],
+    );
+  }
+}
+
+// ================= NOTIFICATION ICON WITH BADGE =================
+class _NotificationIconWithBadge extends StatelessWidget {
+  final String? userId;
+
+  const _NotificationIconWithBadge({this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    if (userId == null) {
+      return IconButton(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+        ),
+        icon: const Icon(Icons.notifications_none, color: Colors.white, size: 28),
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .snapshots(),
+      builder: (context, snapshot) {
+        int unreadCount = 0;
+
+        if (snapshot.hasData) {
+          unreadCount = snapshot.data!.docs.length;
+        }
+
+        return Stack(
+          children: [
+            IconButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+              ),
+              icon: const Icon(Icons.notifications_none, color: Colors.white, size: 28),
+            ),
+            if (unreadCount > 0)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    minHeight: 20,
+                  ),
+                  child: Text(
+                    unreadCount > 99 ? '99+' : '$unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

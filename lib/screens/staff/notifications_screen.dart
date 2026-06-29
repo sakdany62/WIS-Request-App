@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/request_service.dart';
-// 👇 Use the same import as other files (adjust if needed)
 import 'package:permission_system/app_fonts.dart';
 
 class NotificationsScreen extends StatefulWidget {

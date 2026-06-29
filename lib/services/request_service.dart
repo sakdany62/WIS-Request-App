@@ -97,7 +97,7 @@ class RequestService {
     } else {
       status = 'pending';
       needManagerApproval = true;
-      autoMessage = "សំណើរបស់អ្នកកំពុងរង់ចាំការអនុម័តពី Manager";
+      autoMessage = "Your request is pending approval from Manager";
     }
 
     final requestData = {
@@ -126,14 +126,14 @@ class RequestService {
     final docRef = await _requestsCollection.add(requestData);
     await docRef.update({'requestId': docRef.id});
 
-    // ============ បញ្ជូន Notification ============
+    // ============ Send Notifications ============
     
-    // 1. បញ្ជូនទៅកាន់ Staff (អ្នកដាក់សំណើ)
+    // 1. Send to Staff (requester)
     await _sendNotificationToUser(
       userId: user.uid,
       userEmail: userEmail,
-      title: status == 'approved' ? 'សំណើត្រូវបានអនុម័តដោយស្វ័យប្រវត្តិ' : 'សំណើត្រូវការអនុម័ត',
-      message: autoMessage ?? 'សំណើរបស់អ្នកបានដាក់ជូនដោយជោគជ័យ',
+      title: status == 'approved' ? 'Request Auto-Approved' : 'Request Needs Approval',
+      message: autoMessage ?? 'Your request has been submitted successfully',
       type: status == 'approved' ? 'auto_approved' : 'submitted',
       requestId: docRef.id,
       extraData: {
@@ -142,12 +142,12 @@ class RequestService {
       },
     );
 
-    // 2. ប្រសិនបើត្រូវការអនុម័ត បញ្ជូនទៅកាន់ Managers និង Admins
+    // 2. If approval needed, notify Managers and Admins
     if (needManagerApproval) {
       await _notifyManagersForApproval(requestData, docRef.id);
       await _notifyAdminsForApproval(requestData, docRef.id);
     } else {
-      // 3. ប្រសិនបើ Auto Approved បញ្ជូនទៅកាន់ Admins
+      // 3. If Auto Approved, notify Admins
       await _notifyAdminsForAutoApproval(requestData, docRef.id);
     }
 
@@ -207,11 +207,11 @@ class RequestService {
       final requestDepartment = requestData['department'] ?? '';
       
       if (managerDepartment.isNotEmpty && requestDepartment != managerDepartment) {
-        throw Exception('អ្នកមិនអាចអនុម័តសំណើរបស់បុគ្គលិកក្រៅផ្នែករបស់អ្នកបានទេ');
+        throw Exception('You cannot approve requests from staff outside your department');
       }
       
       if (requestData['status'] != 'pending') {
-        throw Exception('សំណើនេះត្រូវបានដំណើរការរួចហើយ');
+        throw Exception('This request has already been processed');
       }
       
       await _requestsCollection.doc(requestId).update({
@@ -222,14 +222,14 @@ class RequestService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // ============ បញ្ជូន Notification ============
+      // ============ Send Notifications ============
       
-      // 1. បញ្ជូនទៅកាន់ Staff (អ្នកដាក់សំណើ)
+      // 1. Send to Staff (requester)
       await _sendNotificationToUser(
         userId: requestData['userId'],
         userEmail: requestData['userEmail'],
-        title: 'សំណើត្រូវបានអនុម័ត',
-        message: 'សំណើរបស់អ្នកសម្រាប់ ${requestData['totalDays']} ថ្ងៃត្រូវបានអនុម័តដោយ $managerName',
+        title: 'Request Approved',
+        message: 'Your request for ${requestData['totalDays']} day(s) has been approved by $managerName',
         type: 'request_approved',
         requestId: requestId,
         extraData: {
@@ -238,14 +238,14 @@ class RequestService {
         },
       );
 
-      // 2. បញ្ជូនទៅកាន់ Admins
+      // 2. Send to Admins
       await _notifyAdminsForRequestApproved(requestData, managerName, requestId);
       
       print('✅ Request approved by Manager: $managerName');
     } on FirebaseException catch (e) {
       print('❌ Firebase Error: ${e.code} - ${e.message}');
       if (e.code == 'permission-denied') {
-        throw Exception('អ្នកមិនមានសិទ្ធិអនុម័តសំណើនេះទេ');
+        throw Exception('You do not have permission to approve this request');
       }
       throw Exception('Failed to approve request: ${e.message}');
     } catch (e) {
@@ -272,11 +272,11 @@ class RequestService {
       final requestDepartment = requestData['department'] ?? '';
       
       if (managerDepartment.isNotEmpty && requestDepartment != managerDepartment) {
-        throw Exception('អ្នកមិនអាចបដិសេធសំណើរបស់បុគ្គលិកក្រៅផ្នែករបស់អ្នកបានទេ');
+        throw Exception('You cannot reject requests from staff outside your department');
       }
       
       if (requestData['status'] != 'pending') {
-        throw Exception('សំណើនេះត្រូវបានដំណើរការរួចហើយ');
+        throw Exception('This request has already been processed');
       }
       
       await _requestsCollection.doc(requestId).update({
@@ -288,14 +288,14 @@ class RequestService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // ============ បញ្ជូន Notification ============
+      // ============ Send Notifications ============
       
-      // 1. បញ្ជូនទៅកាន់ Staff (អ្នកដាក់សំណើ)
+      // 1. Send to Staff (requester)
       await _sendNotificationToUser(
         userId: requestData['userId'],
         userEmail: requestData['userEmail'],
-        title: 'សំណើត្រូវបានបដិសេធ',
-        message: 'សំណើរបស់អ្នកសម្រាប់ ${requestData['totalDays']} ថ្ងៃត្រូវបានបដិសេធ${reason != null ? '។ ហេតុផល: $reason' : ''}',
+        title: 'Request Rejected',
+        message: 'Your request for ${requestData['totalDays']} day(s) has been rejected${reason != null ? '. Reason: $reason' : ''}',
         type: 'request_rejected',
         requestId: requestId,
         extraData: {
@@ -305,14 +305,14 @@ class RequestService {
         },
       );
 
-      // 2. បញ្ជូនទៅកាន់ Admins
+      // 2. Send to Admins
       await _notifyAdminsForRequestRejected(requestData, managerName, reason, requestId);
       
       print('✅ Request rejected by Manager: $managerName');
     } on FirebaseException catch (e) {
       print('❌ Firebase Error: ${e.code} - ${e.message}');
       if (e.code == 'permission-denied') {
-        throw Exception('អ្នកមិនមានសិទ្ធិបដិសេធសំណើនេះទេ');
+        throw Exception('You do not have permission to reject this request');
       }
       throw Exception('Failed to reject request: ${e.message}');
     } catch (e) {
@@ -338,14 +338,14 @@ class RequestService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // ============ បញ្ជូន Notification ============
+      // ============ Send Notifications ============
       
-      // 1. បញ្ជូនទៅកាន់ Staff (អ្នកដាក់សំណើ)
+      // 1. Send to Staff (requester)
       await _sendNotificationToUser(
         userId: requestData['userId'],
         userEmail: requestData['userEmail'],
-        title: 'សំណើត្រូវបានអនុម័ត',
-        message: 'សំណើរបស់អ្នកសម្រាប់ ${requestData['totalDays']} ថ្ងៃត្រូវបានអនុម័តដោយ $adminName',
+        title: 'Request Approved',
+        message: 'Your request for ${requestData['totalDays']} day(s) has been approved by $adminName',
         type: 'request_approved',
         requestId: requestId,
         extraData: {
@@ -354,12 +354,12 @@ class RequestService {
         },
       );
 
-      // 2. បញ្ជូនទៅកាន់ Managers ក្នុង Department
+      // 2. Send to Managers in Department
       if (requestData['department'] != null && requestData['department'].isNotEmpty) {
         await _notifyManagersInDepartment(
           department: requestData['department'],
-          title: 'សំណើត្រូវបានអនុម័ត',
-          message: 'សំណើរបស់ ${requestData['userName']} (${requestData['totalDays']} ថ្ងៃ) ត្រូវបានអនុម័តដោយ $adminName',
+          title: 'Request Approved',
+          message: '${requestData['userName']}\'s request (${requestData['totalDays']} day(s)) has been approved by $adminName',
           type: 'request_approved',
           requestId: requestId,
           extraData: {
@@ -395,14 +395,14 @@ class RequestService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // ============ បញ្ជូន Notification ============
+      // ============ Send Notifications ============
       
-      // 1. បញ្ជូនទៅកាន់ Staff (អ្នកដាក់សំណើ)
+      // 1. Send to Staff (requester)
       await _sendNotificationToUser(
         userId: requestData['userId'],
         userEmail: requestData['userEmail'],
-        title: 'សំណើត្រូវបានបដិសេធ',
-        message: 'សំណើរបស់អ្នកសម្រាប់ ${requestData['totalDays']} ថ្ងៃត្រូវបានបដិសេធ${reason != null ? '។ ហេតុផល: $reason' : ''}',
+        title: 'Request Rejected',
+        message: 'Your request for ${requestData['totalDays']} day(s) has been rejected${reason != null ? '. Reason: $reason' : ''}',
         type: 'request_rejected',
         requestId: requestId,
         extraData: {
@@ -412,12 +412,12 @@ class RequestService {
         },
       );
 
-      // 2. បញ្ជូនទៅកាន់ Managers ក្នុង Department
+      // 2. Send to Managers in Department
       if (requestData['department'] != null && requestData['department'].isNotEmpty) {
         await _notifyManagersInDepartment(
           department: requestData['department'],
-          title: 'សំណើត្រូវបានបដិសេធ',
-          message: 'សំណើរបស់ ${requestData['userName']} (${requestData['totalDays']} ថ្ងៃ) ត្រូវបានបដិសេធដោយ $adminName',
+          title: 'Request Rejected',
+          message: '${requestData['userName']}\'s request (${requestData['totalDays']} day(s)) has been rejected by $adminName',
           type: 'request_rejected',
           requestId: requestId,
           extraData: {
@@ -436,7 +436,7 @@ class RequestService {
 
   // ==================== NOTIFICATION METHODS ====================
 
-  /// បញ្ជូន Notification ទៅកាន់អ្នកប្រើប្រាស់ម្នាក់
+  /// Send notification to a single user
   Future<void> _sendNotificationToUser({
     required String userId,
     required String userEmail,
@@ -469,7 +469,7 @@ class RequestService {
     }
   }
 
-  /// បញ្ជូន Notification ទៅកាន់ Managers ក្នុង Department
+  /// Send notifications to Managers in a department
   Future<void> _notifyManagersInDepartment({
     required String department,
     required String title,
@@ -522,7 +522,7 @@ class RequestService {
     }
   }
 
-  /// បញ្ជូន Notification ទៅកាន់ Admins ទាំងអស់
+  /// Send notifications to all Admins
   Future<void> _notifyAllAdmins({
     required String title,
     required String message,
@@ -568,13 +568,13 @@ class RequestService {
     }
   }
 
-  /// បញ្ជូន Notification ពេលមានសំណើថ្មីត្រូវការអនុម័តទៅកាន់ Managers
+  /// Send notification when new request needs approval to Managers
   Future<void> _notifyManagersForApproval(Map<String, dynamic> requestData, String requestId) async {
     final department = requestData['department'] ?? '';
     await _notifyManagersInDepartment(
       department: department,
-      title: 'សំណើថ្មីត្រូវការអនុម័ត',
-      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} បានដាក់សំណើលេខ #${requestData['requestNumber']} (${requestData['totalDays']} ថ្ងៃ)',
+      title: 'New Request Needs Approval',
+      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s))',
       type: 'need_approval',
       requestId: requestId,
       extraData: {
@@ -586,12 +586,12 @@ class RequestService {
     );
   }
 
-  /// បញ្ជូន Notification ពេលមានសំណើថ្មីត្រូវការអនុម័តទៅកាន់ Admins
+  /// Send notification when new request needs approval to Admins
   Future<void> _notifyAdminsForApproval(Map<String, dynamic> requestData, String requestId) async {
     final department = requestData['department'] ?? '';
     await _notifyAllAdmins(
-      title: 'សំណើថ្មីត្រូវការអនុម័ត',
-      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} បានដាក់សំណើលេខ #${requestData['requestNumber']} (${requestData['totalDays']} ថ្ងៃ)',
+      title: 'New Request Needs Approval',
+      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s))',
       type: 'need_approval',
       requestId: requestId,
       extraData: {
@@ -603,12 +603,12 @@ class RequestService {
     );
   }
 
-  /// បញ្ជូន Notification ពេល Auto Approved ទៅកាន់ Admins
+  /// Send notification when auto-approved to Admins
   Future<void> _notifyAdminsForAutoApproval(Map<String, dynamic> requestData, String requestId) async {
     final department = requestData['department'] ?? '';
     await _notifyAllAdmins(
-      title: 'សំណើត្រូវបានអនុម័តដោយស្វ័យប្រវត្តិ',
-      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} បានដាក់សំណើលេខ #${requestData['requestNumber']} (${requestData['totalDays']} ថ្ងៃ) និងត្រូវបានអនុម័តដោយស្វ័យប្រវត្តិ',
+      title: 'Request Auto-Approved',
+      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s)) and was auto-approved',
       type: 'auto_approved',
       requestId: requestId,
       extraData: {
@@ -620,12 +620,12 @@ class RequestService {
     );
   }
 
-  /// បញ្ជូន Notification ពេល Request ត្រូវបាន Approved ទៅកាន់ Admins
+  /// Send notification when request is approved to Admins
   Future<void> _notifyAdminsForRequestApproved(Map<String, dynamic> requestData, String approvedBy, String requestId) async {
     final department = requestData['department'] ?? '';
     await _notifyAllAdmins(
-      title: 'សំណើត្រូវបានអនុម័ត',
-      message: 'សំណើរបស់ ${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} (${requestData['totalDays']} ថ្ងៃ) ត្រូវបានអនុម័តដោយ $approvedBy',
+      title: 'Request Approved',
+      message: '${requestData['userName']}\'s request${department.isNotEmpty ? " ($department)" : ""} (${requestData['totalDays']} day(s)) was approved by $approvedBy',
       type: 'request_approved',
       requestId: requestId,
       extraData: {
@@ -637,12 +637,12 @@ class RequestService {
     );
   }
 
-  /// បញ្ជូន Notification ពេល Request ត្រូវបាន Rejected ទៅកាន់ Admins
+  /// Send notification when request is rejected to Admins
   Future<void> _notifyAdminsForRequestRejected(Map<String, dynamic> requestData, String rejectedBy, String? reason, String requestId) async {
     final department = requestData['department'] ?? '';
     await _notifyAllAdmins(
-      title: 'សំណើត្រូវបានបដិសេធ',
-      message: 'សំណើរបស់ ${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} (${requestData['totalDays']} ថ្ងៃ) ត្រូវបានបដិសេធដោយ $rejectedBy${reason != null ? "។ ហេតុផល: $reason" : ""}',
+      title: 'Request Rejected',
+      message: '${requestData['userName']}\'s request${department.isNotEmpty ? " ($department)" : ""} (${requestData['totalDays']} day(s)) was rejected by $rejectedBy${reason != null ? ". Reason: $reason" : ""}',
       type: 'request_rejected',
       requestId: requestId,
       extraData: {
@@ -708,28 +708,28 @@ class RequestService {
     final errors = <String>[];
     
     if (totalDays > policy.maxDaysPerRequest) {
-      errors.add('មិនអាចស្នើសុំលើស ${policy.maxDaysPerRequest} ថ្ងៃក្នុងមួយដង');
+      errors.add('Cannot request more than ${policy.maxDaysPerRequest} day(s) per request');
     }
     
     final remainingDays = policy.maxDaysPerYear - daysUsedThisYear;
     if (totalDays > remainingDays) {
-      errors.add('នៅសល់តែ $remainingDays ថ្ងៃប៉ុណ្ណោះក្នុងឆ្នាំនេះ');
+      errors.add('Only $remainingDays day(s) remaining this year');
     }
     
     if (reason != 'Other' && !policy.allowedReasons.contains(reason)) {
-      errors.add('មូលហេតុ "$reason" មិនត្រូវបានអនុញ្ញាត');
+      errors.add('Reason "$reason" is not allowed');
     }
     
     if (policy.requireDocument && !hasDocument) {
-      errors.add('តម្រូវឱ្យភ្ជាប់ឯកសារ');
+      errors.add('Document attachment is required');
     }
     
     if (daysAdvance < policy.minDaysAdvance) {
-      errors.add('តម្រូវឱ្យស្នើសុំ ${policy.minDaysAdvance} ថ្ងៃជាមុន');
+      errors.add('Must request at least ${policy.minDaysAdvance} day(s) in advance');
     }
     
     if (daysAdvance > policy.maxDaysAdvance) {
-      errors.add('មិនអាចស្នើសុំលើស ${policy.maxDaysAdvance} ថ្ងៃជាមុន');
+      errors.add('Cannot request more than ${policy.maxDaysAdvance} day(s) in advance');
     }
     
     return errors;
@@ -774,7 +774,7 @@ class RequestService {
 
   // ==================== NOTIFICATION CRUD METHODS ====================
   
-  /// ទទួលបានបញ្ជីសារជូនដំណឹងរបស់អ្នកប្រើប្រាស់
+  /// Get user's notifications
   Stream<QuerySnapshot> getUserNotifications(String userId) {
     return _notificationsCollection
         .where('userId', isEqualTo: userId)
@@ -782,7 +782,7 @@ class RequestService {
         .snapshots();
   }
 
-  /// សម្គាល់សារជូនដំណឹងមួយថាបានអាន
+  /// Mark a notification as read
   Future<void> markNotificationAsRead(String notificationId) async {
     try {
       await _notificationsCollection.doc(notificationId).update({
@@ -796,7 +796,7 @@ class RequestService {
     }
   }
 
-  /// សម្គាល់សារជូនដំណឹងទាំងអស់ថាបានអាន
+  /// Mark all notifications as read for a user
   Future<void> markAllNotificationsAsRead(String userId) async {
     try {
       final snapshot = await _notificationsCollection
@@ -824,7 +824,7 @@ class RequestService {
     }
   }
 
-  /// ទទួលបានចំនួនសារជូនដំណឹងដែលមិនទាន់អាន
+  /// Get unread notification count for a user
   Future<int> getUnreadNotificationCount(String userId) async {
     try {
       final snapshot = await _notificationsCollection
@@ -838,7 +838,7 @@ class RequestService {
     }
   }
 
-  /// លុបសារជូនដំណឹង
+  /// Delete a notification
   Future<void> deleteNotification(String notificationId) async {
     try {
       await _notificationsCollection.doc(notificationId).delete();
@@ -849,7 +849,7 @@ class RequestService {
     }
   }
 
-  /// លុបសារជូនដំណឹងទាំងអស់របស់អ្នកប្រើប្រាស់
+  /// Delete all notifications for a user
   Future<void> deleteAllNotifications(String userId) async {
     try {
       final snapshot = await _notificationsCollection

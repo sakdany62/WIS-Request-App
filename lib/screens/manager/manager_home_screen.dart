@@ -322,6 +322,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                 _ManagerUserHeader(
                   managerName: managerName,
                   isLoading: isLoading,
+                  userId: managerId,
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -569,13 +570,16 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   }
 }
 
+// ================= MANAGER USER HEADER WITH NOTIFICATION BADGE =================
 class _ManagerUserHeader extends StatelessWidget {
   final String managerName;
   final bool isLoading;
+  final String userId;
 
   const _ManagerUserHeader({
     required this.managerName,
     required this.isLoading,
+    required this.userId,
   });
 
   @override
@@ -627,20 +631,77 @@ class _ManagerUserHeader extends StatelessWidget {
             ],
           ),
         ),
-        IconButton(
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const NotificationsScreen(),
-            ),
-          ),
-          icon: const Icon(
-            Icons.notifications_none,
-            color: Color(0xFF173B69),
-            size: 28,
-          ),
-        ),
+        // ============ NOTIFICATION ICON WITH BADGE ============
+        _NotificationIconWithBadge(userId: userId),
       ],
+    );
+  }
+}
+
+// ================= NOTIFICATION ICON WITH BADGE =================
+class _NotificationIconWithBadge extends StatelessWidget {
+  final String userId;
+
+  const _NotificationIconWithBadge({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .snapshots(),
+      builder: (context, snapshot) {
+        int unreadCount = 0;
+
+        if (snapshot.hasData) {
+          unreadCount = snapshot.data!.docs.length;
+        }
+
+        return Stack(
+          children: [
+            IconButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              ),
+              icon: const Icon(
+                Icons.notifications_none,
+                color: Color(0xFF173B69),
+                size: 28,
+              ),
+            ),
+            if (unreadCount > 0)
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    minHeight: 20,
+                  ),
+                  child: Text(
+                    unreadCount > 99 ? '99+' : '$unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
