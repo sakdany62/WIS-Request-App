@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../app_fonts.dart'; // ✅ added
 import '../../services/request_service.dart';
 import '../../services/user_service.dart';
 import '../staff/notifications_screen.dart';
@@ -263,7 +264,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 Text(
                   'Error',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: AppFonts.md, // ✅
                     fontWeight: FontWeight.bold,
                     color: Colors.red[700],
                   ),
@@ -272,7 +273,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 Text(
                   errorMessage!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16),
+                  style: const TextStyle(fontSize: AppFonts.md), // ✅
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -408,7 +409,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             Text(
               value,
               style: TextStyle(
-                fontSize: 20,
+                fontSize: AppFonts.md, // ✅
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -417,7 +418,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: AppFonts.md, // ✅
                 color: Colors.grey[600],
               ),
               textAlign: TextAlign.center,
@@ -507,14 +508,17 @@ class _AdminUserHeader extends StatelessWidget {
                   adminName,
                   style: const TextStyle(
                     color: Color(0xFF173B69),
-                    fontSize: 20,
+                    fontSize: AppFonts.md, // ✅
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               const SizedBox(height: 4),
               const Text(
                 'Administrator',
-                style: TextStyle(color: Colors.grey, fontSize: 14),
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: AppFonts.md, // ✅
+                ),
               ),
             ],
           ),
@@ -529,7 +533,6 @@ class _AdminUserHeader extends StatelessWidget {
                     builder: (context) => const NotificationsScreen(),
                   ),
                 );
-                
                 if (onNotificationPressed != null) {
                   onNotificationPressed!();
                 }
@@ -558,7 +561,7 @@ class _AdminUserHeader extends StatelessWidget {
                     unreadCount > 99 ? '99+' : unreadCount.toString(),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: AppFonts.md, // ✅
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -643,7 +646,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     }
   }
 
-  // ============ អនុគមន៍សម្រាប់ទាញយកព័ត៌មានអ្នកប្រើប្រាស់ ============
+  // Function to get user data
   Future<Map<String, dynamic>> _getUserData(String userId) async {
     if (_userCache.containsKey(userId)) {
       return _userCache[userId]!;
@@ -801,35 +804,23 @@ class _DetailListScreenState extends State<_DetailListScreen> {
 
   Color _getColor() {
     switch (widget.type) {
-      case 'pending':
-        return Colors.orange;
-      case 'today':
-        return Colors.blue;
-      case 'total':
-        return Colors.green;
-      case 'approved':
-        return Colors.purple;
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.blue;
+      case 'pending': return Colors.orange;
+      case 'today': return Colors.blue;
+      case 'total': return Colors.green;
+      case 'approved': return Colors.purple;
+      case 'rejected': return Colors.red;
+      default: return Colors.blue;
     }
   }
 
   IconData _getIcon() {
     switch (widget.type) {
-      case 'pending':
-        return Icons.pending_actions;
-      case 'today':
-        return Icons.today;
-      case 'total':
-        return Icons.assignment;
-      case 'approved':
-        return Icons.check_circle;
-      case 'rejected':
-        return Icons.cancel;
-      default:
-        return Icons.info;
+      case 'pending': return Icons.pending_actions;
+      case 'today': return Icons.today;
+      case 'total': return Icons.assignment;
+      case 'approved': return Icons.check_circle;
+      case 'rejected': return Icons.cancel;
+      default: return Icons.info;
     }
   }
 
@@ -860,25 +851,19 @@ class _DetailListScreenState extends State<_DetailListScreen> {
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'approved':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
+      case 'approved': return Colors.green;
+      case 'rejected': return Colors.red;
       case 'pending':
-      default:
-        return Colors.orange;
+      default: return Colors.orange;
     }
   }
 
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
-      case 'approved':
-        return Icons.check_circle;
-      case 'rejected':
-        return Icons.cancel;
+      case 'approved': return Icons.check_circle;
+      case 'rejected': return Icons.cancel;
       case 'pending':
-      default:
-        return Icons.pending;
+      default: return Icons.pending;
     }
   }
 
@@ -886,32 +871,22 @@ class _DetailListScreenState extends State<_DetailListScreen> {
   Color _getRoleColor(String role) {
     final roleLower = role.toLowerCase();
     switch (roleLower) {
-      case 'admin':
-        return Colors.purple;
-      case 'manager':
-        return Colors.orange;
-      case 'staff':
-        return Colors.green;
-      case 'employee':
-        return Colors.blue;
-      default:
-        return Colors.grey;
+      case 'admin': return Colors.purple;
+      case 'manager': return Colors.orange;
+      case 'staff': return Colors.green;
+      case 'employee': return Colors.blue;
+      default: return Colors.grey;
     }
   }
 
   String _getRoleName(String role) {
     final roleLower = role.toLowerCase();
     switch (roleLower) {
-      case 'admin':
-        return 'អ្នកគ្រប់គ្រងប្រព័ន្ធ';
-      case 'manager':
-        return 'អ្នកគ្រប់គ្រង';
-      case 'staff':
-        return 'បុគ្គលិក';
-      case 'employee':
-        return 'បុគ្គលិក';
-      default:
-        return role;
+      case 'admin': return 'Admin';           // ✅ was អ្នកគ្រប់គ្រងប្រព័ន្ធ
+      case 'manager': return 'Manager';       // ✅ was អ្នកគ្រប់គ្រង
+      case 'staff': return 'Staff';           // ✅ was បុគ្គលិក
+      case 'employee': return 'Employee';     // ✅ was បុគ្គលិក
+      default: return role;
     }
   }
 
@@ -919,7 +894,10 @@ class _DetailListScreenState extends State<_DetailListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getTitle()),
+        title: Text(
+          _getTitle(),
+          style: const TextStyle(fontSize: AppFonts.md), // ✅
+        ),
         backgroundColor: _getColor(),
         foregroundColor: Colors.white,
         actions: [
@@ -938,7 +916,11 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                     children: [
                       const Icon(Icons.error_outline, size: 64, color: Colors.red),
                       const SizedBox(height: 16),
-                      Text(_error!, textAlign: TextAlign.center),
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: AppFonts.md), // ✅
+                      ),
                       const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: _loadData,
@@ -955,9 +937,9 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                           Icon(_getIcon(), size: 64, color: Colors.grey[400]),
                           const SizedBox(height: 16),
                           Text(
-                            'គ្មានទិន្នន័យ',
+                            'No Data', // ✅ was គ្មានទិន្នន័យ
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: AppFonts.md, // ✅
                               color: Colors.grey[600],
                             ),
                           ),
@@ -990,7 +972,10 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         ),
         title: Text(
           item['fullName'] ?? item['userName'] ?? 'Unknown User',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: AppFonts.md, // ✅
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1003,21 +988,21 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                   const SizedBox(width: 4),
                   Text(
                     'Department: ${item['department']}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[700]), // ✅
                   ),
                 ],
               ),
             Text(
               'Reason: ${item['reason'] ?? 'No reason'}',
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: AppFonts.md), // ✅
             ),
             Text(
               '${_formatDate(item['startDate'])} - ${_formatDate(item['endDate'])}',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[600]), // ✅
             ),
             Text(
               'Requested: ${_formatDateTime(item['createdAt'])}',
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[500]), // ✅
             ),
           ],
         ),
@@ -1035,7 +1020,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                 item['status']?.toString().toUpperCase() ?? 'PENDING',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
+                  fontSize: AppFonts.md, // ✅
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1056,7 +1041,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                 _getRoleName(item['role'] ?? 'user'),
                 style: TextStyle(
                   color: _getRoleColor(item['role'] ?? 'user'),
-                  fontSize: 10,
+                  fontSize: AppFonts.md, // ✅
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1083,7 +1068,10 @@ class _DetailListScreenState extends State<_DetailListScreen> {
             Expanded(
               child: Text(
                 'Request Detail',
-                style: const TextStyle(fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: AppFonts.md, // ✅
+                ),
               ),
             ),
           ],
@@ -1135,7 +1123,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         title,
         style: TextStyle(
           fontWeight: FontWeight.bold,
-          fontSize: 14,
+          fontSize: AppFonts.md, // ✅
           color: Colors.grey[700],
         ),
       ),
@@ -1155,14 +1143,14 @@ class _DetailListScreenState extends State<_DetailListScreen> {
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.grey,
-                fontSize: 13,
+                fontSize: AppFonts.md, // ✅
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: AppFonts.md), // ✅
             ),
           ),
         ],

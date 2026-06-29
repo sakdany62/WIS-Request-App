@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/request_service.dart';
 import '../staff/notifications_screen.dart';
 import '../staff/profile_screen.dart';
+import '../../app_fonts.dart';
 
 class ManagerHomeScreen extends StatefulWidget {
   const ManagerHomeScreen({super.key});
@@ -29,25 +30,25 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
 
   Future<void> _checkAuthAndLoad() async {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     if (user == null) {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/login');
       }
       return;
     }
-    
+
     setState(() {
       managerId = user.uid;
     });
-    
+
     await _loadManagerData();
     await _loadStaffCount();
   }
 
   Future<void> _loadManagerData() async {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     if (user != null) {
       try {
         final querySnapshot = await FirebaseFirestore.instance
@@ -55,11 +56,12 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
             .where('userId', isEqualTo: user.uid)
             .limit(1)
             .get();
-        
+
         if (querySnapshot.docs.isNotEmpty) {
           final data = querySnapshot.docs.first.data() as Map<String, dynamic>;
           setState(() {
-            managerName = data['fullName'] ?? data['username'] ?? 'Manager User';
+            managerName =
+                data['fullName'] ?? data['username'] ?? 'Manager User';
             managerDepartment = data['department'] ?? '';
             isLoading = false;
             errorMessage = null;
@@ -87,7 +89,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
 
   Future<void> _loadStaffCount() async {
     if (managerDepartment.isEmpty) return;
-    
+
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -95,7 +97,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
           .where('department', isEqualTo: managerDepartment)
           .where('status', isEqualTo: 'Active')
           .get();
-      
+
       setState(() {
         _staffCount = snapshot.docs.length;
       });
@@ -104,21 +106,25 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     }
   }
 
-  Future<void> _approveRequest(String requestId, String userName, int totalDays) async {
+  Future<void> _approveRequest(
+      String requestId, String userName, int totalDays) async {
     try {
       await _requestService.approveRequestAsManager(
-        requestId, 
-        managerId, 
+        requestId,
+        managerId,
         managerName,
         managerDepartment,
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Request approved successfully'),
+          SnackBar(
+            content: Text(
+              '✅ Request approved successfully',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -126,7 +132,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ ${e.message}'),
+            content: Text(
+              '❌ ${e.message}',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -136,7 +145,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ ${e.toString().replaceFirst('Exception: ', '')}'),
+            content: Text(
+              '❌ ${e.toString().replaceFirst('Exception: ', '')}',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),
@@ -145,51 +157,68 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     }
   }
 
-  Future<void> _showRejectDialog(String requestId, String userName, int totalDays) async {
+  Future<void> _showRejectDialog(
+      String requestId, String userName, int totalDays) async {
     final reasonController = TextEditingController();
-    
+
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reject Request'),
+        title: Text(
+          'Reject Request',
+          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Please provide a reason for rejection:'),
+            Text(
+              'Please provide a reason for rejection:',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: reasonController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Reason...',
-                border: OutlineInputBorder(),
+                hintStyle: TextStyle(fontSize: AppFonts.md),
+                border: const OutlineInputBorder(),
               ),
               maxLines: 3,
+              style: TextStyle(fontSize: AppFonts.md),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
                 await _requestService.rejectRequestAsManager(
-                  requestId, 
-                  managerId, 
+                  requestId,
+                  managerId,
                   managerName,
                   managerDepartment,
-                  reason: reasonController.text.isNotEmpty ? reasonController.text : null,
+                  reason: reasonController.text.isNotEmpty
+                      ? reasonController.text
+                      : null,
                 );
-                
+
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('✅ Request rejected'),
+                    SnackBar(
+                      content: Text(
+                        '✅ Request rejected',
+                        style: TextStyle(fontSize: AppFonts.md),
+                      ),
                       backgroundColor: Colors.red,
-                      duration: Duration(seconds: 2),
+                      duration: const Duration(seconds: 2),
                     ),
                   );
                 }
@@ -197,7 +226,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('❌ ${e.toString().replaceFirst('Exception: ', '')}'),
+                      content: Text(
+                        '❌ ${e.toString().replaceFirst('Exception: ', '')}',
+                        style: TextStyle(fontSize: AppFonts.md),
+                      ),
                       backgroundColor: Colors.red,
                       duration: const Duration(seconds: 3),
                     ),
@@ -206,7 +238,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Reject'),
+            child: Text(
+              'Reject',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
           ),
         ],
       ),
@@ -234,7 +269,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                 Text(
                   'Error',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: AppFonts.md,
                     fontWeight: FontWeight.bold,
                     color: Colors.red[700],
                   ),
@@ -243,7 +278,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                 Text(
                   errorMessage!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16),
+                  style: TextStyle(fontSize: AppFonts.md),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -254,7 +289,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                     });
                     _checkAuthAndLoad();
                   },
-                  child: const Text('Retry'),
+                  child: Text(
+                    'Retry',
+                    style: TextStyle(fontSize: AppFonts.md),
+                  ),
                 ),
               ],
             ),
@@ -263,8 +301,8 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       );
     }
 
-    String departmentDisplay = managerDepartment.isNotEmpty 
-        ? '📁 $managerDepartment' 
+    String departmentDisplay = managerDepartment.isNotEmpty
+        ? '📁 $managerDepartment'
         : '⚠️ No department assigned';
 
     return Scaffold(
@@ -282,14 +320,15 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _ManagerUserHeader(
-                  managerName: managerName, 
+                  managerName: managerName,
                   isLoading: isLoading,
                 ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.blue.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -297,12 +336,13 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.business, size: 16, color: Colors.blue[700]),
+                          Icon(Icons.business,
+                              size: 16, color: Colors.blue[700]),
                           const SizedBox(width: 8),
                           Text(
                             departmentDisplay,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: AppFonts.md,
                               color: Colors.blue[700],
                               fontWeight: FontWeight.w500,
                             ),
@@ -312,7 +352,8 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -320,12 +361,13 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.people, size: 16, color: Colors.green[700]),
+                          Icon(Icons.people,
+                              size: 16, color: Colors.green[700]),
                           const SizedBox(width: 4),
                           Text(
                             '$_staffCount Staff',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: AppFonts.md,
                               color: Colors.green[700],
                               fontWeight: FontWeight.w500,
                             ),
@@ -336,9 +378,9 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                
                 StreamBuilder<QuerySnapshot>(
-                  stream: _requestService.getPendingRequestsForManager(managerDepartment),
+                  stream: _requestService
+                      .getPendingRequestsForManager(managerDepartment),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return Container(
@@ -353,7 +395,8 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                             const SizedBox(height: 8),
                             Text(
                               'Error loading requests: ${snapshot.error}',
-                              style: const TextStyle(color: Colors.red),
+                              style: TextStyle(
+                                  color: Colors.red, fontSize: AppFonts.md),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 8),
@@ -361,7 +404,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                               onPressed: () {
                                 setState(() {});
                               },
-                              child: const Text('Retry'),
+                              child: Text(
+                                'Retry',
+                                style: TextStyle(fontSize: AppFonts.md),
+                              ),
                             ),
                           ],
                         ),
@@ -377,7 +423,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                       children: [
                         Expanded(
                           child: _StatCard(
-                            count: '$pendingCount', 
+                            count: '$pendingCount',
                             label: 'Pending Requests',
                           ),
                         ),
@@ -385,18 +431,21 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                     );
                   },
                 ),
-                
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Pending Approvals',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: AppFonts.md,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     if (managerDepartment.isNotEmpty)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.green.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
@@ -404,7 +453,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         child: Text(
                           managerDepartment,
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: AppFonts.md,
                             color: Colors.green[700],
                             fontWeight: FontWeight.w500,
                           ),
@@ -413,23 +462,30 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                
                 StreamBuilder<QuerySnapshot>(
-                  stream: _requestService.getPendingRequestsForManager(managerDepartment),
+                  stream: _requestService
+                      .getPendingRequestsForManager(managerDepartment),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return Center(
                         child: Column(
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const Icon(Icons.error_outline,
+                                size: 48, color: Colors.red),
                             const SizedBox(height: 8),
-                            Text('Error: ${snapshot.error}'),
+                            Text(
+                              'Error: ${snapshot.error}',
+                              style: TextStyle(fontSize: AppFonts.md),
+                            ),
                             const SizedBox(height: 8),
                             ElevatedButton(
                               onPressed: () {
                                 setState(() {});
                               },
-                              child: const Text('Retry'),
+                              child: Text(
+                                'Retry',
+                                style: TextStyle(fontSize: AppFonts.md),
+                              ),
                             ),
                           ],
                         ),
@@ -441,7 +497,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                     }
 
                     final requests = snapshot.data?.docs ?? [];
-                    
+
                     if (requests.isEmpty) {
                       return const Center(
                         child: Padding(
@@ -452,11 +508,13 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                               SizedBox(height: 8),
                               Text(
                                 'No pending requests',
-                                style: TextStyle(fontSize: 16, color: Colors.grey),
+                                style: TextStyle(
+                                    fontSize: AppFonts.md, color: Colors.grey),
                               ),
                               Text(
                                 'All requests in your department have been processed',
-                                style: TextStyle(fontSize: 12, color: Colors.grey),
+                                style: TextStyle(
+                                    fontSize: AppFonts.md, color: Colors.grey),
                               ),
                             ],
                           ),
@@ -467,8 +525,9 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                     return Column(
                       children: requests.map((doc) {
                         final data = doc.data() as Map<String, dynamic>;
-                        final requestDepartment = data['department'] ?? 'No Department';
-                        
+                        final requestDepartment =
+                            data['department'] ?? 'No Department';
+
                         return _PendingCard(
                           employeeName: data['userName'] ?? 'Unknown',
                           month: _getMonthFromDate(data['startDate']),
@@ -476,8 +535,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                           reason: data['reason'] ?? 'No reason',
                           totalDays: data['totalDays'] ?? 0,
                           department: requestDepartment,
-                          onApprove: () => _approveRequest(doc.id, data['userName'] ?? '', data['totalDays'] ?? 0),
-                          onReject: () => _showRejectDialog(doc.id, data['userName'] ?? '', data['totalDays'] ?? 0),
+                          onApprove: () => _approveRequest(doc.id,
+                              data['userName'] ?? '', data['totalDays'] ?? 0),
+                          onReject: () => _showRejectDialog(doc.id,
+                              data['userName'] ?? '', data['totalDays'] ?? 0),
                         );
                       }).toList(),
                     );
@@ -513,7 +574,7 @@ class _ManagerUserHeader extends StatelessWidget {
   final bool isLoading;
 
   const _ManagerUserHeader({
-    required this.managerName, 
+    required this.managerName,
     required this.isLoading,
   });
 
@@ -549,16 +610,19 @@ class _ManagerUserHeader extends StatelessWidget {
               else
                 Text(
                   managerName,
-                  style: const TextStyle(
-                    color: Color(0xFF173B69),
-                    fontSize: 20,
+                  style: TextStyle(
+                    color: const Color(0xFF173B69),
+                    fontSize: AppFonts.md,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Manager',
-                style: TextStyle(color: Colors.grey, fontSize: 14),
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: AppFonts.md,
+                ),
               ),
             ],
           ),
@@ -584,9 +648,9 @@ class _ManagerUserHeader extends StatelessWidget {
 class _StatCard extends StatelessWidget {
   final String count;
   final String label;
-  
+
   const _StatCard({
-    required this.count, 
+    required this.count,
     required this.label,
   });
 
@@ -603,18 +667,18 @@ class _StatCard extends StatelessWidget {
         children: [
           Text(
             count,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 28,
+              fontSize: AppFonts.md,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white70, 
-              fontSize: 12,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: AppFonts.md,
             ),
             textAlign: TextAlign.center,
           ),
@@ -679,17 +743,17 @@ class _PendingCard extends StatelessWidget {
                   children: [
                     Text(
                       month,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Color(0xFF173B69),
+                        fontSize: AppFonts.md,
+                        color: const Color(0xFF173B69),
                       ),
                     ),
                     Text(
                       date,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF173B69),
+                      style: TextStyle(
+                        fontSize: AppFonts.md,
+                        color: const Color(0xFF173B69),
                       ),
                     ),
                   ],
@@ -702,14 +766,15 @@ class _PendingCard extends StatelessWidget {
                   children: [
                     Text(
                       employeeName,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: AppFonts.md,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.blue.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -717,7 +782,7 @@ class _PendingCard extends StatelessWidget {
                       child: Text(
                         '📁 $department',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: AppFonts.md,
                           color: Colors.blue[700],
                           fontWeight: FontWeight.w500,
                         ),
@@ -726,21 +791,25 @@ class _PendingCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       reason,
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: AppFonts.md,
+                        color: Colors.grey,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: Colors.orange.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '$totalDays day${totalDays > 1 ? 's' : ''}',
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontSize: AppFonts.md,
                           color: Colors.orange,
                           fontWeight: FontWeight.bold,
                         ),
@@ -770,9 +839,9 @@ class _PendingCard extends StatelessWidget {
                     ),
                     padding: EdgeInsets.zero,
                   ),
-                  child: const Text(
+                  child: Text(
                     'Reject',
-                    style: TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: AppFonts.md),
                   ),
                 ),
               ),
@@ -790,9 +859,9 @@ class _PendingCard extends StatelessWidget {
                     ),
                     padding: EdgeInsets.zero,
                   ),
-                  child: const Text(
+                  child: Text(
                     'Approve',
-                    style: TextStyle(fontSize: 13),
+                    style: TextStyle(fontSize: AppFonts.md),
                   ),
                 ),
               ),

@@ -2,8 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:permission_system/app_fonts.dart';
 import '../../services/user_service.dart';
 import '../../models/user_model.dart';
+
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -20,15 +22,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   List<UserModel> _users = [];
   String _filterDepartment = 'all';
 
+  // ✅ Department names now in English
   final List<Map<String, String>> _departments = [
-    {'id': 'dept_it', 'name': 'ផ្នែកបច្ចេកវិទ្យា'},
-    {'id': 'dept_education', 'name': 'ផ្នែកអប់រំ'},
-    {'id': 'dept_hr', 'name': 'ផ្នែកធនធានមនុស្ស'},
-    {'id': 'dept_finance', 'name': 'ផ្នែកគណនេយ្យ'},
-    {'id': 'dept_marketing', 'name': 'ផ្នែកទីផ្សារ'},
-    {'id': 'dept_sales', 'name': 'ផ្នែកលក់'},
-    {'id': 'dept_service', 'name': 'ផ្នែកសេវាកម្ម'},
-    {'id': 'dept_management', 'name': 'ផ្នែកគ្រប់គ្រង'},
+    {'id': 'dept_it', 'name': 'IT Department'},
+    {'id': 'dept_education', 'name': 'Education'},
+    {'id': 'dept_hr', 'name': 'HR'},
+    {'id': 'dept_finance', 'name': 'Finance'},
+    {'id': 'dept_marketing', 'name': 'Marketing'},
+    {'id': 'dept_sales', 'name': 'Sales'},
+    {'id': 'dept_service', 'name': 'Service'},
+    {'id': 'dept_management', 'name': 'Management'},
   ];
 
   @override
@@ -100,7 +103,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Edit User: ${user.username}'),
+        title: Text(
+          'Edit User: ${user.username}',
+          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+        ),
         content: SingleChildScrollView(
           child: Form(
             key: formKey,
@@ -114,6 +120,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                  style: TextStyle(fontSize: AppFonts.md),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -128,6 +135,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     if (!value!.contains('@')) return 'Invalid email';
                     return null;
                   },
+                  style: TextStyle(fontSize: AppFonts.md),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -136,6 +144,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     labelText: 'Phone',
                     border: OutlineInputBorder(),
                   ),
+                  style: TextStyle(fontSize: AppFonts.md),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -153,6 +162,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   onChanged: (value) {
                     if (value != null) selectedRole = value;
                   },
+                  style: TextStyle(fontSize: AppFonts.md),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -179,6 +189,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       selectedDepartmentId = value;
                     }
                   },
+                  style: TextStyle(fontSize: AppFonts.md),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -194,6 +205,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   onChanged: (value) {
                     if (value != null) selectedStatus = value;
                   },
+                  style: TextStyle(fontSize: AppFonts.md),
                 ),
               ],
             ),
@@ -276,7 +288,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete User'),
-        content: Text('Are you sure you want to delete ${user.fullName}?'),
+        content: Text(
+          'Are you sure you want to delete ${user.fullName}?',
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -333,14 +348,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Management'),
+        title: Text(
+          'User Management',
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
-        // ============ បន្ថែម Back Button ============
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            Navigator.pop(context); // ត្រឡប់ទៅ Admin Settings
+            Navigator.pop(context);
           },
         ),
         actions: [
@@ -369,8 +390,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       _searchQuery = value;
                     });
                   },
+                  style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
                   decoration: InputDecoration(
                     hintText: '🔍 Search users...',
+                    hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.9),
                     border: OutlineInputBorder(
@@ -383,7 +406,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18),
+                            icon: const Icon(Icons.clear, size: 18, color: Colors.black54),
                             onPressed: () {
                               setState(() {
                                 _searchQuery = '';
@@ -407,18 +430,28 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         ),
                         child: DropdownButton<String>(
                           value: _filterDepartment,
-                          icon: const Icon(Icons.arrow_drop_down),
+                          icon: const Icon(Icons.arrow_drop_down, color: Colors.black54),
                           underline: const SizedBox(),
                           isExpanded: true,
+                          style: TextStyle(
+                            fontSize: AppFonts.md,
+                            color: Colors.black, // ✅ selected text color
+                          ),
                           items: [
                             const DropdownMenuItem(
                               value: 'all',
-                              child: Text('All Departments'),
+                              child: Text(
+                                'All Departments',
+                                style: TextStyle(color: Colors.black),
+                              ),
                             ),
                             ..._departments.map((dept) {
                               return DropdownMenuItem(
                                 value: dept['id']!,
-                                child: Text(dept['name']!),
+                                child: Text(
+                                  dept['name']!,
+                                  style: const TextStyle(color: Colors.black),
+                                ),
                               );
                             }),
                           ],
@@ -448,7 +481,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       SizedBox(height: 16),
                       Text(
                         'No users found',
-                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                        style: TextStyle(color: Colors.grey, fontSize: AppFonts.md),
                       ),
                     ],
                   ),
@@ -509,15 +542,15 @@ class _UserCard extends StatelessWidget {
                 children: [
                   Text(
                     user.fullName,
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: AppFonts.md,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
                     user.email,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AppFonts.md,
                       color: Colors.grey[600],
                     ),
                   ),
@@ -535,7 +568,7 @@ class _UserCard extends StatelessWidget {
                         child: Text(
                           user.roleName,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: AppFonts.md,
                             color: user.roleColor,
                             fontWeight: FontWeight.w500,
                           ),
@@ -551,7 +584,7 @@ class _UserCard extends StatelessWidget {
                           child: Text(
                             '📁 ${user.department}',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: AppFonts.md,
                               color: Colors.blue[700],
                               fontWeight: FontWeight.w500,
                             ),
@@ -568,7 +601,7 @@ class _UserCard extends StatelessWidget {
                         child: Text(
                           user.status,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: AppFonts.md,
                             color: user.isActive ? Colors.green : Colors.red,
                             fontWeight: FontWeight.w500,
                           ),

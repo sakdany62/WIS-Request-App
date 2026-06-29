@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:permission_system/app_fonts.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -79,19 +80,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        title: Text(
+          'Confirm Logout',
+          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to logout?',
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _logout(context);
             },
-            child: const Text('Confirm', style: TextStyle(color: Colors.red)),
+            child: Text(
+              'Confirm',
+              style: TextStyle(fontSize: AppFonts.md, color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -105,7 +118,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(
+          'Profile',
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
         actions: [
@@ -133,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 16),
             Text(
               errorMessage!,
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(color: Colors.red, fontSize: AppFonts.md),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -145,7 +165,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 });
                 _loadUserData();
               },
-              child: const Text('Retry'),
+              child: Text(
+                'Retry',
+                style: TextStyle(fontSize: AppFonts.md),
+              ),
             ),
           ],
         ),
@@ -153,8 +176,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     
     if (userData == null) {
-      return const Center(
-        child: Text('No user data available'),
+      return Center(
+        child: Text(
+          'No user data available',
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
       );
     }
     
@@ -169,9 +195,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Personal Information',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 _buildInfoCard(),
@@ -200,12 +226,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           Text(
             userData?['fullName'] ?? userData?['username'] ?? 'Staff User',
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             userData?['email'] ?? user?.email ?? 'staff@westland.com',
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
+            style: TextStyle(fontSize: AppFonts.md, color: Colors.grey),
           ),
           const SizedBox(height: 8),
           Container(
@@ -216,7 +242,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Text(
               _getRoleName(userData?['roleId']?.toString()),
-              style: const TextStyle(fontSize: 12, color: Color(0xFF173B69)),
+              style: TextStyle(fontSize: AppFonts.md, color: const Color(0xFF173B69)),
             ),
           ),
         ],
@@ -239,7 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // កែតម្រូវ method _getValue
+  // Helper method to safely get a value from userData
   String _getValue(String key, [String? fallbackKey]) {
     final String defaultValue = 'N/A';
     
@@ -325,14 +351,20 @@ class _InfoRow extends StatelessWidget {
             flex: 4, 
             child: Text(
               label, 
-              style: const TextStyle(color: Colors.grey),
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: AppFonts.md,
+              ),
             ),
           ),
           Expanded(
             flex: 6, 
             child: Text(
               value, 
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: AppFonts.md,
+              ),
               softWrap: true,
             ),
           ),

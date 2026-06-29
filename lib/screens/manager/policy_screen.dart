@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/policy_service.dart';
 import '../../models/policy_model.dart';
+// 👇 Use the same import as other files (adjust if needed)
+import 'package:permission_system/app_fonts.dart';
 
 class PolicyScreen extends StatefulWidget {
   const PolicyScreen({super.key});
@@ -88,14 +90,26 @@ class _PolicyScreenState extends State<PolicyScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Policy saved successfully'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text(
+              'Policy saved successfully',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
+            backgroundColor: Colors.green,
+          ),
         );
         _loadPolicy();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(
+              'Error: $e',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -112,18 +126,26 @@ class _PolicyScreenState extends State<PolicyScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Allowed Reason'),
+        title: Text(
+          'Add Allowed Reason',
+          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+        ),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
+          style: TextStyle(fontSize: AppFonts.md),
+          decoration: InputDecoration(
             hintText: 'Enter reason',
-            border: OutlineInputBorder(),
+            hintStyle: TextStyle(fontSize: AppFonts.md),
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -134,7 +156,10 @@ class _PolicyScreenState extends State<PolicyScreen> {
               }
               Navigator.pop(context);
             },
-            child: const Text('Add'),
+            child: Text(
+              'Add',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
           ),
         ],
       ),
@@ -151,7 +176,14 @@ class _PolicyScreenState extends State<PolicyScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Leave Policies'),
+        title: Text(
+          'Leave Policies',
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
       ),
@@ -170,34 +202,41 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'General Settings',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: AppFonts.md,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _nameController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: AppFonts.md),
+                              decoration: InputDecoration(
                                 labelText: 'Policy Name',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: AppFonts.md),
+                                border: const OutlineInputBorder(),
                               ),
                               validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
                             ),
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _descriptionController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: AppFonts.md),
+                              decoration: InputDecoration(
                                 labelText: 'Description',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: AppFonts.md),
+                                border: const OutlineInputBorder(),
                               ),
                               maxLines: 3,
                             ),
                             const SizedBox(height: 12),
                             SwitchListTile(
-                              title: const Text('Active Policy'),
+                              title: Text(
+                                'Active Policy',
+                                style: TextStyle(fontSize: AppFonts.md),
+                              ),
                               value: _isActive,
                               onChanged: (value) {
                                 setState(() {
@@ -219,19 +258,21 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Leave Limits',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: AppFonts.md,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _maxDaysPerRequestController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: AppFonts.md),
+                              decoration: InputDecoration(
                                 labelText: 'Max Days Per Request',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: AppFonts.md),
+                                border: const OutlineInputBorder(),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
@@ -239,9 +280,11 @@ class _PolicyScreenState extends State<PolicyScreen> {
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _maxDaysPerYearController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: AppFonts.md),
+                              decoration: InputDecoration(
                                 labelText: 'Max Days Per Year',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: AppFonts.md),
+                                border: const OutlineInputBorder(),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
@@ -259,19 +302,21 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Advance Notice',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: AppFonts.md,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _minDaysAdvanceController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: AppFonts.md),
+                              decoration: InputDecoration(
                                 labelText: 'Minimum Days in Advance',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: AppFonts.md),
+                                border: const OutlineInputBorder(),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
@@ -279,9 +324,11 @@ class _PolicyScreenState extends State<PolicyScreen> {
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _maxDaysAdvanceController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: AppFonts.md),
+                              decoration: InputDecoration(
                                 labelText: 'Maximum Days in Advance',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: AppFonts.md),
+                                border: const OutlineInputBorder(),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
@@ -299,10 +346,10 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Allowed Reasons',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: AppFonts.md,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -311,7 +358,10 @@ class _PolicyScreenState extends State<PolicyScreen> {
                               spacing: 8,
                               children: _allowedReasons.map((reason) {
                                 return Chip(
-                                  label: Text(reason),
+                                  label: Text(
+                                    reason,
+                                    style: TextStyle(fontSize: AppFonts.md),
+                                  ),
                                   onDeleted: () => _removeReason(reason),
                                 );
                               }).toList(),
@@ -320,7 +370,10 @@ class _PolicyScreenState extends State<PolicyScreen> {
                             ElevatedButton.icon(
                               onPressed: _showAddReasonDialog,
                               icon: const Icon(Icons.add),
-                              label: const Text('Add Reason'),
+                              label: Text(
+                                'Add Reason',
+                                style: TextStyle(fontSize: AppFonts.md),
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF173B69),
                               ),
@@ -338,17 +391,23 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Additional Settings',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: AppFonts.md,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(height: 8),
                             SwitchListTile(
-                              title: const Text('Require Document'),
-                              subtitle: const Text('Staff must attach document for leave request'),
+                              title: Text(
+                                'Require Document',
+                                style: TextStyle(fontSize: AppFonts.md),
+                              ),
+                              subtitle: Text(
+                                'Staff must attach document for leave request',
+                                style: TextStyle(fontSize: AppFonts.md),
+                              ),
                               value: _requireDocument,
                               onChanged: (value) {
                                 setState(() {
@@ -357,8 +416,14 @@ class _PolicyScreenState extends State<PolicyScreen> {
                               },
                             ),
                             SwitchListTile(
-                              title: const Text('Auto Approve'),
-                              subtitle: const Text('Automatically approve requests that meet all criteria'),
+                              title: Text(
+                                'Auto Approve',
+                                style: TextStyle(fontSize: AppFonts.md),
+                              ),
+                              subtitle: Text(
+                                'Automatically approve requests that meet all criteria',
+                                style: TextStyle(fontSize: AppFonts.md),
+                              ),
                               value: _autoApprove,
                               onChanged: (value) {
                                 setState(() {
@@ -381,9 +446,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF173B69),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Save Policy',
-                          style: TextStyle(fontSize: 16),
+                          style: TextStyle(fontSize: AppFonts.md),
                         ),
                       ),
                     ),

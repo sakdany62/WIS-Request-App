@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../app_fonts.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -11,7 +12,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final Color primary = const Color(0xFF1A3B68);
 
-  // ដក Logout ចេញពីបញ្ជី
+  // Removed Logout from the list
   final List<SettingsItem> _allItems = const [
     SettingsItem(
       icon: Icons.notifications_none,
@@ -40,9 +41,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Settings",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: AppFonts.md,
+          ),
         ),
         centerTitle: true,
         backgroundColor: primary,
@@ -53,7 +58,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              ..._allItems.map((item) => _buildItem(item.icon, item.title, context)),
+              ..._allItems
+                  .map((item) => _buildItem(item.icon, item.title, context)),
             ],
           ),
         ),
@@ -72,14 +78,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: Icon(icon, color: primary),
         title: Text(
           title,
-          style: const TextStyle(fontSize: 16),
+          style: TextStyle(fontSize: AppFonts.md),
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        trailing:
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
         onTap: () {
           if (title == 'Notifications') {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+              MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen()),
             );
           } else if (title == 'About App') {
             Navigator.push(
@@ -89,7 +97,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           } else {
             // For other items, show a snackbar
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$title feature coming soon')),
+              SnackBar(
+                content: Text(
+                  '$title feature coming soon',
+                  style: TextStyle(fontSize: AppFonts.md),
+                ),
+              ),
             );
           }
         },
@@ -116,7 +129,10 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(
+          'Notifications',
+          style: TextStyle(fontSize: AppFonts.md, color: Colors.white),
+        ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
       ),
@@ -160,10 +176,20 @@ class NotificationItem extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: ListTile(
-        leading: const Icon(Icons.notifications_active, color: Color(0xFF173B69)),
-        title: Text(title),
-        subtitle: Text(message),
-        trailing: Text(time, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        leading:
+            const Icon(Icons.notifications_active, color: Color(0xFF173B69)),
+        title: Text(
+          title,
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
+        subtitle: Text(
+          message,
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
+        trailing: Text(
+          time,
+          style: TextStyle(fontSize: AppFonts.md, color: Colors.grey),
+        ),
         isThreeLine: true,
       ),
     );
@@ -182,9 +208,17 @@ class AboutScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF1E457E),
         elevation: 0,
         centerTitle: true,
-        title: const Text('About Application', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text(
+          'About Application',
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -199,24 +233,40 @@ class AboutScreen extends StatelessWidget {
                   color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4)),
                   ],
                 ),
-                child: const Icon(Icons.school, size: 70, color: Color(0xFF1E457E)),
+                child: const Icon(Icons.school,
+                    size: 70, color: Color(0xFF1E457E)),
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               "Leave Request Mobile App",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E457E)),
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1E457E),
+              ),
             ),
             const SizedBox(height: 6),
-            const Text("Version 1.0.0", style: TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500)),
+            Text(
+              "Version 1.0.0",
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 30),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15)),
                 elevation: 1,
                 color: Colors.white,
                 child: Padding(
@@ -224,15 +274,27 @@ class AboutScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Application Description", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E457E))),
+                      Text(
+                        "Application Description",
+                        style: TextStyle(
+                          fontSize: AppFonts.md,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1E457E),
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      const Text(
+                      Text(
                         "This mobile leave request application is designed to modernize and streamline the leave-taking workflow for staff at Westland International School.",
-                        style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.5),
+                        style: TextStyle(
+                          fontSize: AppFonts.md,
+                          color: const Color(0xFF475569),
+                          height: 1.5,
+                        ),
                         textAlign: TextAlign.justify,
                       ),
                       const Divider(height: 30, thickness: 0.5),
-                      _buildInfoRow("Institution:", "Westland International School"),
+                      _buildInfoRow(
+                          "Institution:", "Westland International School"),
                       const SizedBox(height: 8),
                       _buildInfoRow("Academic Year:", "2025 - 2026"),
                     ],
@@ -241,7 +303,10 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 40),
-            const Text("© 2026 Westland International School. All Rights Reserved.", style: TextStyle(fontSize: 11, color: Colors.grey)),
+            Text(
+              "© 2026 Westland International School. All Rights Reserved.",
+              style: TextStyle(fontSize: AppFonts.md, color: Colors.grey),
+            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -253,8 +318,22 @@ class AboutScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500)),
-        Text(value, style: const TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            color: Colors.black87,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }

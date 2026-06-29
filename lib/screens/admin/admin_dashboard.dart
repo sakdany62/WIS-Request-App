@@ -1,5 +1,6 @@
 // lib/screens/admin/admin_dashboard.dart
 import 'package:flutter/material.dart';
+import '../../app_fonts.dart'; 
 import 'admin_home_screen.dart';
 import 'admin_setting.dart';
 import 'report_screen.dart';
@@ -35,6 +36,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
         selectedItemColor: const Color(0xFF173B69),
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
+        // ✅ font size 14 for bottom navigation labels
+        selectedLabelStyle: const TextStyle(fontSize: AppFonts.md),
+        unselectedLabelStyle: const TextStyle(fontSize: AppFonts.md),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
