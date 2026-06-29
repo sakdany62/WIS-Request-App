@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'user_management_screen.dart';
 import 'policy_screen.dart';
+import '../../app_fonts.dart'; // ✅ added
+
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -20,7 +22,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       appBar: AppBar(
         title: const Text(
           "Admin Settings",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            // optional: you could also set fontSize: AppFonts.md here
+          ),
         ),
         centerTitle: true,
         backgroundColor: primaryColor,
@@ -48,9 +54,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   );
                 },
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // ============ POLICY MANAGEMENT CARD ============
               _buildSettingsCard(
                 icon: Icons.gavel,
@@ -66,15 +72,15 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   );
                 },
               ),
-              
+
               const Spacer(),
-              
+
               // ============ VERSION INFO ============
-              const Text(
+              Text(
                 'Version 1.0.0',
                 style: TextStyle(
                   color: Colors.grey,
-                  fontSize: 12,
+                  fontSize: AppFonts.md, // was 12
                 ),
               ),
             ],
@@ -123,8 +129,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: AppFonts.md, // was 16
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -132,7 +138,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: AppFonts.md, // was 13
                         color: Colors.grey[600],
                       ),
                     ),

@@ -6,6 +6,8 @@ import 'request_screen.dart';
 import 'settings_screen.dart';
 import '../admin/admin_dashboard.dart';
 import '../manager/manager_dashboard.dart';
+// 👇 Adjust import path to your AppFonts class
+import 'package:permission_system/app_fonts.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -117,6 +119,15 @@ class _DashboardState extends State<Dashboard> {
         selectedItemColor: const Color(0xFF173B69),
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
+        // ✅ Apply AppFonts.md to labels
+        selectedLabelStyle: TextStyle(
+          fontSize: AppFonts.md,
+          fontWeight: FontWeight.w500,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: AppFonts.md,
+          fontWeight: FontWeight.w400,
+        ),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),

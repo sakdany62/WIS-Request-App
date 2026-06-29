@@ -6,7 +6,9 @@ import 'dart:io';
 import 'package:open_file/open_file.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:permission_system/app_fonts.dart';
 import '../../services/request_service.dart';
+
 
 class TodayRequest {
   final String requestId;
@@ -27,7 +29,7 @@ class TodayRequest {
   final String? rejectionReason;
   final String? approvedBy;
   final String? approvedByName;
-  final String? department;  // ← បន្ថែម field department
+  final String? department;  // added department field
 
   TodayRequest({
     required this.requestId,
@@ -48,7 +50,7 @@ class TodayRequest {
     this.rejectionReason,
     this.approvedBy,
     this.approvedByName,
-    this.department,  // ← បន្ថែម
+    this.department,
   });
 
   factory TodayRequest.fromFirestore(DocumentSnapshot doc) {
@@ -72,7 +74,7 @@ class TodayRequest {
       rejectionReason: data['rejectionReason'],
       approvedBy: data['approvedBy'],
       approvedByName: data['approvedByName'],
-      department: data['department'] ?? '',  // ← បន្ថែម
+      department: data['department'] ?? '',
     );
   }
 }
@@ -152,7 +154,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       final startTimestamp = Timestamp.fromDate(startOfDay);
       final endTimestamp = Timestamp.fromDate(endOfDay);
 
-      // ============ QUERY (គ្មាន department, គ្មាន orderBy) ============
+      // ============ QUERY (no department, no orderBy) ============
       Query query = _firestore
           .collection('leave_requests')
           .where('createdAt', isGreaterThanOrEqualTo: startTimestamp)
@@ -162,12 +164,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       
       print('📊 Total requests today: ${querySnapshot.docs.length}');
       
-      // ============ បំប្លែងទៅជា TodayRequest ============
+      // ============ Convert to TodayRequest ============
       List<TodayRequest> allRequests = querySnapshot.docs
           .map((doc) => TodayRequest.fromFirestore(doc))
           .toList();
       
-      // ============ ច្រោះតាម Department (ប្រសិនបើជា Manager) ============
+      // ============ Filter by Department (if Manager) ============
       if (_isManager && _managerDepartment.isNotEmpty) {
         allRequests = allRequests.where((r) {
           return r.department == _managerDepartment;
@@ -177,7 +179,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         print('📊 After filter: ${allRequests.length} requests');
       }
       
-      // ============ តម្រៀបតាមកាលបរិច្ឆេទ ============
+      // ============ Sort by date ============
       allRequests.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       setState(() {
@@ -281,7 +283,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         'Approval Type',
         'Request Number',
         'Created At',
-        'Department',  // ← បន្ថែម Department
+        'Department',  // added Department column
       ];
 
       sheet.appendRow(headers);
@@ -311,7 +313,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           r.approvalType,
           r.requestNumber,
           DateFormat('dd/MM/yyyy HH:mm').format(r.createdAt),
-          r.department ?? '',  // ← បន្ថែម Department
+          r.department ?? '',
         ]);
       }
 
@@ -368,9 +370,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Permission Today',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: AppFonts.md,
+          ),
         ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
@@ -399,9 +404,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                     const SizedBox(width: 8),
                     Text(
                       DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now()),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white70,
-                        fontSize: 14,
+                        fontSize: AppFonts.md,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -415,9 +420,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                         ),
                         child: Text(
                           departmentDisplay,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
+                            fontSize: AppFonts.md,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -435,8 +440,10 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                             _searchQuery = value;
                           });
                         },
+                        style: TextStyle(fontSize: AppFonts.md),
                         decoration: InputDecoration(
                           hintText: '🔍 Search...',
+                          hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey),
                           filled: true,
                           fillColor: Colors.white.withOpacity(0.9),
                           border: OutlineInputBorder(
@@ -471,6 +478,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                         value: _filterStatus,
                         icon: const Icon(Icons.filter_list),
                         underline: const SizedBox(),
+                        style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
                         items: [
                           const DropdownMenuItem(value: 'all', child: Text('All')),
                           const DropdownMenuItem(value: 'pending', child: Text('⏳ Pending')),
@@ -536,19 +544,28 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                             children: [
                               Icon(Icons.inbox, size: 64, color: Colors.grey),
                               const SizedBox(height: 16),
-                              const Text(
+                              Text(
                                 'No requests found for today',
-                                style: TextStyle(color: Colors.grey, fontSize: 16),
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: AppFonts.md,
+                                ),
                               ),
                               if (_isManager && _managerDepartment.isNotEmpty)
                                 Text(
                                   'Department: $_managerDepartment',
-                                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: AppFonts.md,
+                                  ),
                                 ),
                               const SizedBox(height: 8),
-                              const Text(
+                              Text(
                                 'Check back later',
-                                style: TextStyle(color: Colors.grey, fontSize: 12),
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: AppFonts.md,
+                                ),
                               ),
                             ],
                           ),
@@ -595,7 +612,7 @@ class _StatCard extends StatelessWidget {
             Text(
               value,
               style: TextStyle(
-                fontSize: 18,
+                fontSize: AppFonts.md,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -603,7 +620,7 @@ class _StatCard extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: AppFonts.md,
                 color: Colors.grey[600],
               ),
             ),
@@ -675,15 +692,15 @@ class _RequestCard extends StatelessWidget {
                     children: [
                       Text(
                         request.staffName,
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: TextStyle(
+                          fontSize: AppFonts.md,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
                         request.userEmail,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppFonts.md,
                           color: Colors.grey[600],
                         ),
                       ),
@@ -702,7 +719,7 @@ class _RequestCard extends StatelessWidget {
                     style: TextStyle(
                       color: _statusColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: 11,
+                      fontSize: AppFonts.md,
                     ),
                   ),
                 ),
@@ -718,7 +735,7 @@ class _RequestCard extends StatelessWidget {
                       Text(
                         '📅 ${request.startDate} → ${request.endDate}',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: AppFonts.md,
                           color: Colors.grey[700],
                         ),
                       ),
@@ -726,7 +743,7 @@ class _RequestCard extends StatelessWidget {
                       Text(
                         '📝 ${request.reason}',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: AppFonts.md,
                           color: Colors.grey[700],
                         ),
                       ),
@@ -744,10 +761,10 @@ class _RequestCard extends StatelessWidget {
                       ),
                       child: Text(
                         '${request.totalDays} day${request.totalDays > 1 ? 's' : ''}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Colors.blue,
-                          fontSize: 14,
+                          fontSize: AppFonts.md,
                         ),
                       ),
                     ),
@@ -755,7 +772,7 @@ class _RequestCard extends StatelessWidget {
                     Text(
                       'ID #${request.requestNumber}',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: AppFonts.md,
                         color: Colors.grey[500],
                       ),
                     ),
@@ -777,7 +794,7 @@ class _RequestCard extends StatelessWidget {
                   child: Text(
                     request.autoApproved ? '🤖 Auto' : '👤 Manual',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: AppFonts.md,
                       color: request.autoApproved ? Colors.purple : Colors.orange,
                       fontWeight: FontWeight.w500,
                     ),
@@ -788,7 +805,7 @@ class _RequestCard extends StatelessWidget {
                   Text(
                     'by ${request.approvedByName}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: AppFonts.md,
                       color: Colors.grey[500],
                     ),
                   ),
@@ -796,7 +813,7 @@ class _RequestCard extends StatelessWidget {
                 Text(
                   DateFormat('HH:mm').format(request.createdAt),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: AppFonts.md,
                     color: Colors.grey[500],
                   ),
                 ),
@@ -820,7 +837,7 @@ class _RequestCard extends StatelessWidget {
                         child: Text(
                           'Rejected: ${request.rejectionReason}',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: AppFonts.md,
                             color: Colors.red[700],
                           ),
                         ),

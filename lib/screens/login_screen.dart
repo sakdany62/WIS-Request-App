@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../app_fonts.dart'; 
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -113,7 +115,6 @@ class _LoginScreenState extends State<LoginScreen> {
       print('✅ Role ID: $roleId');
 
       if (mounted) {
-        // ============ ប្រើ pushReplacement ដើម្បីកុំឲ្យមាន Back ============
         if (roleId == '1') {
           print('🚀 Navigating to Admin Dashboard');
           Navigator.pushReplacementNamed(context, '/admin-dashboard');
@@ -156,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(message, style: TextStyle(fontSize: AppFonts.md)),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
@@ -196,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         "WESTLAND",
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 22,
+                          fontSize: AppFonts.md, // was 22
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -204,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         "INTERNATIONAL SCHOOL",
                         style: TextStyle(
                           color: Colors.white70,
-                          fontSize: 9,
+                          fontSize: AppFonts.md, // was 9
                         ),
                       ),
                     ],
@@ -229,7 +230,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       "WIS Permission Request",
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 28,
+                        fontSize: AppFonts.md, // was 28
                         fontWeight: FontWeight.w500,
                       ),
                       textAlign: TextAlign.center,
@@ -240,15 +241,20 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 80),
               const Text(
                 "Your Email",
-                style: TextStyle(color: Colors.white, fontSize: 20),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: AppFonts.md, // was 20
+                ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
+                style: TextStyle(fontSize: AppFonts.md),
                 decoration: InputDecoration(
                   hintText: "Enter email",
+                  hintStyle: TextStyle(fontSize: AppFonts.md),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -259,7 +265,10 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 30),
               const Text(
                 "Your Password",
-                style: TextStyle(color: Colors.white, fontSize: 20),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: AppFonts.md, // was 20
+                ),
               ),
               const SizedBox(height: 10),
               TextField(
@@ -267,8 +276,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: obscurePassword,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _login(),
+                style: TextStyle(fontSize: AppFonts.md),
                 decoration: InputDecoration(
                   hintText: "Enter password",
+                  hintStyle: TextStyle(fontSize: AppFonts.md),
                   filled: true,
                   fillColor: Colors.white,
                   suffixIcon: IconButton(
@@ -292,7 +303,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: const Text(
                     "Forgot Password?",
-                    style: TextStyle(fontSize: 14),
+                    style: TextStyle(
+                      fontSize: AppFonts.md, // was 14
+                    ),
                   ),
                 ),
               ),
@@ -320,7 +333,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         )
                       : const Text(
                           "Login",
-                          style: TextStyle(fontSize: 20),
+                          style: TextStyle(
+                            fontSize: AppFonts.md, // was 20
+                          ),
                         ),
                 ),
               ),
@@ -338,7 +353,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: const Text(
                     "Having trouble logging in? Contact Support",
-                    style: TextStyle(fontSize: 14),
+                    style: TextStyle(
+                      fontSize: AppFonts.md, // was 14
+                    ),
                   ),
                 ),
               ),

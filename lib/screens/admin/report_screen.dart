@@ -6,6 +6,7 @@ import 'package:excel/excel.dart' as excel;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:open_file/open_file.dart';
+import '../../app_fonts.dart'; // ✅ added
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -19,10 +20,10 @@ class _ReportScreenState extends State<ReportScreen> {
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
   List<Map<String, dynamic>> _reportData = [];
-  List<Map<String, dynamic>> _allReportData = []; // រក្សាទុកទិន្នន័យទាំងអស់
+  List<Map<String, dynamic>> _allReportData = []; // Store all data
   Map<String, dynamic> _summary = {};
   String _filterStatus = 'all';
-  String _searchName = ''; // ← បន្ថែមសម្រាប់ Search by Name
+  String _searchName = ''; // Search by name
   final TextEditingController _searchController = TextEditingController();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -106,7 +107,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
       setState(() {
         _allReportData = data;
-        _applyFilters(); // ← អនុវត្តតម្រង
+        _applyFilters(); // Apply filters
         _isLoading = false;
       });
     } catch (e) {
@@ -120,11 +121,11 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  // ============ អនុវត្តតម្រង ============
+  // Apply filters
   void _applyFilters() {
     List<Map<String, dynamic>> filtered = List.from(_allReportData);
 
-    // ============ Filter តាមឈ្មោះ ============
+    // Filter by name
     if (_searchName.isNotEmpty) {
       final query = _searchName.toLowerCase().trim();
       filtered = filtered.where((item) {
@@ -294,7 +295,10 @@ class _ReportScreenState extends State<ReportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reports'),
+        title: const Text(
+          'Reports',
+          style: TextStyle(fontSize: AppFonts.md), // ✅
+        ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false,
@@ -311,13 +315,13 @@ class _ReportScreenState extends State<ReportScreen> {
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // ============ Filter Section ============
+                  // Filter Section
                   Container(
                     padding: const EdgeInsets.all(16),
                     color: Colors.grey[100],
                     child: Column(
                       children: [
-                        // ============ Row 1: Report Type & Date ============
+                        // Row 1: Report Type & Date
                         Row(
                           children: [
                             Expanded(
@@ -352,7 +356,10 @@ class _ReportScreenState extends State<ReportScreen> {
                               child: ElevatedButton.icon(
                                 onPressed: _selectDate,
                                 icon: const Icon(Icons.calendar_today),
-                                label: Text(_getDateLabel()),
+                                label: Text(
+                                  _getDateLabel(),
+                                  style: const TextStyle(fontSize: AppFonts.md), // ✅
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF173B69),
                                   foregroundColor: Colors.white,
@@ -363,8 +370,8 @@ class _ReportScreenState extends State<ReportScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        
-                        // ============ Row 2: Status Filter ============
+
+                        // Row 2: Status Filter
                         Row(
                           children: [
                             Expanded(
@@ -398,8 +405,8 @@ class _ReportScreenState extends State<ReportScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        
-                        // ============ Row 3: Search by Name ============
+
+                        // Row 3: Search by Name
                         Row(
                           children: [
                             Expanded(
@@ -409,7 +416,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                   setState(() {
                                     _searchName = value;
                                   });
-                                  _applyFilters(); // ← អនុវត្តតម្រងពេលវាយបញ្ចូល
+                                  _applyFilters(); // Apply filters when typing
                                 },
                                 decoration: InputDecoration(
                                   hintText: '🔍 Search by name or email...',
@@ -435,9 +442,9 @@ class _ReportScreenState extends State<ReportScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            // ============ ប៊ូតុង Clear Filter ============
+                            // Clear Filter Button
                             if (_searchName.isNotEmpty || _filterStatus != 'all')
-                              Container(
+                              SizedBox(
                                 height: 56,
                                 child: ElevatedButton(
                                   onPressed: () {
@@ -456,7 +463,10 @@ class _ReportScreenState extends State<ReportScreen> {
                                       side: BorderSide(color: Colors.red.shade200),
                                     ),
                                   ),
-                                  child: const Text('Clear Filters'),
+                                  child: const Text(
+                                    'Clear Filters',
+                                    style: TextStyle(fontSize: AppFonts.md), // ✅
+                                  ),
                                 ),
                               ),
                           ],
@@ -465,7 +475,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ),
 
-                  // ============ Summary Cards ============
+                  // Summary Cards
                   Container(
                     padding: const EdgeInsets.all(12),
                     child: SizedBox(
@@ -501,7 +511,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ),
 
-                  // ============ Total Days Card ============
+                  // Total Days Card
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 12),
                     padding: const EdgeInsets.all(12),
@@ -518,7 +528,7 @@ class _ReportScreenState extends State<ReportScreen> {
                         Text(
                           'Total Days: ${_summary['totalDays'] ?? 0}',
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: AppFonts.md, // ✅
                             fontWeight: FontWeight.bold,
                             color: Colors.purple,
                           ),
@@ -533,7 +543,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           child: Text(
                             '${_summary['autoApproved'] ?? 0} Auto',
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: AppFonts.md, // ✅
                               color: Colors.purple,
                             ),
                           ),
@@ -550,7 +560,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             child: Text(
                               '🔍 $_searchName',
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: AppFonts.md, // ✅
                                 color: Colors.blue,
                               ),
                             ),
@@ -561,15 +571,15 @@ class _ReportScreenState extends State<ReportScreen> {
 
                   const SizedBox(height: 12),
 
-                  // ============ List of Reports ============
+                  // List of Reports
                   _reportData.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.all(40),
                           child: Column(
                             children: [
                               Icon(
-                                _searchName.isNotEmpty 
-                                    ? Icons.search_off 
+                                _searchName.isNotEmpty
+                                    ? Icons.search_off
                                     : Icons.inbox,
                                 size: 64,
                                 color: Colors.grey,
@@ -581,7 +591,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                     : 'No data found',
                                 style: const TextStyle(
                                   color: Colors.grey,
-                                  fontSize: 16,
+                                  fontSize: AppFonts.md, // ✅
                                 ),
                               ),
                               if (_searchName.isNotEmpty) ...[
@@ -590,7 +600,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                   'Try searching with a different name',
                                   style: TextStyle(
                                     color: Colors.grey[500],
-                                    fontSize: 12,
+                                    fontSize: AppFonts.md, // ✅
                                   ),
                                 ),
                               ],
@@ -632,7 +642,7 @@ class _ReportScreenState extends State<ReportScreen> {
           Text(
             value,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: AppFonts.md, // ✅
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -640,7 +650,7 @@ class _ReportScreenState extends State<ReportScreen> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: AppFonts.md, // ✅
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
@@ -659,14 +669,10 @@ class _ReportCard extends StatelessWidget {
 
   Color get _statusColor {
     switch (data['status']) {
-      case 'approved':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      case 'pending':
-        return Colors.orange;
-      default:
-        return Colors.grey;
+      case 'approved': return Colors.green;
+      case 'rejected': return Colors.red;
+      case 'pending': return Colors.orange;
+      default: return Colors.grey;
     }
   }
 
@@ -689,7 +695,7 @@ class _ReportCard extends StatelessWidget {
                   child: Text(
                     data['userName'],
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: AppFonts.md, // ✅
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -705,7 +711,7 @@ class _ReportCard extends StatelessWidget {
                     style: TextStyle(
                       color: _statusColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: 11,
+                      fontSize: AppFonts.md, // ✅
                     ),
                   ),
                 ),
@@ -715,7 +721,7 @@ class _ReportCard extends StatelessWidget {
             Text(
               data['userEmail'],
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppFonts.md, // ✅
                 color: Colors.grey[600],
               ),
             ),
@@ -727,7 +733,7 @@ class _ReportCard extends StatelessWidget {
                 Text(
                   '${data['startDate']} → ${data['endDate']}',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppFonts.md, // ✅
                     color: Colors.grey[700],
                   ),
                 ),
@@ -742,7 +748,7 @@ class _ReportCard extends StatelessWidget {
                   child: Text(
                     data['reason'],
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AppFonts.md, // ✅
                       color: Colors.grey[700],
                     ),
                     maxLines: 2,
@@ -758,7 +764,7 @@ class _ReportCard extends StatelessWidget {
                   child: Text(
                     '${data['totalDays']} days',
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: AppFonts.md, // ✅
                       fontWeight: FontWeight.bold,
                       color: Colors.blue,
                     ),
@@ -772,15 +778,15 @@ class _ReportCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: data['autoApproved'] 
-                        ? Colors.purple.withOpacity(0.1) 
+                    color: data['autoApproved']
+                        ? Colors.purple.withOpacity(0.1)
                         : Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     data['autoApproved'] ? '🤖 Auto' : '👤 Manual',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: AppFonts.md, // ✅
                       color: data['autoApproved'] ? Colors.purple : Colors.orange,
                     ),
                   ),
@@ -789,7 +795,7 @@ class _ReportCard extends StatelessWidget {
                 Text(
                   '#${data['requestNumber']}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: AppFonts.md, // ✅
                     color: Colors.grey[500],
                   ),
                 ),
@@ -797,7 +803,7 @@ class _ReportCard extends StatelessWidget {
                 Text(
                   DateFormat('dd/MM/yyyy HH:mm').format(data['createdAt']),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: AppFonts.md, // ✅
                     color: Colors.grey[500],
                   ),
                 ),
@@ -809,7 +815,7 @@ class _ReportCard extends StatelessWidget {
                 child: Text(
                   '⚠️ ${data['rejectionReason']}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: AppFonts.md, // ✅
                     color: Colors.red[700],
                   ),
                 ),
@@ -820,7 +826,7 @@ class _ReportCard extends StatelessWidget {
                 child: Text(
                   '✅ Approved by: ${data['approvedByName']}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: AppFonts.md, // ✅
                     color: Colors.green[700],
                   ),
                 ),

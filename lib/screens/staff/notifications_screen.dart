@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/request_service.dart';
+// 👇 Use the same import as other files (adjust if needed)
+import 'package:permission_system/app_fonts.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -36,7 +38,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  // ============ សម្គាល់សារទាំងអស់ថាបានអាន ============
+  // ============ Mark all notifications as read ============
   Future<void> _markAllAsRead() async {
     if (userId == null) return;
 
@@ -49,8 +51,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       if (snapshot.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('All notifications are already read'),
+          SnackBar(
+            content: Text(
+              'All notifications are already read',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
             backgroundColor: Colors.blue,
           ),
         );
@@ -69,7 +74,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ ${snapshot.docs.length} notifications marked as read'),
+            content: Text(
+              '✅ ${snapshot.docs.length} notifications marked as read',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -79,7 +87,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error: $e'),
+            content: Text(
+              '❌ Error: $e',
+              style: TextStyle(fontSize: AppFonts.md),
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -87,7 +98,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  // ============ សម្គាល់សារមួយថាបានអាន ============
+  // ============ Mark a single notification as read ============
   Future<void> _markAsRead(String notificationId) async {
     await _requestService.markNotificationAsRead(notificationId);
   }
@@ -97,7 +108,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (_isLoading || userId == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Notifications'),
+          title: Text(
+            'Notifications',
+            style: TextStyle(fontSize: AppFonts.md, color: Colors.white),
+          ),
           backgroundColor: const Color(0xFF173B69),
           foregroundColor: Colors.white,
         ),
@@ -107,11 +121,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(
+          'Notifications',
+          style: TextStyle(fontSize: AppFonts.md, color: Colors.white),
+        ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
         actions: [
-          // ============ ប៊ូតុង Mark All as Read ============
+          // ============ Mark All as Read button ============
           IconButton(
             icon: const Icon(Icons.done_all),
             onPressed: _markAllAsRead,
@@ -131,7 +148,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'Error: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(color: Colors.red, fontSize: AppFonts.md),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
@@ -139,7 +156,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     onPressed: () {
                       setState(() {});
                     },
-                    child: const Text('Retry'),
+                    child: Text(
+                      'Retry',
+                      style: TextStyle(fontSize: AppFonts.md),
+                    ),
                   ),
                 ],
               ),
@@ -153,27 +173,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           final notifications = snapshot.data?.docs ?? [];
 
           if (notifications.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.notifications_off, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
+                  const Icon(Icons.notifications_off, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
                   Text(
                     'No notifications',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                    style: TextStyle(color: Colors.grey, fontSize: AppFonts.md),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     'You are all caught up!',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(color: Colors.grey, fontSize: AppFonts.md),
                   ),
                 ],
               ),
             );
           }
 
-          // រាប់ចំនួនសារមិនទាន់អាន
+          // Count unread notifications
           final unreadCount = notifications.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             return data['isRead'] == false;
@@ -181,7 +201,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           return Column(
             children: [
-              // ============ បង្ហាញចំនួនសារមិនទាន់អាន ============
+              // ============ Show unread count ============
               if (unreadCount > 0)
                 Container(
                   width: double.infinity,
@@ -196,7 +216,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         style: TextStyle(
                           color: Colors.blue.shade700,
                           fontWeight: FontWeight.w500,
-                          fontSize: 14,
+                          fontSize: AppFonts.md,
                         ),
                       ),
                     ],
@@ -218,15 +238,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       isRead: isRead,
                       type: data['type'] ?? 'general',
                       onTap: () async {
-                        // សម្គាល់ថាបានអាន
+                        // Mark as read
                         if (!isRead) {
                           await _markAsRead(notification.id);
                         }
-                        // ប្រសិនបើមាន requestId អាចចូលទៅមើលព័ត៌មានលម្អិត
+                        // If there is a requestId, we could navigate to details
                         if (data['requestId'] != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('View request details coming soon'),
+                            SnackBar(
+                              content: Text(
+                                'View request details coming soon',
+                                style: TextStyle(fontSize: AppFonts.md),
+                              ),
                               backgroundColor: Colors.blue,
                             ),
                           );
@@ -346,7 +369,7 @@ class _NotificationItem extends StatelessWidget {
           title,
           style: TextStyle(
             fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
-            fontSize: 15,
+            fontSize: AppFonts.md,
           ),
         ),
         subtitle: Column(
@@ -355,7 +378,7 @@ class _NotificationItem extends StatelessWidget {
             Text(
               message,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: AppFonts.md,
                 color: isRead ? Colors.grey[600] : Colors.grey[800],
               ),
               maxLines: 2,
@@ -365,7 +388,7 @@ class _NotificationItem extends StatelessWidget {
             Text(
               time,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: AppFonts.md,
                 color: isRead ? Colors.grey[400] : Colors.grey[500],
               ),
             ),

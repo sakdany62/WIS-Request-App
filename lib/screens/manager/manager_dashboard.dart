@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'manager_home_screen.dart';
 import 'all_permission_today.dart' as permission;
 import '../staff/settings_screen.dart';
+import '../../app_fonts.dart';
 
 class ManagerDashboard extends StatefulWidget {
   const ManagerDashboard({super.key});
@@ -18,7 +19,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   void initState() {
     super.initState();
     _pages = [
-      ManagerHomeScreen(),                    // ← យក const ចេញ
+      ManagerHomeScreen(),                    // ← removed const (not needed)
       const permission.ListStaffScreen(),
       const SettingsScreen(),
     ];
@@ -38,6 +39,15 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
         selectedItemColor: const Color(0xFF173B69),
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
+        // ✅ Apply AppFonts.md to labels
+        selectedLabelStyle: TextStyle(
+          fontSize: AppFonts.md,
+          fontWeight: FontWeight.w500,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: AppFonts.md,
+          fontWeight: FontWeight.w400,
+        ),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),

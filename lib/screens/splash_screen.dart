@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+// 👇 Adjust the import path to your AppFonts class
+import 'package:permission_system/app_fonts.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -47,14 +49,21 @@ class _SplashScreenState extends State<SplashScreen> {
               child: const Icon(Icons.school, size: 60, color: Color(0xFF173B69)),
             ),
             const SizedBox(height: 30),
-            const Text(
+            Text(
               "WESTLAND",
-              style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: AppFonts.md,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               "INTERNATIONAL SCHOOL",
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: AppFonts.md,
+              ),
             ),
             const SizedBox(height: 50),
             const CircularProgressIndicator(color: Colors.white),

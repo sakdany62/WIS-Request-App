@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/request_service.dart';
+import 'package:permission_system/app_fonts.dart';
 
 class RequestScreen extends StatefulWidget {
   const RequestScreen({super.key});
@@ -76,7 +77,7 @@ class _RequestScreenState extends State<RequestScreen> {
   }
 
   Future<void> pickEndDate() async {
-    _showError('សំណើអាចបានតែ ១ ថ្ងៃប៉ុណ្ណោះ');
+    _showError('Request can only be for 1 day');
   }
 
   void pickFile() {
@@ -93,20 +94,20 @@ class _RequestScreenState extends State<RequestScreen> {
 
   Future<void> _submitRequest() async {
     if (startDate == null) {
-      _showError('សូមជ្រើសរើសថ្ងៃចាប់ផ្ដើម');
+      _showError('Please select a start date');
       return;
     }
     if (endDate == null) {
-      _showError('សូមជ្រើសរើសថ្ងៃបញ្ចប់');
+      _showError('Please select an end date');
       return;
     }
     if (totalDays <= 0) {
-      _showError('កាលបរិច្ឆេទមិនត្រឹមត្រូវ');
+      _showError('Invalid date range');
       return;
     }
 
     if (totalDays > 1) {
-      _showError('សំណើអាចបានតែ ១ ថ្ងៃប៉ុណ្ណោះ');
+      _showError('Request can only be for 1 day');
       return;
     }
 
@@ -120,7 +121,7 @@ class _RequestScreenState extends State<RequestScreen> {
           : selectedReason;
       
       if (selectedReason == 'Other' && finalReason.isEmpty) {
-        _showError('សូមបញ្ចូលមូលហេតុ');
+        _showError('Please specify a reason');
         setState(() {
           _isSubmitting = false;
         });
@@ -142,11 +143,11 @@ class _RequestScreenState extends State<RequestScreen> {
         final message = result['message'];
         
         if (status == 'approved') {
-          _showSuccess(message ?? 'សំណើត្រូវបានអនុម័តដោយស្វ័យប្រវត្តិ!');
-        } else if (message?.contains('ទាក់ទង') == true) {
-          _showWarning(message ?? 'អ្នកត្រូវតែទាក់ទងទៅកាន់អ្នកគ្រប់គ្រងដោយផ្ទាល់');
+          _showSuccess(message ?? 'Request automatically approved!');
+        } else if (message?.contains('contact') == true) {
+          _showWarning(message ?? 'You must contact your manager directly');
         } else {
-          _showWarning(message ?? 'សំណើកំពុងរង់ចាំការអនុម័តពី Manager');
+          _showWarning(message ?? 'Request is pending manager approval');
         }
         
         setState(() {
@@ -162,9 +163,9 @@ class _RequestScreenState extends State<RequestScreen> {
       print('❌ Firebase Error: ${e.code} - ${e.message}');
       if (mounted) {
         if (e.code == 'permission-denied') {
-          _showError('អ្នកមិនមានសិទ្ធិដាក់សំណើទេ។ សូមទាក់ទង Admin');
+          _showError('You do not have permission to submit requests. Please contact Admin');
         } else {
-          _showError('កំហុសប្រព័ន្ធ: ${e.message}');
+          _showError('System error: ${e.message}');
         }
         setState(() {
           _isSubmitting = false;
@@ -173,7 +174,7 @@ class _RequestScreenState extends State<RequestScreen> {
     } catch (e) {
       print('❌ Submit error: $e');
       if (mounted) {
-        _showError('កំហុស: ${e.toString().replaceFirst('Exception: ', '')}');
+        _showError('Error: ${e.toString().replaceFirst('Exception: ', '')}');
         setState(() {
           _isSubmitting = false;
         });
@@ -184,7 +185,10 @@ class _RequestScreenState extends State<RequestScreen> {
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message), 
+        content: Text(
+          message,
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
         backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
       ),
@@ -194,7 +198,10 @@ class _RequestScreenState extends State<RequestScreen> {
   void _showSuccess(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message), 
+        content: Text(
+          message,
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
       ),
@@ -204,7 +211,10 @@ class _RequestScreenState extends State<RequestScreen> {
   void _showWarning(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message), 
+        content: Text(
+          message,
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
         backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
       ),
@@ -223,9 +233,13 @@ class _RequestScreenState extends State<RequestScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Leave Request",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: AppFonts.md,
+          ),
         ),
         centerTitle: true,
         backgroundColor: primary,
@@ -247,15 +261,18 @@ class _RequestScreenState extends State<RequestScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "Select Date",
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppFonts.md,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text("Start Date"),
+                    Text(
+                      "Start Date",
+                      style: TextStyle(fontSize: AppFonts.md),
+                    ),
                     const SizedBox(height: 8),
                     GestureDetector(
                       onTap: pickStartDate,
@@ -274,8 +291,8 @@ class _RequestScreenState extends State<RequestScreen> {
                           const SizedBox(width: 8),
                           Text(
                             "Total Days: 1 day",
-                            style: const TextStyle(
-                              fontSize: 16,
+                            style: TextStyle(
+                              fontSize: AppFonts.md,
                               fontWeight: FontWeight.bold,
                               color: Colors.green,
                             ),
@@ -300,10 +317,10 @@ class _RequestScreenState extends State<RequestScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "Document Reference (Optional)",
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppFonts.md,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -314,7 +331,10 @@ class _RequestScreenState extends State<RequestScreen> {
                           child: OutlinedButton.icon(
                             onPressed: pickFile,
                             icon: const Icon(Icons.attach_file),
-                            label: const Text("File"),
+                            label: Text(
+                              "File",
+                              style: TextStyle(fontSize: AppFonts.md),
+                            ),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
@@ -325,7 +345,10 @@ class _RequestScreenState extends State<RequestScreen> {
                           child: OutlinedButton.icon(
                             onPressed: pickImage,
                             icon: const Icon(Icons.image),
-                            label: const Text("Image"),
+                            label: Text(
+                              "Image",
+                              style: TextStyle(fontSize: AppFonts.md),
+                            ),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
@@ -350,10 +373,10 @@ class _RequestScreenState extends State<RequestScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "Reason for Leave",
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppFonts.md,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -367,8 +390,10 @@ class _RequestScreenState extends State<RequestScreen> {
                     TextField(
                       controller: otherController,
                       enabled: selectedReason == "Other",
+                      style: TextStyle(fontSize: AppFonts.md),
                       decoration: InputDecoration(
                         hintText: "Please specify other reason",
+                        hintStyle: TextStyle(fontSize: AppFonts.md),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -408,14 +433,14 @@ class _RequestScreenState extends State<RequestScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Row(
+                    : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.send, size: 20),
-                          SizedBox(width: 8),
+                          const Icon(Icons.send, size: 20),
+                          const SizedBox(width: 8),
                           Text(
                             "Submit Request",
-                            style: TextStyle(fontSize: 16),
+                            style: TextStyle(fontSize: AppFonts.md),
                           ),
                         ],
                       ),
@@ -447,6 +472,7 @@ class _RequestScreenState extends State<RequestScreen> {
           Text(
             text,
             style: TextStyle(
+              fontSize: AppFonts.md,
               color: text == "Select Date" ? Colors.grey : Colors.black,
             ),
           ),
@@ -478,7 +504,7 @@ class _RequestScreenState extends State<RequestScreen> {
             ),
             Text(
               title,
-              style: const TextStyle(fontSize: 15),
+              style: TextStyle(fontSize: AppFonts.md),
             ),
           ],
         ),

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
+import 'package:permission_system/app_fonts.dart';
 
 class StaffHomeScreen extends StatefulWidget {
   const StaffHomeScreen({super.key});
@@ -228,9 +229,13 @@ class _HeaderSection extends StatelessWidget {
         children: [
           _UserHeader(userName: userName, isLoading: isLoading),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Your Leave Balance',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: AppFonts.md,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 12),
           Row(
@@ -303,26 +308,26 @@ class _BalanceCard extends StatelessWidget {
           children: [
             Text(
               count,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 24,
+                fontSize: AppFonts.md,
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               type,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white70,
-                fontSize: 10,
+                fontSize: AppFonts.md,
               ),
             ),
             if (total.isNotEmpty)
               Text(
                 total,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white54,
-                  fontSize: 10,
+                  fontSize: AppFonts.md,
                 ),
               ),
           ],
@@ -354,17 +359,17 @@ class _BalanceCardSmall extends StatelessWidget {
           children: [
             Text(
               count,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: AppFonts.md,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               type,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white70,
-                fontSize: 10,
+                fontSize: AppFonts.md,
               ),
             ),
           ],
@@ -412,16 +417,19 @@ class _UserHeader extends StatelessWidget {
               else
                 Text(
                   userName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: AppFonts.md,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Staff',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: AppFonts.md,
+                ),
               ),
             ],
           ),
@@ -451,10 +459,13 @@ class _LeaveStatusSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Center(
+          Center(
             child: Text(
               'Leave Status',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -464,7 +475,7 @@ class _LeaveStatusSection extends StatelessWidget {
                 padding: EdgeInsets.all(32),
                 child: Text(
                   'No leave requests yet',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Colors.grey, fontSize: AppFonts.md),
                 ),
               ),
             )
@@ -486,9 +497,12 @@ class _LeaveStatusSection extends StatelessWidget {
                 foregroundColor: const Color(0xFF173B69),
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
-              child: const Text(
+              child: Text(
                 'See More',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: AppFonts.md,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -542,17 +556,17 @@ class LeaveStatusCard extends StatelessWidget {
               children: [
                 Text(
                   month,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Color(0xFF173B69),
+                    fontSize: AppFonts.md,
+                    color: const Color(0xFF173B69),
                   ),
                 ),
                 Text(
                   date,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF173B69),
+                  style: TextStyle(
+                    fontSize: AppFonts.md,
+                    color: const Color(0xFF173B69),
                   ),
                 ),
               ],
@@ -562,7 +576,10 @@ class LeaveStatusCard extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Container(
@@ -576,7 +593,7 @@ class LeaveStatusCard extends StatelessWidget {
               style: TextStyle(
                 color: statusColor,
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
+                fontSize: AppFonts.md,
               ),
             ),
           ),
