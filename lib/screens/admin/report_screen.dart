@@ -6,7 +6,7 @@ import 'package:excel/excel.dart' as excel;
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:open_file/open_file.dart';
-import '../../app_fonts.dart'; // ✅ added
+import '../../app_fonts.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -20,10 +20,10 @@ class _ReportScreenState extends State<ReportScreen> {
   DateTime _selectedDate = DateTime.now();
   bool _isLoading = false;
   List<Map<String, dynamic>> _reportData = [];
-  List<Map<String, dynamic>> _allReportData = []; // Store all data
+  List<Map<String, dynamic>> _allReportData = [];
   Map<String, dynamic> _summary = {};
   String _filterStatus = 'all';
-  String _searchName = ''; // Search by name
+  String _searchName = '';
   final TextEditingController _searchController = TextEditingController();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -107,7 +107,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
       setState(() {
         _allReportData = data;
-        _applyFilters(); // Apply filters
+        _applyFilters();
         _isLoading = false;
       });
     } catch (e) {
@@ -121,11 +121,9 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  // Apply filters
   void _applyFilters() {
     List<Map<String, dynamic>> filtered = List.from(_allReportData);
 
-    // Filter by name
     if (_searchName.isNotEmpty) {
       final query = _searchName.toLowerCase().trim();
       filtered = filtered.where((item) {
@@ -294,332 +292,360 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Reports',
-          style: TextStyle(fontSize: AppFonts.md), // ✅
-        ),
-        backgroundColor: const Color(0xFF173B69),
-        foregroundColor: Colors.white,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.file_download),
-            onPressed: _exportToExcel,
-            tooltip: 'Export to Excel',
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(
+      backgroundColor: const Color(0xFFF7F8FA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ---------- Custom header (matches your snippet) ----------
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+              decoration: const BoxDecoration(
+                color: Color(0xFF173B69),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
                 children: [
-                  // Filter Section
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    color: Colors.grey[100],
-                    child: Column(
-                      children: [
-                        // Row 1: Report Type & Date
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                value: _selectedReportType,
-                                decoration: InputDecoration(
-                                  labelText: 'Report Type',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                ),
-                                items: const [
-                                  DropdownMenuItem(value: 'daily', child: Text('📅 Daily')),
-                                  DropdownMenuItem(value: 'monthly', child: Text('📆 Monthly')),
-                                  DropdownMenuItem(value: 'yearly', child: Text('📊 Yearly')),
-                                ],
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    setState(() {
-                                      _selectedReportType = value;
-                                    });
-                                    _loadReport();
-                                  }
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              height: 56,
-                              child: ElevatedButton.icon(
-                                onPressed: _selectDate,
-                                icon: const Icon(Icons.calendar_today),
-                                label: Text(
-                                  _getDateLabel(),
-                                  style: const TextStyle(fontSize: AppFonts.md), // ✅
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF173B69),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                ),
-                              ),
-                            ),
-                          ],
+                  const SizedBox(width: 48), // spacer to balance center
+                  const Expanded(
+                    child: Center(
+                      child: Text(
+                        "Reports",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppFonts.md,
                         ),
-                        const SizedBox(height: 8),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _exportToExcel,
+                    icon: const Icon(Icons.file_download, color: Colors.white),
+                    tooltip: 'Export to Excel',
+                  ),
+                ],
+              ),
+            ),
 
-                        // Row 2: Status Filter
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                value: _filterStatus,
-                                decoration: InputDecoration(
-                                  labelText: 'Status Filter',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
+            // ---------- The rest of your original body (unchanged) ----------
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // Filter Section
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+                            color: Colors.grey[100],
+                            child: Column(
+                              children: [
+                                // Row 1: Report Type & Date
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: DropdownButtonFormField<String>(
+                                        value: _selectedReportType,
+                                        decoration: InputDecoration(
+                                          labelText: 'Report Type',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                        ),
+                                        items: const [
+                                          DropdownMenuItem(value: 'daily', child: Text('📅 Daily')),
+                                          DropdownMenuItem(value: 'monthly', child: Text('📆 Monthly')),
+                                          DropdownMenuItem(value: 'yearly', child: Text('📊 Yearly')),
+                                        ],
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            setState(() {
+                                              _selectedReportType = value;
+                                            });
+                                            _loadReport();
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    SizedBox(
+                                      height: 56,
+                                      child: ElevatedButton.icon(
+                                        onPressed: _selectDate,
+                                        icon: const Icon(Icons.calendar_today),
+                                        label: Text(
+                                          _getDateLabel(),
+                                          style: const TextStyle(fontSize: AppFonts.md),
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF173B69),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                items: const [
-                                  DropdownMenuItem(value: 'all', child: Text('All')),
-                                  DropdownMenuItem(value: 'pending', child: Text('⏳ Pending')),
-                                  DropdownMenuItem(value: 'approved', child: Text('✅ Approved')),
-                                  DropdownMenuItem(value: 'auto_approved', child: Text('🤖 Auto Approved')),
-                                  DropdownMenuItem(value: 'rejected', child: Text('❌ Rejected')),
-                                ],
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    setState(() {
-                                      _filterStatus = value;
-                                    });
-                                    _loadReport();
-                                  }
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
+                                const SizedBox(height: 8),
 
-                        // Row 3: Search by Name
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _searchName = value;
-                                  });
-                                  _applyFilters(); // Apply filters when typing
-                                },
-                                decoration: InputDecoration(
-                                  hintText: '🔍 Search by name or email...',
-                                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  suffixIcon: _searchName.isNotEmpty
-                                      ? IconButton(
-                                          icon: const Icon(Icons.clear, size: 18),
+                                // Row 2: Status Filter
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: DropdownButtonFormField<String>(
+                                        value: _filterStatus,
+                                        decoration: InputDecoration(
+                                          labelText: 'Status Filter',
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                        ),
+                                        items: const [
+                                          DropdownMenuItem(value: 'all', child: Text('All')),
+                                          DropdownMenuItem(value: 'pending', child: Text('⏳ Pending')),
+                                          DropdownMenuItem(value: 'approved', child: Text('✅ Approved')),
+                                          DropdownMenuItem(value: 'auto_approved', child: Text('🤖 Auto Approved')),
+                                          DropdownMenuItem(value: 'rejected', child: Text('❌ Rejected')),
+                                        ],
+                                        onChanged: (value) {
+                                          if (value != null) {
+                                            setState(() {
+                                              _filterStatus = value;
+                                            });
+                                            _loadReport();
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+
+                                // Row 3: Search by Name
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: _searchController,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _searchName = value;
+                                          });
+                                          _applyFilters();
+                                        },
+                                        decoration: InputDecoration(
+                                          hintText: '🔍 Search by name or email...',
+                                          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          suffixIcon: _searchName.isNotEmpty
+                                              ? IconButton(
+                                                  icon: const Icon(Icons.clear, size: 18),
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _searchName = '';
+                                                      _searchController.clear();
+                                                    });
+                                                    _applyFilters();
+                                                  },
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    if (_searchName.isNotEmpty || _filterStatus != 'all')
+                                      SizedBox(
+                                        height: 56,
+                                        child: ElevatedButton(
                                           onPressed: () {
                                             setState(() {
                                               _searchName = '';
                                               _searchController.clear();
+                                              _filterStatus = 'all';
                                             });
-                                            _applyFilters();
+                                            _loadReport();
                                           },
-                                        )
-                                      : null,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.red.shade50,
+                                            foregroundColor: Colors.red.shade700,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(10),
+                                              side: BorderSide(color: Colors.red.shade200),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Clear Filters',
+                                            style: TextStyle(fontSize: AppFonts.md),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
+                              ],
+                            ),
+                          ),
+
+                          // Summary Cards
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            child: SizedBox(
+                              height: 80,
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  _buildSummaryCard(
+                                    label: 'Total',
+                                    value: _summary['total']?.toString() ?? '0',
+                                    color: const Color(0xFF173B69),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildSummaryCard(
+                                    label: 'Pending',
+                                    value: _summary['pending']?.toString() ?? '0',
+                                    color: Colors.orange,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildSummaryCard(
+                                    label: 'Approved',
+                                    value: _summary['approved']?.toString() ?? '0',
+                                    color: Colors.green,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _buildSummaryCard(
+                                    label: 'Rejected',
+                                    value: _summary['rejected']?.toString() ?? '0',
+                                    color: Colors.red,
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            // Clear Filter Button
-                            if (_searchName.isNotEmpty || _filterStatus != 'all')
-                              SizedBox(
-                                height: 56,
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _searchName = '';
-                                      _searchController.clear();
-                                      _filterStatus = 'all';
-                                    });
-                                    _loadReport();
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red.shade50,
-                                    foregroundColor: Colors.red.shade700,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      side: BorderSide(color: Colors.red.shade200),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Clear Filters',
-                                    style: TextStyle(fontSize: AppFonts.md), // ✅
+                          ),
+
+                          // Total Days Card
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.calendar_today, color: Colors.purple),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Total Days: ${_summary['totalDays'] ?? 0}',
+                                  style: const TextStyle(
+                                    fontSize: AppFonts.md,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.purple,
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                                const SizedBox(width: 16),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.purple.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${_summary['autoApproved'] ?? 0} Auto',
+                                    style: const TextStyle(
+                                      fontSize: AppFonts.md,
+                                      color: Colors.purple,
+                                    ),
+                                  ),
+                                ),
+                                if (_searchName.isNotEmpty)
+                                  const SizedBox(width: 16),
+                                if (_searchName.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '🔍 $_searchName',
+                                      style: const TextStyle(
+                                        fontSize: AppFonts.md,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
 
-                  // Summary Cards
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    child: SizedBox(
-                      height: 80,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          _buildSummaryCard(
-                            label: 'Total',
-                            value: _summary['total']?.toString() ?? '0',
-                            color: const Color(0xFF173B69),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildSummaryCard(
-                            label: 'Pending',
-                            value: _summary['pending']?.toString() ?? '0',
-                            color: Colors.orange,
-                          ),
-                          const SizedBox(width: 8),
-                          _buildSummaryCard(
-                            label: 'Approved',
-                            value: _summary['approved']?.toString() ?? '0',
-                            color: Colors.green,
-                          ),
-                          const SizedBox(width: 8),
-                          _buildSummaryCard(
-                            label: 'Rejected',
-                            value: _summary['rejected']?.toString() ?? '0',
-                            color: Colors.red,
-                          ),
+                          const SizedBox(height: 12),
+
+                          // List of Reports
+                          _reportData.isEmpty
+                              ? Padding(
+                                  padding: const EdgeInsets.all(40),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        _searchName.isNotEmpty
+                                            ? Icons.search_off
+                                            : Icons.inbox,
+                                        size: 64,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        _searchName.isNotEmpty
+                                            ? 'No results found for "$_searchName"'
+                                            : 'No data found',
+                                        style: const TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: AppFonts.md,
+                                        ),
+                                      ),
+                                      if (_searchName.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Try searching with a different name',
+                                          style: TextStyle(
+                                            color: Colors.grey[500],
+                                            fontSize: AppFonts.md,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                )
+                              : ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  itemCount: _reportData.length,
+                                  itemBuilder: (context, index) {
+                                    final r = _reportData[index];
+                                    return _ReportCard(data: r);
+                                  },
+                                ),
                         ],
                       ),
                     ),
-                  ),
-
-                  // Total Days Card
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 12),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.purple.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.calendar_today, color: Colors.purple),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Total Days: ${_summary['totalDays'] ?? 0}',
-                          style: const TextStyle(
-                            fontSize: AppFonts.md, // ✅
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.purple.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${_summary['autoApproved'] ?? 0} Auto',
-                            style: const TextStyle(
-                              fontSize: AppFonts.md, // ✅
-                              color: Colors.purple,
-                            ),
-                          ),
-                        ),
-                        if (_searchName.isNotEmpty)
-                          const SizedBox(width: 16),
-                        if (_searchName.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '🔍 $_searchName',
-                              style: const TextStyle(
-                                fontSize: AppFonts.md, // ✅
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // List of Reports
-                  _reportData.isEmpty
-                      ? Padding(
-                          padding: const EdgeInsets.all(40),
-                          child: Column(
-                            children: [
-                              Icon(
-                                _searchName.isNotEmpty
-                                    ? Icons.search_off
-                                    : Icons.inbox,
-                                size: 64,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                _searchName.isNotEmpty
-                                    ? 'No results found for "$_searchName"'
-                                    : 'No data found',
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: AppFonts.md, // ✅
-                                ),
-                              ),
-                              if (_searchName.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Try searching with a different name',
-                                  style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontSize: AppFonts.md, // ✅
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          itemCount: _reportData.length,
-                          itemBuilder: (context, index) {
-                            final r = _reportData[index];
-                            return _ReportCard(data: r);
-                          },
-                        ),
-                ],
-              ),
             ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -642,7 +668,7 @@ class _ReportScreenState extends State<ReportScreen> {
           Text(
             value,
             style: TextStyle(
-              fontSize: AppFonts.md, // ✅
+              fontSize: AppFonts.md,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -650,7 +676,7 @@ class _ReportScreenState extends State<ReportScreen> {
           Text(
             label,
             style: TextStyle(
-              fontSize: AppFonts.md, // ✅
+              fontSize: AppFonts.md,
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
@@ -695,7 +721,7 @@ class _ReportCard extends StatelessWidget {
                   child: Text(
                     data['userName'],
                     style: const TextStyle(
-                      fontSize: AppFonts.md, // ✅
+                      fontSize: AppFonts.md,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -711,7 +737,7 @@ class _ReportCard extends StatelessWidget {
                     style: TextStyle(
                       color: _statusColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: AppFonts.md, // ✅
+                      fontSize: AppFonts.md,
                     ),
                   ),
                 ),
@@ -721,7 +747,7 @@ class _ReportCard extends StatelessWidget {
             Text(
               data['userEmail'],
               style: TextStyle(
-                fontSize: AppFonts.md, // ✅
+                fontSize: AppFonts.md,
                 color: Colors.grey[600],
               ),
             ),
@@ -733,7 +759,7 @@ class _ReportCard extends StatelessWidget {
                 Text(
                   '${data['startDate']} → ${data['endDate']}',
                   style: TextStyle(
-                    fontSize: AppFonts.md, // ✅
+                    fontSize: AppFonts.md,
                     color: Colors.grey[700],
                   ),
                 ),
@@ -748,7 +774,7 @@ class _ReportCard extends StatelessWidget {
                   child: Text(
                     data['reason'],
                     style: TextStyle(
-                      fontSize: AppFonts.md, // ✅
+                      fontSize: AppFonts.md,
                       color: Colors.grey[700],
                     ),
                     maxLines: 2,
@@ -764,7 +790,7 @@ class _ReportCard extends StatelessWidget {
                   child: Text(
                     '${data['totalDays']} days',
                     style: const TextStyle(
-                      fontSize: AppFonts.md, // ✅
+                      fontSize: AppFonts.md,
                       fontWeight: FontWeight.bold,
                       color: Colors.blue,
                     ),
@@ -786,7 +812,7 @@ class _ReportCard extends StatelessWidget {
                   child: Text(
                     data['autoApproved'] ? '🤖 Auto' : '👤 Manual',
                     style: TextStyle(
-                      fontSize: AppFonts.md, // ✅
+                      fontSize: AppFonts.md,
                       color: data['autoApproved'] ? Colors.purple : Colors.orange,
                     ),
                   ),
@@ -795,7 +821,7 @@ class _ReportCard extends StatelessWidget {
                 Text(
                   '#${data['requestNumber']}',
                   style: TextStyle(
-                    fontSize: AppFonts.md, // ✅
+                    fontSize: AppFonts.md,
                     color: Colors.grey[500],
                   ),
                 ),
@@ -803,7 +829,7 @@ class _ReportCard extends StatelessWidget {
                 Text(
                   DateFormat('dd/MM/yyyy HH:mm').format(data['createdAt']),
                   style: TextStyle(
-                    fontSize: AppFonts.md, // ✅
+                    fontSize: AppFonts.md,
                     color: Colors.grey[500],
                   ),
                 ),
@@ -815,7 +841,7 @@ class _ReportCard extends StatelessWidget {
                 child: Text(
                   '⚠️ ${data['rejectionReason']}',
                   style: TextStyle(
-                    fontSize: AppFonts.md, // ✅
+                    fontSize: AppFonts.md,
                     color: Colors.red[700],
                   ),
                 ),
@@ -826,7 +852,7 @@ class _ReportCard extends StatelessWidget {
                 child: Text(
                   '✅ Approved by: ${data['approvedByName']}',
                   style: TextStyle(
-                    fontSize: AppFonts.md, // ✅
+                    fontSize: AppFonts.md,
                     color: Colors.green[700],
                   ),
                 ),

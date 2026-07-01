@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../app_fonts.dart'; 
+import '../../app_fonts.dart';
 import '../../services/request_service.dart';
 import '../../services/user_service.dart';
 import '../staff/notifications_screen.dart';
@@ -30,7 +30,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _totalRequests = 0;
   int _approvedToday = 0;
   int _rejectedToday = 0;
-  
+
   int _unreadCount = 0;
   Stream<QuerySnapshot>? _notificationStream;
 
@@ -42,18 +42,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Future<void> _checkAuthAndLoad() async {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     if (user == null) {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/login');
       }
       return;
     }
-    
+
     setState(() {
       adminId = user.uid;
     });
-    
+
     await _loadAdminData();
     await _loadStats();
     _loadNotificationStream();
@@ -66,7 +66,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           .where('userId', isEqualTo: adminId)
           .where('isRead', isEqualTo: false)
           .snapshots();
-      
+
       _notificationStream?.listen((snapshot) {
         if (mounted) {
           setState(() {
@@ -79,14 +79,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Future<void> _refreshUnreadCount() async {
     if (adminId.isEmpty) return;
-    
+
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('notifications')
           .where('userId', isEqualTo: adminId)
           .where('isRead', isEqualTo: false)
           .get();
-      
+
       if (mounted) {
         setState(() {
           _unreadCount = snapshot.docs.length;
@@ -99,7 +99,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Future<void> _loadAdminData() async {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     if (user != null) {
       try {
         final querySnapshot = await FirebaseFirestore.instance
@@ -107,7 +107,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             .where('userId', isEqualTo: user.uid)
             .limit(1)
             .get();
-        
+
         if (querySnapshot.docs.isNotEmpty) {
           final data = querySnapshot.docs.first.data() as Map<String, dynamic>;
           if (mounted) {
@@ -148,7 +148,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     try {
       final userStats = await _userService.getUserStats();
       _totalUsers = userStats['total'] ?? 0;
-      
+
       try {
         final pendingSnapshot = await FirebaseFirestore.instance
             .collection('leave_requests')
@@ -158,7 +158,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       } catch (e) {
         _pendingRequests = 0;
       }
-      
+
       try {
         final totalSnapshot = await FirebaseFirestore.instance
             .collection('leave_requests')
@@ -167,12 +167,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       } catch (e) {
         _totalRequests = 0;
       }
-      
+
       try {
         final now = DateTime.now();
         final startOfDay = DateTime(now.year, now.month, now.day, 0, 0, 0);
         final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        
+
         final todaySnapshot = await FirebaseFirestore.instance
             .collection('leave_requests')
             .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
@@ -182,12 +182,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       } catch (e) {
         _todayRequests = 0;
       }
-      
+
       try {
         final now = DateTime.now();
         final startOfDay = DateTime(now.year, now.month, now.day, 0, 0, 0);
         final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        
+
         final approvedTodaySnapshot = await FirebaseFirestore.instance
             .collection('leave_requests')
             .where('status', isEqualTo: 'approved')
@@ -198,12 +198,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       } catch (e) {
         _approvedToday = 0;
       }
-      
+
       try {
         final now = DateTime.now();
         final startOfDay = DateTime(now.year, now.month, now.day, 0, 0, 0);
         final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
-        
+
         final rejectedTodaySnapshot = await FirebaseFirestore.instance
             .collection('leave_requests')
             .where('status', isEqualTo: 'rejected')
@@ -214,7 +214,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       } catch (e) {
         _rejectedToday = 0;
       }
-      
+
       if (mounted) {
         setState(() {
           _stats = {
@@ -264,7 +264,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 Text(
                   'Error',
                   style: TextStyle(
-                    fontSize: AppFonts.md, // ✅
+                    fontSize: AppFonts.md,
                     fontWeight: FontWeight.bold,
                     color: Colors.red[700],
                   ),
@@ -273,7 +273,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 Text(
                   errorMessage!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: AppFonts.md), // ✅
+                  style: const TextStyle(fontSize: AppFonts.md),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -296,29 +296,48 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            await _loadStats();
-            await _refreshUnreadCount();
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _AdminUserHeader(
-                  adminName: adminName, 
-                  isLoading: isLoading,
-                  unreadCount: _unreadCount,
-                  onNotificationPressed: _refreshUnreadCount,
+        child: Column(
+          children: [
+            // ---------- Fixed header with background ----------
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              decoration: const BoxDecoration(
+                color: Color(0xFF173B69),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
                 ),
-                const SizedBox(height: 24),
-                _buildStatsGrid(),
-                const SizedBox(height: 20),
-              ],
+              ),
+              child: _AdminUserHeader(
+                adminName: adminName,
+                isLoading: isLoading,
+                unreadCount: _unreadCount,
+                onNotificationPressed: _refreshUnreadCount,
+                useWhiteTheme: true, // tell header to use white text/icons
+              ),
             ),
-          ),
+            // ---------- Scrollable content ----------
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await _loadStats();
+                  await _refreshUnreadCount();
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildStatsGrid(),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -409,7 +428,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             Text(
               value,
               style: TextStyle(
-                fontSize: AppFonts.md, // ✅
+                fontSize: AppFonts.md,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -418,7 +437,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             Text(
               label,
               style: TextStyle(
-                fontSize: AppFonts.md, // ✅
+                fontSize: AppFonts.md,
                 color: Colors.grey[600],
               ),
               textAlign: TextAlign.center,
@@ -466,16 +485,24 @@ class _AdminUserHeader extends StatelessWidget {
   final bool isLoading;
   final int unreadCount;
   final VoidCallback? onNotificationPressed;
+  final bool useWhiteTheme; // new flag
 
   const _AdminUserHeader({
-    required this.adminName, 
+    required this.adminName,
     required this.isLoading,
     this.unreadCount = 0,
     this.onNotificationPressed,
+    this.useWhiteTheme = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final textColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
+    final subTextColor = useWhiteTheme ? Colors.white70 : Colors.grey;
+    final iconColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
+    final avatarBg = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
+    final avatarIcon = useWhiteTheme ? const Color(0xFF173B69) : Colors.white;
+
     return Row(
       children: [
         GestureDetector(
@@ -483,10 +510,10 @@ class _AdminUserHeader extends StatelessWidget {
             context,
             MaterialPageRoute(builder: (context) => const ProfileScreen()),
           ),
-          child: const CircleAvatar(
+          child: CircleAvatar(
             radius: 40,
-            backgroundColor: Color(0xFF173B69),
-            child: Icon(Icons.admin_panel_settings, size: 40, color: Colors.white),
+            backgroundColor: avatarBg,
+            child: Icon(Icons.admin_panel_settings, size: 40, color: avatarIcon),
           ),
         ),
         const SizedBox(width: 16),
@@ -500,24 +527,24 @@ class _AdminUserHeader extends StatelessWidget {
                   width: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Color(0xFF173B69),
+                    color: Colors.white,
                   ),
                 )
               else
                 Text(
                   adminName,
-                  style: const TextStyle(
-                    color: Color(0xFF173B69),
-                    fontSize: AppFonts.md, // ✅
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: AppFonts.md,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Administrator',
                 style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: AppFonts.md, // ✅
+                  color: subTextColor,
+                  fontSize: AppFonts.md,
                 ),
               ),
             ],
@@ -537,9 +564,9 @@ class _AdminUserHeader extends StatelessWidget {
                   onNotificationPressed!();
                 }
               },
-              icon: const Icon(
+              icon: Icon(
                 Icons.notifications_none,
-                color: Color(0xFF173B69),
+                color: iconColor,
                 size: 28,
               ),
             ),
@@ -561,7 +588,7 @@ class _AdminUserHeader extends StatelessWidget {
                     unreadCount > 99 ? '99+' : unreadCount.toString(),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: AppFonts.md, // ✅
+                      fontSize: AppFonts.md,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -593,8 +620,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
   List<Map<String, dynamic>> _items = [];
   bool _isLoading = true;
   String? _error;
-  
-  // Cache for user data to avoid multiple Firestore calls
+
   final Map<String, Map<String, dynamic>> _userCache = {};
 
   @override
@@ -646,7 +672,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     }
   }
 
-  // Function to get user data
   Future<Map<String, dynamic>> _getUserData(String userId) async {
     if (_userCache.containsKey(userId)) {
       return _userCache[userId]!;
@@ -672,7 +697,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
           'phone': data['phone'] ?? 'N/A',
         };
       }
-      
+
       _userCache[userId] = userData;
       return userData;
     } catch (e) {
@@ -692,23 +717,22 @@ class _DetailListScreenState extends State<_DetailListScreen> {
   Future<void> _loadRequests({String? status}) async {
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance
         .collection('leave_requests');
-    
+
     if (status != null) {
       query = query.where('status', isEqualTo: status);
     }
-    
+
     query = query.orderBy('createdAt', descending: true);
     final snapshot = await query.get();
 
     List<Map<String, dynamic>> items = [];
-    
+
     for (var doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
       final userId = data['userId'] ?? '';
-      
-      // Get user data with department
+
       final userData = await _getUserData(userId);
-      
+
       items.add({
         'id': doc.id,
         'userId': userId,
@@ -718,7 +742,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         'startDate': data['startDate'],
         'endDate': data['endDate'],
         'createdAt': data['createdAt'],
-        // Add user details
         'fullName': userData['fullName'] ?? data['userName'] ?? 'Unknown',
         'email': userData['email'] ?? 'N/A',
         'department': userData['department'] ?? 'N/A',
@@ -752,14 +775,13 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     final snapshot = await query.get();
 
     List<Map<String, dynamic>> items = [];
-    
+
     for (var doc in snapshot.docs) {
       final data = doc.data() as Map<String, dynamic>;
       final userId = data['userId'] ?? '';
-      
-      // Get user data with department
+
       final userData = await _getUserData(userId);
-      
+
       items.add({
         'id': doc.id,
         'userId': userId,
@@ -769,7 +791,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         'startDate': data['startDate'],
         'endDate': data['endDate'],
         'createdAt': data['createdAt'],
-        // Add user details
         'fullName': userData['fullName'] ?? data['userName'] ?? 'Unknown',
         'email': userData['email'] ?? 'N/A',
         'department': userData['department'] ?? 'N/A',
@@ -804,23 +825,35 @@ class _DetailListScreenState extends State<_DetailListScreen> {
 
   Color _getColor() {
     switch (widget.type) {
-      case 'pending': return Colors.orange;
-      case 'today': return Colors.blue;
-      case 'total': return Colors.green;
-      case 'approved': return Colors.purple;
-      case 'rejected': return Colors.red;
-      default: return Colors.blue;
+      case 'pending':
+        return Colors.orange;
+      case 'today':
+        return Colors.blue;
+      case 'total':
+        return Colors.green;
+      case 'approved':
+        return Colors.purple;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.blue;
     }
   }
 
   IconData _getIcon() {
     switch (widget.type) {
-      case 'pending': return Icons.pending_actions;
-      case 'today': return Icons.today;
-      case 'total': return Icons.assignment;
-      case 'approved': return Icons.check_circle;
-      case 'rejected': return Icons.cancel;
-      default: return Icons.info;
+      case 'pending':
+        return Icons.pending_actions;
+      case 'today':
+        return Icons.today;
+      case 'total':
+        return Icons.assignment;
+      case 'approved':
+        return Icons.check_circle;
+      case 'rejected':
+        return Icons.cancel;
+      default:
+        return Icons.info;
     }
   }
 
@@ -851,42 +884,57 @@ class _DetailListScreenState extends State<_DetailListScreen> {
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'approved': return Colors.green;
-      case 'rejected': return Colors.red;
+      case 'approved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
       case 'pending':
-      default: return Colors.orange;
+      default:
+        return Colors.orange;
     }
   }
 
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
-      case 'approved': return Icons.check_circle;
-      case 'rejected': return Icons.cancel;
+      case 'approved':
+        return Icons.check_circle;
+      case 'rejected':
+        return Icons.cancel;
       case 'pending':
-      default: return Icons.pending;
+      default:
+        return Icons.pending;
     }
   }
 
-  // ============ ROLE HELPER METHODS ============
   Color _getRoleColor(String role) {
     final roleLower = role.toLowerCase();
     switch (roleLower) {
-      case 'admin': return Colors.purple;
-      case 'manager': return Colors.orange;
-      case 'staff': return Colors.green;
-      case 'employee': return Colors.blue;
-      default: return Colors.grey;
+      case 'admin':
+        return Colors.purple;
+      case 'manager':
+        return Colors.orange;
+      case 'staff':
+        return Colors.green;
+      case 'employee':
+        return Colors.blue;
+      default:
+        return Colors.grey;
     }
   }
 
   String _getRoleName(String role) {
     final roleLower = role.toLowerCase();
     switch (roleLower) {
-      case 'admin': return 'Admin';           // ✅ was អ្នកគ្រប់គ្រងប្រព័ន្ធ
-      case 'manager': return 'Manager';       // ✅ was អ្នកគ្រប់គ្រង
-      case 'staff': return 'Staff';           // ✅ was បុគ្គលិក
-      case 'employee': return 'Employee';     // ✅ was បុគ្គលិក
-      default: return role;
+      case 'admin':
+        return 'Admin';
+      case 'manager':
+        return 'Manager';
+      case 'staff':
+        return 'Staff';
+      case 'employee':
+        return 'Employee';
+      default:
+        return role;
     }
   }
 
@@ -896,7 +944,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
       appBar: AppBar(
         title: Text(
           _getTitle(),
-          style: const TextStyle(fontSize: AppFonts.md), // ✅
+          style: const TextStyle(fontSize: AppFonts.md),
         ),
         backgroundColor: _getColor(),
         foregroundColor: Colors.white,
@@ -919,7 +967,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                       Text(
                         _error!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: AppFonts.md), // ✅
+                        style: const TextStyle(fontSize: AppFonts.md),
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
@@ -937,9 +985,9 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                           Icon(_getIcon(), size: 64, color: Colors.grey[400]),
                           const SizedBox(height: 16),
                           Text(
-                            'No Data', // ✅ was គ្មានទិន្នន័យ
+                            'No Data',
                             style: TextStyle(
-                              fontSize: AppFonts.md, // ✅
+                              fontSize: AppFonts.md,
                               color: Colors.grey[600],
                             ),
                           ),
@@ -974,13 +1022,12 @@ class _DetailListScreenState extends State<_DetailListScreen> {
           item['fullName'] ?? item['userName'] ?? 'Unknown User',
           style: const TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: AppFonts.md, // ✅
+            fontSize: AppFonts.md,
           ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Show Department
             if (item['department'] != null && item['department'] != 'N/A')
               Row(
                 children: [
@@ -988,28 +1035,27 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                   const SizedBox(width: 4),
                   Text(
                     'Department: ${item['department']}',
-                    style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[700]), // ✅
+                    style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[700]),
                   ),
                 ],
               ),
             Text(
               'Reason: ${item['reason'] ?? 'No reason'}',
-              style: const TextStyle(fontSize: AppFonts.md), // ✅
+              style: const TextStyle(fontSize: AppFonts.md),
             ),
             Text(
               '${_formatDate(item['startDate'])} - ${_formatDate(item['endDate'])}',
-              style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[600]), // ✅
+              style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[600]),
             ),
             Text(
               'Requested: ${_formatDateTime(item['createdAt'])}',
-              style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[500]), // ✅
+              style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[500]),
             ),
           ],
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Status badge
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
@@ -1020,12 +1066,11 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                 item['status']?.toString().toUpperCase() ?? 'PENDING',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: AppFonts.md, // ✅
+                  fontSize: AppFonts.md,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            // Role badge
             const SizedBox(width: 4),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1041,7 +1086,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                 _getRoleName(item['role'] ?? 'user'),
                 style: TextStyle(
                   color: _getRoleColor(item['role'] ?? 'user'),
-                  fontSize: AppFonts.md, // ✅
+                  fontSize: AppFonts.md,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1070,7 +1115,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                 'Request Detail',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: AppFonts.md, // ✅
+                  fontSize: AppFonts.md,
                 ),
               ),
             ),
@@ -1082,14 +1127,13 @@ class _DetailListScreenState extends State<_DetailListScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Divider(),
-              // User Information Section
               _buildSectionHeader('👤 User Information'),
               _buildDetailRow('Full Name', request['fullName'] ?? request['userName'] ?? 'N/A'),
               _buildDetailRow('Email', request['email'] ?? 'N/A'),
               _buildDetailRow('Phone', request['phone'] ?? 'N/A'),
               _buildDetailRow('Role', _getRoleName(request['role'] ?? 'user')),
               _buildDetailRow('Department', request['department'] ?? 'N/A'),
-              
+
               const SizedBox(height: 12),
               _buildSectionHeader('📋 Request Information'),
               _buildDetailRow('Status', request['status']?.toString().toUpperCase() ?? 'PENDING'),
@@ -1097,7 +1141,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
               _buildDetailRow('Start Date', _formatDate(request['startDate'])),
               _buildDetailRow('End Date', _formatDate(request['endDate'])),
               _buildDetailRow('Requested', _formatDateTime(request['createdAt'])),
-              
+
               const SizedBox(height: 12),
               _buildSectionHeader('🔑 System Information'),
               _buildDetailRow('User ID', request['userId'] ?? 'N/A'),
@@ -1123,7 +1167,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         title,
         style: TextStyle(
           fontWeight: FontWeight.bold,
-          fontSize: AppFonts.md, // ✅
+          fontSize: AppFonts.md,
           color: Colors.grey[700],
         ),
       ),
@@ -1143,14 +1187,14 @@ class _DetailListScreenState extends State<_DetailListScreen> {
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.grey,
-                fontSize: AppFonts.md, // ✅
+                fontSize: AppFonts.md,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: AppFonts.md), // ✅
+              style: const TextStyle(fontSize: AppFonts.md),
             ),
           ),
         ],

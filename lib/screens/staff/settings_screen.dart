@@ -1,3 +1,4 @@
+// lib/screens/staff/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../app_fonts.dart';
@@ -12,12 +13,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final Color primary = const Color(0xFF1A3B68);
 
-  // Removed Logout from the list
+  // ✅ Removed Notifications from the list
   final List<SettingsItem> _allItems = const [
-    SettingsItem(
-      icon: Icons.notifications_none,
-      title: 'Notifications',
-    ),
     SettingsItem(
       icon: Icons.description,
       title: 'Terms & Conditions',
@@ -83,13 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         trailing:
             const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
         onTap: () {
-          if (title == 'Notifications') {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const NotificationsScreen()),
-            );
-          } else if (title == 'About App') {
+          if (title == 'About App') {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const AboutScreen()),
@@ -119,81 +110,6 @@ class SettingsItem {
     required this.icon,
     required this.title,
   });
-}
-
-// ===================== NOTIFICATIONS SCREEN =====================
-class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Notifications',
-          style: TextStyle(fontSize: AppFonts.md, color: Colors.white),
-        ),
-        backgroundColor: const Color(0xFF173B69),
-        foregroundColor: Colors.white,
-      ),
-      body: ListView(
-        children: const [
-          NotificationItem(
-            title: 'Leave request approved',
-            message: 'Your vacation request has been approved.',
-            time: '2 hours ago',
-          ),
-          NotificationItem(
-            title: 'Holiday reminder',
-            message: 'Office will be closed on Friday for Pchum Ben.',
-            time: 'Yesterday',
-          ),
-          NotificationItem(
-            title: 'Leave balance updated',
-            message: 'Your annual leave balance is now 12 days.',
-            time: '3 days ago',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class NotificationItem extends StatelessWidget {
-  final String title;
-  final String message;
-  final String time;
-
-  const NotificationItem({
-    super.key,
-    required this.title,
-    required this.message,
-    required this.time,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: ListTile(
-        leading:
-            const Icon(Icons.notifications_active, color: Color(0xFF173B69)),
-        title: Text(
-          title,
-          style: TextStyle(fontSize: AppFonts.md),
-        ),
-        subtitle: Text(
-          message,
-          style: TextStyle(fontSize: AppFonts.md),
-        ),
-        trailing: Text(
-          time,
-          style: TextStyle(fontSize: AppFonts.md, color: Colors.grey),
-        ),
-        isThreeLine: true,
-      ),
-    );
-  }
 }
 
 // ===================== ABOUT SCREEN =====================

@@ -2,8 +2,7 @@
 import 'package:flutter/material.dart';
 import 'user_management_screen.dart';
 import 'policy_screen.dart';
-import '../../app_fonts.dart'; // ✅ added
-
+import '../../app_fonts.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -19,76 +18,101 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
-      appBar: AppBar(
-        title: const Text(
-          "Admin Settings",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            // optional: you could also set fontSize: AppFonts.md here
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-      ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              // ============ USER MANAGEMENT CARD ============
-              _buildSettingsCard(
-                icon: Icons.people_alt,
-                title: 'User Management',
-                subtitle: 'Create, edit, and manage user accounts',
-                iconColor: Colors.blue,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const UserManagementScreen(),
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              // ============ POLICY MANAGEMENT CARD ============
-              _buildSettingsCard(
-                icon: Icons.gavel,
-                title: 'Policy Management',
-                subtitle: 'Manage leave policies and rules',
-                iconColor: Colors.orange,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PolicyScreen(),
-                    ),
-                  );
-                },
-              ),
-
-              const Spacer(),
-
-              // ============ VERSION INFO ============
-              Text(
-                'Version 1.0.0',
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: AppFonts.md, // was 12
+        child: Column(
+          children: [
+            // ---------- Custom header with icon under title ----------
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+              decoration: const BoxDecoration(
+                color: Color(0xFF173B69),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
                 ),
               ),
-            ],
-          ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 8),
+                  Icon(
+                    Icons.settings,
+                    color: Colors.white.withOpacity(0.9),
+                    size: 40,
+                  ),
+                  const Text(
+                    "Settings",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppFonts.md,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ---------- Settings content (scrollable) ----------
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    // User Management Card
+                    _buildSettingsCard(
+                      icon: Icons.people_alt,
+                      title: 'User Management',
+                      subtitle: 'Create, edit, and manage user accounts',
+                      iconColor: Colors.blue,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const UserManagementScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Policy Management Card
+                    _buildSettingsCard(
+                      icon: Icons.gavel,
+                      title: 'Policy Management',
+                      subtitle: 'Manage leave policies and rules',
+                      iconColor: Colors.orange,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PolicyScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 40),
+
+                    // Version info
+                    Text(
+                      'Version 1.0.0',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: AppFonts.md,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
 
   Widget _buildSettingsCard({
     required IconData icon,
@@ -130,7 +154,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: AppFonts.md, // was 16
+                        fontSize: AppFonts.md,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -138,7 +162,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        fontSize: AppFonts.md, // was 13
+                        fontSize: AppFonts.md,
                         color: Colors.grey[600],
                       ),
                     ),

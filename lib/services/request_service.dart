@@ -127,6 +127,11 @@ class RequestService {
     await docRef.update({'requestId': docRef.id});
 
     // ============ Send Notifications ============
+    print('🔔 ====== SENDING NOTIFICATIONS ======');
+    print('🔔 Request ID: ${docRef.id}');
+    print('🔔 Status: $status');
+    print('🔔 Need Manager Approval: $needManagerApproval');
+    print('🔔 Department: "$userDepartment"');
     
     // 1. Send to Staff (requester)
     await _sendNotificationToUser(
@@ -142,14 +147,18 @@ class RequestService {
       },
     );
 
-    // 2. If approval needed, notify Managers and Admins
+    // 2. 🔥 FIX: Notify ALL Managers (regardless of department)
+    await _notifyManagersForNewRequest(requestData, docRef.id, status);
+
+    // 3. If approval needed, notify Admins
     if (needManagerApproval) {
-      await _notifyManagersForApproval(requestData, docRef.id);
       await _notifyAdminsForApproval(requestData, docRef.id);
     } else {
-      // 3. If Auto Approved, notify Admins
+      // 4. If Auto Approved, notify Admins
       await _notifyAdminsForAutoApproval(requestData, docRef.id);
     }
+
+    print('🔔 ====== NOTIFICATIONS COMPLETED ======');
 
     return {
       'status': status,
@@ -158,6 +167,125 @@ class RequestService {
       'requestNumber': requestNumber,
       'needManagerApproval': needManagerApproval,
     };
+  }
+
+  // ==================== NOTIFY MANAGERS FOR NEW REQUEST ====================
+  Future<void> _notifyManagersForNewRequest(Map<String, dynamic> requestData, String requestId, String status) async {
+    final department = requestData['department'] ?? '';
+    final isAutoApproved = status == 'approved';
+    final staffName = requestData['userName'] ?? 'Unknown';
+    final requestNumber = requestData['requestNumber'] ?? 0;
+    final totalDays = requestData['totalDays'] ?? 0;
+    final userEmail = requestData['userEmail'] ?? '';
+    
+    print('🔔 ----- Notifying Managers for New Request -----');
+    print('🔔 Department: "$department"');
+    print('🔔 Staff: $staffName');
+    print('🔔 Request #: $requestNumber');
+    print('🔔 Total Days: $totalDays');
+    print('🔔 Is Auto Approved: $isAutoApproved');
+    
+    try {
+      // 🔥 FIX: Get ALL managers regardless of department
+      // Get all users with roleId = '3' (Manager) 
+      final managerSnapshot = await _firestore
+          .collection('users')
+          .where('roleId', isEqualTo: '3')
+          .where('status', isEqualTo: 'Active')
+          .get();
+      
+      print('🔔 Total managers found (roleId=3): ${managerSnapshot.docs.length}');
+      
+      // If no managers found, try roleId = '4' (Director)
+      QuerySnapshot directorSnapshot = await _firestore
+          .collection('users')
+          .where('roleId', isEqualTo: '4')
+          .where('status', isEqualTo: 'Active')
+          .get();
+      
+      print('🔔 Total directors found (roleId=4): ${directorSnapshot.docs.length}');
+      
+      // Combine both lists
+      List<QueryDocumentSnapshot> allManagers = [];
+      allManagers.addAll(managerSnapshot.docs);
+      allManagers.addAll(directorSnapshot.docs);
+      
+      // Remove duplicates (if any)
+      Set<String> userIds = {};
+      List<QueryDocumentSnapshot> uniqueManagers = [];
+      for (var doc in allManagers) {
+        final data = doc.data() as Map<String, dynamic>;
+        final userId = data['userId'] ?? '';
+        if (userId.isNotEmpty && !userIds.contains(userId)) {
+          userIds.add(userId);
+          uniqueManagers.add(doc);
+        }
+      }
+      
+      print('🔔 Total unique managers/directors: ${uniqueManagers.length}');
+      
+      if (uniqueManagers.isEmpty) {
+        print('❌ No managers found in the system at all!');
+        return;
+      }
+      
+      // Send notification to ALL managers (no department filter)
+      print('🔔 Sending notifications to ${uniqueManagers.length} managers/directors');
+      
+      int sentCount = 0;
+      for (var doc in uniqueManagers) {
+        final data = doc.data() as Map<String, dynamic>;
+        final userId = data['userId'] ?? '';
+        final managerEmail = data['email'] ?? '';
+        final managerName = data['fullName'] ?? 'Manager';
+        final managerDepartment = data['department'] ?? 'No Department';
+        final roleId = data['roleId']?.toString() ?? '';
+        
+        // Skip if no userId
+        if (userId.isEmpty) {
+          print('⚠️ Manager has no userId: $managerEmail');
+          continue;
+        }
+        
+        // Skip if the manager is the same as the requester
+        if (userId == requestData['userId']) {
+          print('⚠️ Skipping self notification for: $managerEmail');
+          continue;
+        }
+        
+        print('📨 Sending to manager: $managerEmail ($managerName) - Dept: $managerDepartment - Role: $roleId');
+        
+        // Build message
+        String deptInfo = department.isNotEmpty ? ' ($department)' : '';
+        String statusText = isAutoApproved ? '✅ Auto-approved' : '⏳ Needs approval';
+        
+        await _sendNotificationToUser(
+          userId: userId,
+          userEmail: managerEmail,
+          title: isAutoApproved ? 'New Request Auto-Approved' : 'New Request Needs Your Approval',
+          message: '$staffName$deptInfo submitted request #$requestNumber ($totalDays day(s)) - $statusText',
+          type: isAutoApproved ? 'auto_approved' : 'need_approval',
+          requestId: requestId,
+          extraData: {
+            'staffName': staffName,
+            'staffEmail': userEmail,
+            'requestNumber': requestNumber,
+            'totalDays': totalDays,
+            'department': department,
+            'status': status,
+            'autoApproved': isAutoApproved,
+            'managerDepartment': managerDepartment,
+            'roleId': roleId,
+          },
+        );
+        sentCount++;
+      }
+      
+      print('✅ Successfully sent $sentCount notifications to managers/directors');
+      
+    } catch (e) {
+      print('❌ Error in _notifyManagersForNewRequest: $e');
+    }
   }
 
   // ==================== GET PENDING REQUESTS FOR MANAGER ====================
@@ -447,6 +575,9 @@ class RequestService {
     Map<String, dynamic>? extraData,
   }) async {
     try {
+      print('📨 Sending notification to: $userEmail');
+      print('📨 Title: $title');
+      
       final notificationRef = _notificationsCollection.doc();
       final notificationData = {
         'notificationId': notificationRef.id,
@@ -463,7 +594,7 @@ class RequestService {
         notificationData['requestId'] = requestId;
       }
       await notificationRef.set(notificationData);
-      print('✅ Notification sent to user: $userEmail');
+      print('✅ Notification sent to: $userEmail');
     } catch (e) {
       print('❌ Error sending notification to user: $e');
     }
@@ -479,6 +610,9 @@ class RequestService {
     Map<String, dynamic>? extraData,
   }) async {
     try {
+      print('🔔 ----- Notifying Managers in Department -----');
+      print('🔔 Department: "$department"');
+      
       Query query = _firestore
           .collection('users')
           .where('roleId', isEqualTo: '3')
@@ -490,17 +624,30 @@ class RequestService {
       
       final managerSnapshot = await query.get();
 
-      if (managerSnapshot.docs.isEmpty) return;
+      if (managerSnapshot.docs.isEmpty) {
+        print('⚠️ No managers found for department: $department');
+        return;
+      }
+
+      print('✅ Found ${managerSnapshot.docs.length} managers');
 
       final batch = _firestore.batch();
+      int count = 0;
       
       for (var managerDoc in managerSnapshot.docs) {
         final data = managerDoc.data() as Map<String, dynamic>;
+        final managerUserId = data['userId'];
+        
+        if (managerUserId == null || managerUserId.isEmpty) {
+          print('⚠️ Manager has no userId: ${data['email']}');
+          continue;
+        }
+        
         final notificationRef = _notificationsCollection.doc();
         final notificationData = {
           'notificationId': notificationRef.id,
-          'userId': data['userId'],
-          'userEmail': data['email'],
+          'userId': managerUserId,
+          'userEmail': data['email'] ?? '',
           'title': title,
           'message': message,
           'type': type,
@@ -513,10 +660,12 @@ class RequestService {
           notificationData['requestId'] = requestId;
         }
         batch.set(notificationRef, notificationData);
+        count++;
+        print('📨 Notification prepared for manager: ${data['email']}');
       }
 
       await batch.commit();
-      print('✅ Notifications sent to Managers in department: $department');
+      print('✅ Sent $count notifications to managers');
     } catch (e) {
       print('❌ Error notifying managers: $e');
     }
@@ -537,17 +686,30 @@ class RequestService {
           .where('status', isEqualTo: 'Active')
           .get();
 
-      if (adminSnapshot.docs.isEmpty) return;
+      if (adminSnapshot.docs.isEmpty) {
+        print('⚠️ No admins found');
+        return;
+      }
+
+      print('✅ Found ${adminSnapshot.docs.length} admins');
 
       final batch = _firestore.batch();
+      int count = 0;
       
       for (var adminDoc in adminSnapshot.docs) {
         final data = adminDoc.data() as Map<String, dynamic>;
+        final adminUserId = data['userId'];
+        
+        if (adminUserId == null || adminUserId.isEmpty) {
+          print('⚠️ Admin has no userId: ${data['email']}');
+          continue;
+        }
+        
         final notificationRef = _notificationsCollection.doc();
         final notificationData = {
           'notificationId': notificationRef.id,
-          'userId': data['userId'],
-          'userEmail': data['email'],
+          'userId': adminUserId,
+          'userEmail': data['email'] ?? '',
           'title': title,
           'message': message,
           'type': type,
@@ -559,10 +721,11 @@ class RequestService {
           notificationData['requestId'] = requestId;
         }
         batch.set(notificationRef, notificationData);
+        count++;
       }
 
       await batch.commit();
-      print('✅ Notifications sent to all Admins');
+      print('✅ Sent $count notifications to admins');
     } catch (e) {
       print('❌ Error notifying admins: $e');
     }

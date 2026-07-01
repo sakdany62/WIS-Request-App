@@ -23,14 +23,14 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
 
   // ============ List of Departments with IDs ============
   final List<Map<String, String>> _departments = [
-    {'id': 'dept_it', 'name': 'ផ្នែកបច្ចេកវិទ្យា'},
-    {'id': 'dept_education', 'name': 'ផ្នែកអប់រំ'},
-    {'id': 'dept_hr', 'name': 'ផ្នែកធនធានមនុស្ស'},
-    {'id': 'dept_finance', 'name': 'ផ្នែកគណនេយ្យ'},
-    {'id': 'dept_marketing', 'name': 'ផ្នែកទីផ្សារ'},
-    {'id': 'dept_sales', 'name': 'ផ្នែកលក់'},
-    {'id': 'dept_service', 'name': 'ផ្នែកសេវាកម្ម'},
-    {'id': 'dept_management', 'name': 'ផ្នែកគ្រប់គ្រង'},
+    {'id': 'dept_it', 'name': 'IT Department'},
+    {'id': 'dept_education', 'name': 'Education Department'},
+    {'id': 'dept_hr', 'name': 'HR Department'},
+    {'id': 'dept_finance', 'name': 'Finance Department'},
+    {'id': 'dept_marketing', 'name': 'Marketing Department'},
+    {'id': 'dept_sales', 'name': 'Sales Department'},
+    {'id': 'dept_service', 'name': 'Service Department'},
+    {'id': 'dept_management', 'name': 'Management Department'},
   ];
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -50,7 +50,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       );
       
 
-      // ស្វែងរកឈ្មោះផ្នែកពី Department ID
+      // Find department name from Department ID
       String departmentName = '';
       if (_selectedDepartmentId.isNotEmpty) {
         final dept = _departments.firstWhere(

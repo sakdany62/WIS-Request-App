@@ -11,8 +11,8 @@ class UserModel {
   final String username;
   final String status;
   final DateTime? createdAt;
-  final String? department;       // ឈ្មោះផ្នែក (ឧ: "ផ្នែកបច្ចេកវិទ្យា")
-  final String? departmentId;     // ID ផ្នែក (ឧ: "dept_it")
+  final String? department;       
+  final String? departmentId;     
   final String? profileImage;
 
   UserModel({
@@ -76,7 +76,7 @@ class UserModel {
       case '4':
         return '🎯 Director';
       default:
-        return 'មិនស្គាល់';
+        return 'Unknown';
     }
   }
 
@@ -107,7 +107,7 @@ class UserModel {
   }
 
   String getDepartmentName() {
-    return department ?? 'គ្មានផ្នែក';
+    return department ?? 'No Department';
   }
 
   String getRoleType() {

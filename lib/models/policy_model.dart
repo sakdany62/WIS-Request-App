@@ -50,12 +50,12 @@ class PolicyModel {
     this.updatedAt,
     this.autoApproveFirstCount = 1,
     this.autoApproveSecondCount = 2,
-    this.firstRequestMessage = "អ្នកនៅសល់ថ្ងៃឈប់ ១ ដងទៀត!",
-    this.secondRequestMessage = "អ្នកអស់ថ្ងៃដែលត្រូវឈប់បន្តទៀតហើយ!",
-    this.thirdRequestMessage = "សំណើរបស់អ្នកកំពុងរង់ចាំការអនុម័តពី Admin",
+    this.firstRequestMessage = "You have 1 day of leave remaining!",
+    this.secondRequestMessage = "You have no more leave days remaining!",
+    this.thirdRequestMessage = "Your request is pending Admin approval",
     this.enableNotifications = true,
-    this.notificationTitle = "ការជូនដំណឹងអំពីសំណើឈប់",
-    this.notificationBody = "សំណើឈប់របស់អ្នកត្រូវបានដំណើរការ",
+    this.notificationTitle = "Leave Request Notification",
+    this.notificationBody = "Your leave request has been processed",
     this.notifyOnRequestSubmit = true,
     this.notifyOnStatusChange = true,
     this.notifyOnApproval = true,
@@ -81,12 +81,12 @@ class PolicyModel {
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       autoApproveFirstCount: data['autoApproveFirstCount'] ?? 1,
       autoApproveSecondCount: data['autoApproveSecondCount'] ?? 2,
-      firstRequestMessage: data['firstRequestMessage'] ?? "អ្នកនៅសល់ថ្ងៃឈប់ ១ ដងទៀត!",
-      secondRequestMessage: data['secondRequestMessage'] ?? "អ្នកអស់ថ្ងៃដែលត្រូវឈប់បន្តទៀតហើយ!",
-      thirdRequestMessage: data['thirdRequestMessage'] ?? "សំណើរបស់អ្នកកំពុងរង់ចាំការអនុម័តពី Admin",
+      firstRequestMessage: data['firstRequestMessage'] ?? "You have 1 day of leave remaining!",
+      secondRequestMessage: data['secondRequestMessage'] ?? "You have no more leave days remaining!",
+      thirdRequestMessage: data['thirdRequestMessage'] ?? "Your request is pending Admin approval",
       enableNotifications: data['enableNotifications'] ?? true,
-      notificationTitle: data['notificationTitle'] ?? "ការជូនដំណឹងអំពីសំណើឈប់",
-      notificationBody: data['notificationBody'] ?? "សំណើឈប់របស់អ្នកត្រូវបានដំណើរការ",
+      notificationTitle: data['notificationTitle'] ?? "Leave Request Notification",
+      notificationBody: data['notificationBody'] ?? "Your leave request has been processed",
       notifyOnRequestSubmit: data['notifyOnRequestSubmit'] ?? true,
       notifyOnStatusChange: data['notifyOnStatusChange'] ?? true,
       notifyOnApproval: data['notifyOnApproval'] ?? true,
@@ -153,7 +153,7 @@ class PolicyModel {
     return !shouldAutoApprove(requestNumber);
   }
 
-  // បន្ថែម Method សម្រាប់ពិនិត្យ Notification
+  // Check Notification Settings
   bool shouldSendNotification(String eventType) {
     if (!enableNotifications) return false;
     
@@ -179,20 +179,20 @@ class PolicyModel {
     
     switch(eventType) {
       case 'submit':
-        body = 'សំណើឈប់របស់អ្នកត្រូវបានដាក់ស្នើរដោយជោគជ័យ';
+        body = 'Your leave request has been submitted successfully';
         break;
       case 'approval':
-        body = 'សំណើឈប់របស់អ្នកត្រូវបានអនុម័តដោយជោគជ័យ';
+        body = 'Your leave request has been approved successfully';
         break;
       case 'rejection':
-        body = 'សំណើឈប់របស់អ្នកត្រូវបានបដិសេធ';
+        body = 'Your leave request has been rejected';
         break;
       case 'status_change':
-        body = 'ស្ថានភាពសំណើឈប់របស់អ្នកបានផ្លាស់ប្តូរ';
+        body = 'Your leave request status has been changed';
         break;
       case 'admin_new_request':
-        title = 'មានសំណើឈប់ថ្មី';
-        body = 'មានបុគ្គលិកបានដាក់សំណើឈប់ថ្មី សូមពិនិត្យ';
+        title = 'New Leave Request';
+        body = 'A staff member has submitted a new leave request. Please review it.';
         break;
     }
     
