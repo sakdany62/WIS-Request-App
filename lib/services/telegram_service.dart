@@ -3,11 +3,16 @@ import 'dart:convert';
 
 class TelegramService {
   // ===== TELEGRAM CONFIGURATION =====
-  // Replace with your actual values
   static const String _botToken = '8679111334:AAE06FgfbBj-JNB1PtOpOQmnW77q25Qsurc';
-  static const String _managerChatId = '1273488926'; // Replace with Manager's Chat ID
-  static const String _adminChatId = '1273488926'; // Replace with Admin's Chat ID
+  static const String _groupChatId = '-1003899446883';
+  static const String _managerChatId = '1273488926';
+  static const String _adminChatId = '1273488926';
   static const String _baseUrl = 'https://api.telegram.org/bot$_botToken';
+
+  // ===== Send message to Group =====
+  static Future<bool> sendToGroup(String message) async {
+    return _sendMessage(_groupChatId, message);
+  }
 
   // ===== Send message to Manager =====
   static Future<bool> sendToManager(String message) async {
@@ -19,12 +24,15 @@ class TelegramService {
     return _sendMessage(_adminChatId, message);
   }
 
-  // ===== Send message to both Manager and Admin =====
+  // ===== Send message to Manager, Admin, AND Group =====
   static Future<bool> sendToAll(String message) async {
     try {
       bool managerSent = await _sendMessage(_managerChatId, message);
       bool adminSent = await _sendMessage(_adminChatId, message);
-      return managerSent && adminSent;
+      bool groupSent = await _sendMessage(_groupChatId, message);
+      
+      print('✅ Manager: $managerSent, Admin: $adminSent, Group: $groupSent');
+      return managerSent && adminSent && groupSent;
     } catch (e) {
       print('❌ Telegram Error (sendToAll): $e');
       return false;
@@ -38,8 +46,10 @@ class TelegramService {
 
   // ===== Core send message function (Private) =====
   static Future<bool> _sendMessage(String chatId, String message) async {
-    // Check that Chat ID is not empty
-    if (chatId.isEmpty || chatId == 'MANAGER_CHAT_ID' || chatId == 'ADMIN_CHAT_ID') {
+    if (chatId.isEmpty || 
+        chatId == 'MANAGER_CHAT_ID' || 
+        chatId == 'ADMIN_CHAT_ID' ||
+        chatId == 'GROUP_CHAT_ID') {
       print('⚠️ Chat ID is not set or invalid');
       return false;
     }
@@ -69,7 +79,7 @@ class TelegramService {
     }
   }
 
-  // ===== Format permission request message in HTML =====
+  // ===== Format permission request message (No Icons) =====
   static String formatPermissionRequest({
     required String staffName,
     required String staffPosition,
@@ -89,38 +99,37 @@ class TelegramService {
     String detailsText = '';
     details.forEach((key, value) {
       final labels = {
-        'reason': '📝 Reason',
-        'startDate': '📅 Start Date',
-        'endDate': '📅 End Date',
-        'duration': '⏱️ Duration',
+        'reason': 'Reason',
+        'startDate': 'Start Date',
+        'endDate': 'End Date',
+        'duration': 'Duration',
       };
       final label = labels[key] ?? key;
-      detailsText += '\n${label}: ${value ?? "N/A"}';
+      detailsText += '\n  - ${label}: ${value ?? "N/A"}';
     });
 
-    // Get current date and time
     final now = DateTime.now();
     final formattedDate = '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}';
 
     return '''
- <b>New Permission Request!</b>
+NEW PERMISSION REQUEST
 
- <b>- Staff Name:</b> $staffName
- <b>- Position:</b> ${staffPosition ?? 'Employee'}
- <b>- Type:</b> ${typeLabels[permissionType] ?? permissionType}
- <b>- Request Date:</b> $formattedDate
+Staff Name: $staffName
+Position: ${staffPosition ?? 'Employee'}
+Type: ${typeLabels[permissionType] ?? permissionType}
+Request Date: $formattedDate
 
-<b>Details:</b>$detailsText
+Details:$detailsText
 
-🔗 <b>Request ID:</b> <code>$requestId</code>
-📌 <b>Status:</b> ⏳ Pending Approval
+Request ID: $requestId
+Status: Pending Approval
 
 ---
-Please click the button below to respond:
+Please check the app to approve or reject this request.
     ''';
   }
 
-  // ===== Format response result back to Staff =====
+  // ===== Format response result back to Staff (No Icons) =====
   static String formatResponseResult({
     required String staffName,
     required String permissionType,
@@ -128,9 +137,7 @@ Please click the button below to respond:
     required String? responseNote,
     required DateTime respondedAt,
   }) {
-    final statusEmoji = status == 'approved' ? '✅' : '❌';
     final statusText = status == 'approved' ? 'Approved' : 'Rejected';
-    final color = status == 'approved' ? '🟢' : '🔴';
 
     final typeLabels = {
       'leave': 'Leave',
@@ -144,31 +151,34 @@ Please click the button below to respond:
     final formattedDate = '${respondedAt.day}/${respondedAt.month}/${respondedAt.year} ${respondedAt.hour}:${respondedAt.minute.toString().padLeft(2, '0')}';
 
     return '''
-${color} <b>Permission Request Result</b>
+PERMISSION REQUEST RESULT
 
-👤 <b>Name:</b> $staffName
-📝 <b>Type:</b> ${typeLabels[permissionType] ?? permissionType}
-${statusEmoji} <b>Status:</b> $statusText
+Name: $staffName
+Type: ${typeLabels[permissionType] ?? permissionType}
+Status: $statusText
 
-📌 <b>Comment:</b> ${responseNote ?? 'None'}
+Comment: ${responseNote ?? 'None'}
 
-⏰ <b>Responded At:</b> $formattedDate
+Responded At: $formattedDate
 
 ---
 Thank you for using the system!
     ''';
   }
 
-  // ===== Send test message (for Testing) =====
+  // ===== Send test message (No Icons) =====
   static Future<bool> sendTestMessage() async {
     final testMessage = '''
-🧪 <b>Test Message from WIS Permission System</b>
+TEST MESSAGE FROM WIS PERMISSION SYSTEM
 
-✅ Bot is working correctly!
-📅 Date: ${DateTime.now().toLocal().toString().substring(0, 16)}
+Bot is working correctly!
+Date: ${DateTime.now().toLocal().toString().substring(0, 16)}
 
 ---
-Thank you for using the system!
+This is a test message sent to:
+- Manager
+- Admin
+- Group
     ''';
     return sendToAll(testMessage);
   }
