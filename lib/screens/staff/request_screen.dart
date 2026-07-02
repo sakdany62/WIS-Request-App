@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../services/request_service.dart';
+import '../../services/telegram_service.dart'; // ✅ បន្ថែម Telegram
 import 'package:permission_system/app_fonts.dart';
 
 class RequestScreen extends StatefulWidget {
@@ -27,28 +28,42 @@ class _RequestScreenState extends State<RequestScreen> {
   File? _selectedImage;
   String? _imageName;
 
+  // ============ Staff Info ============
+  String _staffName = '';
+  String _staffPosition = '';
+  String _managerName = '';
+  String _managerId = '';
+
   @override
   void initState() {
     super.initState();
-    _checkUserDepartment();
+    _loadUserData();
   }
 
-  Future<void> _checkUserDepartment() async {
+  // ============ LOAD USER DATA ============
+  Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .where('userId', isEqualTo: user.uid)
-            .get();
-        if (doc.docs.isNotEmpty) {
-          final data = doc.docs.first.data() as Map<String, dynamic>;
-          print('👤 Staff department: ${data['department']}');
-          print('👤 Staff roleId: ${data['roleId']}');
-        }
-      } catch (e) {
-        print('❌ Error checking user: $e');
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+          
+      if (doc.docs.isNotEmpty) {
+        final data = doc.docs.first.data() as Map<String, dynamic>;
+        setState(() {
+          _staffName = data['name'] ?? user.displayName ?? user.email ?? 'Staff';
+          _staffPosition = data['position'] ?? data['department'] ?? 'Employee';
+          _managerName = data['managerName'] ?? 'Manager';
+          _managerId = data['managerId'] ?? '';
+        });
+        print('👤 Staff: $_staffName, Position: $_staffPosition');
+        print('👤 Manager: $_managerName');
       }
+    } catch (e) {
+      print('❌ Error loading user data: $e');
     }
   }
 
@@ -124,6 +139,7 @@ class _RequestScreenState extends State<RequestScreen> {
     _showSuccess('Image removed');
   }
 
+  // ============ SUBMIT REQUEST ============
   Future<void> _submitRequest() async {
     if (startDate == null) {
       _showError('Please select a start date');
@@ -160,14 +176,7 @@ class _RequestScreenState extends State<RequestScreen> {
         return;
       }
 
-      // ============ TODO: Upload images to Firebase Storage ============
-      String? imageUrl;
-      
-      // If you have Firebase Storage setup, upload image here
-      // if (_selectedImage != null) {
-      //   imageUrl = await _uploadImageToStorage(_selectedImage!);
-      // }
-
+      // ============ 1. SUBMIT TO FIRESTORE ============
       final result = await _requestService.submitRequestWithAutoApprove(
         startDate: formatDate(startDate),
         endDate: formatDate(endDate),
@@ -175,9 +184,16 @@ class _RequestScreenState extends State<RequestScreen> {
         reason: selectedReason,
         otherReason: otherController.text.trim(),
         fileUrl: null,
-        imageUrl: imageUrl,
+        imageUrl: null,
       );
 
+      // ============ 2. SEND TELEGRAM NOTIFICATION ============
+      await _sendTelegramNotification(
+        requestId: result['requestId'] ?? 'N/A',
+        status: result['status'] ?? 'pending',
+      );
+
+      // ============ 3. SHOW RESULT ============
       if (mounted) {
         final status = result['status'];
         final message = result['message'];
@@ -201,6 +217,7 @@ class _RequestScreenState extends State<RequestScreen> {
           _isSubmitting = false;
         });
       }
+      
     } on FirebaseException catch (e) {
       print('❌ Firebase Error: ${e.code} - ${e.message}');
       if (mounted) {
@@ -224,6 +241,60 @@ class _RequestScreenState extends State<RequestScreen> {
     }
   }
 
+  // ============ SEND TELEGRAM NOTIFICATION ============
+  Future<void> _sendTelegramNotification({
+    required String requestId,
+    required String status,
+  }) async {
+    try {
+      // បង្កើតសារសម្រាប់ផ្ញើទៅ Telegram
+      final reasonText = selectedReason == 'Other' 
+          ? otherController.text.trim() 
+          : selectedReason;
+      
+      final details = {
+        'reason': reasonText,
+        'startDate': formatDate(startDate),
+        'endDate': formatDate(endDate),
+        'duration': totalDays,
+      };
+
+      // ផ្ញើសារទៅកាន់ Manager និង Admin
+      final message = TelegramService.formatPermissionRequest(
+        staffName: _staffName.isNotEmpty ? _staffName : 'Staff',
+        staffPosition: _staffPosition.isNotEmpty ? _staffPosition : 'Employee',
+        permissionType: _mapReasonToType(selectedReason),
+        details: details,
+        requestId: requestId,
+      );
+
+      final bool sent = await TelegramService.sendToAll(message);
+      
+      if (sent) {
+        print('✅ Telegram notification sent successfully');
+      } else {
+        print('⚠️ Failed to send Telegram notification');
+      }
+      
+    } catch (e) {
+      print('⚠️ Telegram error (non-critical): $e');
+      // មិនចាំបាច់បង្ហាញ error ដល់អ្នកប្រើទេ
+    }
+  }
+
+  // ============ MAP REASON TO PERMISSION TYPE ============
+  String _mapReasonToType(String reason) {
+    final Map<String, String> mapping = {
+      'Sick': 'sick',
+      'Personal issue': 'personal',
+      'Vacation': 'leave',
+      'Emergency': 'other',
+      'Other': 'other',
+    };
+    return mapping[reason] ?? 'other';
+  }
+
+  // ============ SHOW MESSAGES ============
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -269,6 +340,7 @@ class _RequestScreenState extends State<RequestScreen> {
     super.dispose();
   }
 
+  // ============ BUILD UI ============
   @override
   Widget build(BuildContext context) {
     const Color primary = Color(0xFF1A3B68);
