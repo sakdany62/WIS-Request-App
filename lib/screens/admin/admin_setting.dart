@@ -1,4 +1,3 @@
-// lib/screens/admin/admin_settings.dart
 import 'package:flutter/material.dart';
 import 'user_management_screen.dart';
 import 'policy_screen.dart';

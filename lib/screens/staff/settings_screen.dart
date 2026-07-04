@@ -1,4 +1,3 @@
-// lib/screens/staff/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../app_fonts.dart';
@@ -13,7 +12,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final Color primary = const Color(0xFF1A3B68);
 
-  // ✅ Removed Notifications from the list
+  // ✅ Your original list – unchanged
   final List<SettingsItem> _allItems = const [
     SettingsItem(
       icon: Icons.description,
@@ -37,33 +36,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
-      appBar: AppBar(
-        title: Text(
-          "Settings",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: AppFonts.md,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              ..._allItems
-                  .map((item) => _buildItem(item.icon, item.title, context)),
-            ],
-          ),
+        child: Column(
+          children: [
+            // ---------- Custom header (matches admin style) ----------
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+              decoration: BoxDecoration(
+                color: primary,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 8),
+                  Icon(
+                    Icons.settings,
+                    color: Colors.white.withOpacity(0.9),
+                    size: 40,
+                  ),
+                  Text(
+                    "Settings",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppFonts.md,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ---------- Your original list of items (scrollable) ----------
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    ..._allItems.map(
+                      (item) => _buildItem(item.icon, item.title, context),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
+  // ---------- Your original _buildItem (unchanged) ----------
   Widget _buildItem(IconData icon, String title, BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -86,7 +113,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(builder: (context) => const AboutScreen()),
             );
           } else {
-            // For other items, show a snackbar
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
@@ -102,6 +128,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
+// ---------- SettingsItem – unchanged ----------
 class SettingsItem {
   final IconData icon;
   final String title;
@@ -112,7 +139,7 @@ class SettingsItem {
   });
 }
 
-// ===================== ABOUT SCREEN =====================
+// ===================== ABOUT SCREEN (unchanged) =====================
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 

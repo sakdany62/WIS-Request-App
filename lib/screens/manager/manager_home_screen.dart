@@ -305,250 +305,271 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         ? '📁 $managerDepartment'
         : '⚠️ No department assigned';
 
+    // ---------- New structure: fixed header + scrollable content ----------
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            await _loadManagerData();
-            await _loadStaffCount();
-          },
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _ManagerUserHeader(
-                  managerName: managerName,
-                  isLoading: isLoading,
-                  userId: managerId,
+        child: Column(
+          children: [
+            // ---------- Fixed header with background ----------
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              decoration: const BoxDecoration(
+                color: Color(0xFF173B69),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+              ),
+              child: _ManagerUserHeader(
+                managerName: managerName,
+                isLoading: isLoading,
+                userId: managerId,
+                useWhiteTheme: true, // use white text/icons on dark background
+              ),
+            ),
+            // ---------- Scrollable content ----------
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await _loadManagerData();
+                  await _loadStaffCount();
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Department & staff count row (moved here)
+                      Row(
                         children: [
-                          Icon(Icons.business,
-                              size: 16, color: Colors.blue[700]),
-                          const SizedBox(width: 8),
-                          Text(
-                            departmentDisplay,
-                            style: TextStyle(
-                              fontSize: AppFonts.md,
-                              color: Colors.blue[700],
-                              fontWeight: FontWeight.w500,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.business,
+                                    size: 16, color: Colors.blue[700]),
+                                const SizedBox(width: 8),
+                                Text(
+                                  departmentDisplay,
+                                  style: TextStyle(
+                                    fontSize: AppFonts.md,
+                                    color: Colors.blue[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.people,
+                                    size: 16, color: Colors.green[700]),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '$_staffCount Staff',
+                                  style: TextStyle(
+                                    fontSize: AppFonts.md,
+                                    color: Colors.green[700],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.people,
-                              size: 16, color: Colors.green[700]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$_staffCount Staff',
-                            style: TextStyle(
-                              fontSize: AppFonts.md,
-                              color: Colors.green[700],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                StreamBuilder<QuerySnapshot>(
-                  stream: _requestService
-                      .getPendingRequestsForManager(managerDepartment),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.error_outline, color: Colors.red),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Error loading requests: ${snapshot.error}',
-                              style: TextStyle(
-                                  color: Colors.red, fontSize: AppFonts.md),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {});
-                              },
-                              child: Text(
-                                'Retry',
-                                style: TextStyle(fontSize: AppFonts.md),
+                      const SizedBox(height: 24),
+                      StreamBuilder<QuerySnapshot>(
+                        stream: _requestService
+                            .getPendingRequestsForManager(managerDepartment),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final pendingCount = snapshot.data?.docs.length ?? 0;
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: _StatCard(
-                            count: '$pendingCount',
-                            label: 'Pending Requests',
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Pending Approvals',
-                      style: TextStyle(
-                        fontSize: AppFonts.md,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (managerDepartment.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          managerDepartment,
-                          style: TextStyle(
-                            fontSize: AppFonts.md,
-                            color: Colors.green[700],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                StreamBuilder<QuerySnapshot>(
-                  stream: _requestService
-                      .getPendingRequestsForManager(managerDepartment),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return Center(
-                        child: Column(
-                          children: [
-                            const Icon(Icons.error_outline,
-                                size: 48, color: Colors.red),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Error: ${snapshot.error}',
-                              style: TextStyle(fontSize: AppFonts.md),
-                            ),
-                            const SizedBox(height: 8),
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {});
-                              },
-                              child: Text(
-                                'Retry',
-                                style: TextStyle(fontSize: AppFonts.md),
+                              child: Column(
+                                children: [
+                                  const Icon(Icons.error_outline, color: Colors.red),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Error loading requests: ${snapshot.error}',
+                                    style: TextStyle(
+                                        color: Colors.red, fontSize: AppFonts.md),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {});
+                                    },
+                                    child: Text(
+                                      'Retry',
+                                      style: TextStyle(fontSize: AppFonts.md),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
+                            );
+                          }
 
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
 
-                    final requests = snapshot.data?.docs ?? [];
-
-                    if (requests.isEmpty) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(40),
-                          child: Column(
+                          final pendingCount = snapshot.data?.docs.length ?? 0;
+                          return Row(
                             children: [
-                              Icon(Icons.inbox, size: 48, color: Colors.grey),
-                              SizedBox(height: 8),
-                              Text(
-                                'No pending requests',
-                                style: TextStyle(
-                                    fontSize: AppFonts.md, color: Colors.grey),
-                              ),
-                              Text(
-                                'All requests in your department have been processed',
-                                style: TextStyle(
-                                    fontSize: AppFonts.md, color: Colors.grey),
+                              Expanded(
+                                child: _StatCard(
+                                  count: '$pendingCount',
+                                  label: 'Pending Requests',
+                                ),
                               ),
                             ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Pending Approvals',
+                            style: TextStyle(
+                              fontSize: AppFonts.md,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      );
-                    }
+                          if (managerDepartment.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                managerDepartment,
+                                style: TextStyle(
+                                  fontSize: AppFonts.md,
+                                  color: Colors.green[700],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      StreamBuilder<QuerySnapshot>(
+                        stream: _requestService
+                            .getPendingRequestsForManager(managerDepartment),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Column(
+                                children: [
+                                  const Icon(Icons.error_outline,
+                                      size: 48, color: Colors.red),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Error: ${snapshot.error}',
+                                    style: TextStyle(fontSize: AppFonts.md),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton(
+                                    onPressed: () {
+                                      setState(() {});
+                                    },
+                                    child: Text(
+                                      'Retry',
+                                      style: TextStyle(fontSize: AppFonts.md),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
 
-                    return Column(
-                      children: requests.map((doc) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        final requestDepartment =
-                            data['department'] ?? 'No Department';
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
 
-                        return _PendingCard(
-                          employeeName: data['userName'] ?? 'Unknown',
-                          month: _getMonthFromDate(data['startDate']),
-                          date: _getDateFromDate(data['startDate']),
-                          reason: data['reason'] ?? 'No reason',
-                          totalDays: data['totalDays'] ?? 0,
-                          department: requestDepartment,
-                          onApprove: () => _approveRequest(doc.id,
-                              data['userName'] ?? '', data['totalDays'] ?? 0),
-                          onReject: () => _showRejectDialog(doc.id,
-                              data['userName'] ?? '', data['totalDays'] ?? 0),
-                        );
-                      }).toList(),
-                    );
-                  },
+                          final requests = snapshot.data?.docs ?? [];
+
+                          if (requests.isEmpty) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(40),
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.inbox, size: 48, color: Colors.grey),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'No pending requests',
+                                      style: TextStyle(
+                                          fontSize: AppFonts.md, color: Colors.grey),
+                                    ),
+                                    Text(
+                                      'All requests in your department have been processed',
+                                      style: TextStyle(
+                                          fontSize: AppFonts.md, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            children: requests.map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              final requestDepartment =
+                                  data['department'] ?? 'No Department';
+
+                              return _PendingCard(
+                                employeeName: data['userName'] ?? 'Unknown',
+                                month: _getMonthFromDate(data['startDate']),
+                                date: _getDateFromDate(data['startDate']),
+                                reason: data['reason'] ?? 'No reason',
+                                totalDays: data['totalDays'] ?? 0,
+                                department: requestDepartment,
+                                onApprove: () => _approveRequest(doc.id,
+                                    data['userName'] ?? '', data['totalDays'] ?? 0),
+                                onReject: () => _showRejectDialog(doc.id,
+                                    data['userName'] ?? '', data['totalDays'] ?? 0),
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 20),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -575,15 +596,24 @@ class _ManagerUserHeader extends StatelessWidget {
   final String managerName;
   final bool isLoading;
   final String userId;
+  final bool useWhiteTheme; // new flag
 
   const _ManagerUserHeader({
     required this.managerName,
     required this.isLoading,
     required this.userId,
+    this.useWhiteTheme = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Choose colors based on theme
+    final textColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
+    final subTextColor = useWhiteTheme ? Colors.white70 : Colors.grey;
+    final iconColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
+    final avatarBg = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
+    final avatarIcon = useWhiteTheme ? const Color(0xFF173B69) : Colors.white;
+
     return Row(
       children: [
         GestureDetector(
@@ -591,10 +621,10 @@ class _ManagerUserHeader extends StatelessWidget {
             context,
             MaterialPageRoute(builder: (context) => const ProfileScreen()),
           ),
-          child: const CircleAvatar(
+          child: CircleAvatar(
             radius: 40,
-            backgroundColor: Color(0xFF173B69),
-            child: Icon(Icons.manage_accounts, size: 40, color: Colors.white),
+            backgroundColor: avatarBg,
+            child: Icon(Icons.manage_accounts, size: 40, color: avatarIcon),
           ),
         ),
         const SizedBox(width: 16),
@@ -608,14 +638,14 @@ class _ManagerUserHeader extends StatelessWidget {
                   width: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Color(0xFF173B69),
+                    color: Colors.white,
                   ),
                 )
               else
                 Text(
                   managerName,
                   style: TextStyle(
-                    color: const Color(0xFF173B69),
+                    color: textColor,
                     fontSize: AppFonts.md,
                     fontWeight: FontWeight.bold,
                   ),
@@ -624,15 +654,18 @@ class _ManagerUserHeader extends StatelessWidget {
               Text(
                 'Manager',
                 style: TextStyle(
-                  color: Colors.grey,
+                  color: subTextColor,
                   fontSize: AppFonts.md,
                 ),
               ),
             ],
           ),
         ),
-        // ============ NOTIFICATION ICON WITH BADGE ============
-        _NotificationIconWithBadge(userId: userId),
+        // Notification icon with badge (uses white icon when useWhiteTheme)
+        _NotificationIconWithBadge(
+          userId: userId,
+          iconColor: iconColor,
+        ),
       ],
     );
   }
@@ -641,8 +674,12 @@ class _ManagerUserHeader extends StatelessWidget {
 // ================= NOTIFICATION ICON WITH BADGE =================
 class _NotificationIconWithBadge extends StatelessWidget {
   final String userId;
+  final Color iconColor;
 
-  const _NotificationIconWithBadge({required this.userId});
+  const _NotificationIconWithBadge({
+    required this.userId,
+    this.iconColor = const Color(0xFF173B69),
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -668,9 +705,9 @@ class _NotificationIconWithBadge extends StatelessWidget {
                   builder: (context) => const NotificationsScreen(),
                 ),
               ),
-              icon: const Icon(
+              icon: Icon(
                 Icons.notifications_none,
-                color: Color(0xFF173B69),
+                color: iconColor,
                 size: 28,
               ),
             ),

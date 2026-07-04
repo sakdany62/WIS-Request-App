@@ -22,6 +22,13 @@ class _DashboardState extends State<Dashboard> {
   String _userRole = 'staff';
   bool _isLoading = true;
 
+  // Gradient matching your primary colour (same as admin/manager)
+  static const LinearGradient _gradient = LinearGradient(
+    colors: [Color(0xFF173B69), Color(0xFF2A5F8F)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -107,44 +114,111 @@ class _DashboardState extends State<Dashboard> {
       return const ManagerDashboard();
     }
 
+    // Staff dashboard with modern floating bottom nav
     return Scaffold(
+      extendBody: true, // lets the bottom nav float over the body
       body: _pages[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
+      bottomNavigationBar: _buildModernBottomNavBar(),
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // Modern floating bottom navigation (same as AdminDashboard / ManagerDashboard)
+  // --------------------------------------------------------------------------
+  Widget _buildModernBottomNavBar() {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: _gradient,
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(
+                    0,
+                    Icons.home_outlined,
+                    Icons.home,
+                    'Home',
+                  ),
+                  _buildNavItem(
+                    1,
+                    Icons.assignment_outlined,
+                    Icons.assignment,
+                    'Request',
+                  ),
+                  _buildNavItem(
+                    2,
+                    Icons.settings_outlined,
+                    Icons.settings,
+                    'Settings',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(
+    int index,
+    IconData outlinedIcon,
+    IconData filledIcon,
+    String label,
+  ) {
+    final isSelected = _currentIndex == index;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
           if (mounted) {
             setState(() => _currentIndex = index);
           }
         },
-        selectedItemColor: const Color(0xFF173B69),
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        // ✅ Apply AppFonts.md to labels
-        selectedLabelStyle: TextStyle(
-          fontSize: AppFonts.md,
-          fontWeight: FontWeight.w500,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color:
+                isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isSelected ? filledIcon : outlinedIcon,
+                color: Colors.white,
+                size: isSelected ? 26 : 22,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: AppFonts.md, // your existing font size constant
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
         ),
-        unselectedLabelStyle: TextStyle(
-          fontSize: AppFonts.md,
-          fontWeight: FontWeight.w400,
-        ),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: "Home",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined),
-            activeIcon: Icon(Icons.assignment),
-            label: "Request",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: "Settings",
-          ),
-        ],
       ),
     );
   }

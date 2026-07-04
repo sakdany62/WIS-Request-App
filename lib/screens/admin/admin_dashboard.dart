@@ -68,9 +68,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 children: [
                   _buildNavItem(
                     0,
-                    Icons.dashboard_outlined,
-                    Icons.dashboard,
-                    'Dashboard',
+                    Icons.home_outlined,
+                    Icons.home,
+                    'Home',
                   ),
                   _buildNavItem(
                     1,
