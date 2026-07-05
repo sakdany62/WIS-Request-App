@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../app_fonts.dart'; 
-
+import 'package:shared_preferences/shared_preferences.dart'; // <-- NEW
+import '../../app_fonts.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +16,46 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
   bool obscurePassword = true;
+  bool rememberMe = false; // <-- NEW
+
+  @override
+  void initState() { // <-- NEW
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  // ---------- NEW: Load saved email ----------
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString('remember_email') ?? '';
+      final remember = prefs.getBool('remember_me') ?? false;
+      if (mounted) {
+        setState(() {
+          emailController.text = email;
+          rememberMe = remember;
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading saved credentials: $e');
+    }
+  }
+
+  // ---------- NEW: Save or clear email ----------
+  Future<void> _saveCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (rememberMe) {
+        await prefs.setString('remember_email', emailController.text.trim());
+        await prefs.setBool('remember_me', true);
+      } else {
+        await prefs.remove('remember_email');
+        await prefs.setBool('remember_me', false);
+      }
+    } catch (e) {
+      print('❌ Error saving credentials: $e');
+    }
+  }
 
   Future<void> _createUserDocumentIfNotExists(User user) async {
     try {
@@ -24,33 +64,30 @@ class _LoginScreenState extends State<LoginScreen> {
           .where('userId', isEqualTo: user.uid)
           .limit(1)
           .get();
-      
+
       if (querySnapshot.docs.isEmpty) {
-        String name = user.displayName ?? 
-                      user.email?.split('@').first ?? 
-                      'User';
-        
+        String name =
+            user.displayName ?? user.email?.split('@').first ?? 'User';
+
         String formattedName = name
             .split(' ')
-            .map((word) => word.isNotEmpty 
-                ? word[0].toUpperCase() + word.substring(1).toLowerCase() 
+            .map((word) => word.isNotEmpty
+                ? word[0].toUpperCase() + word.substring(1).toLowerCase()
                 : '')
             .join(' ');
 
-        await FirebaseFirestore.instance
-            .collection('users')
-            .add({
-              'userId': user.uid,
-              'email': user.email ?? '',
-              'fullName': formattedName,
-              'username': user.email?.split('@').first ?? 'user',
-              'phone': '',
-              'roleId': '2',
-              'status': 'Active',
-              'createdAt': FieldValue.serverTimestamp(),
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-        
+        await FirebaseFirestore.instance.collection('users').add({
+          'userId': user.uid,
+          'email': user.email ?? '',
+          'fullName': formattedName,
+          'username': user.email?.split('@').first ?? 'user',
+          'phone': '',
+          'roleId': '2',
+          'status': 'Active',
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
         print('✅ User document created for ${user.uid}');
       } else {
         print('✅ User document already exists for ${user.uid}');
@@ -67,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
           .where('userId', isEqualTo: uid)
           .limit(1)
           .get();
-      
+
       if (querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data();
         final roleId = data['roleId']?.toString() ?? '2';
@@ -93,12 +130,12 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = true);
 
     try {
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-            email: email,
-            password: password,
-          );
-      
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
       User? user = userCredential.user;
       if (user == null) {
         _showSnackBar('Login failed: User not found', Colors.red);
@@ -108,6 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       print('✅ User logged in: ${user.email}');
       print('✅ User UID: ${user.uid}');
+
+      // ---------- NEW: Save credentials if Remember Me is checked ----------
+      await _saveCredentials();
 
       await _createUserDocumentIfNotExists(user);
 
@@ -129,7 +169,6 @@ class _LoginScreenState extends State<LoginScreen> {
           Navigator.pushReplacementNamed(context, '/dashboard');
         }
       }
-      
     } on FirebaseAuthException catch (e) {
       String message;
       if (e.code == 'user-not-found') {
@@ -186,67 +225,36 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.school, color: Colors.white, size: 36),
-                  SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "WESTLAND",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: AppFonts.md, // was 22
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        "INTERNATIONAL SCHOOL",
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: AppFonts.md, // was 9
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 80),
-              const Center(
+              const SizedBox(height: 50),
+              Center(
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 38,
-                      backgroundColor: Colors.white,
-                      child: Icon(
-                        Icons.person,
-                        size: 45,
-                        color: Color(0xFF173B69),
+                    SizedBox(
+                      width: 200,
+                      height: 200,
+                      child: Image.asset(
+                        'assets/img/logo.png',
+                        fit: BoxFit.contain,
                       ),
                     ),
-                    SizedBox(height: 12),
-                    Text(
-                      "WIS Permission Request",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: AppFonts.md, // was 28
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    const SizedBox(height: 2),
                   ],
                 ),
               ),
-              const SizedBox(height: 80),
-              const Text(
-                "Your Email",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: AppFonts.md, // was 20
+              const SizedBox(height: 50),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Welcome Back to WIS",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Roboto',
+                  ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 20),
               TextField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
@@ -258,18 +266,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(50),
                   ),
                 ),
               ),
               const SizedBox(height: 30),
-              const Text(
-                "Your Password",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: AppFonts.md, // was 20
-                ),
-              ),
               const SizedBox(height: 10),
               TextField(
                 controller: passwordController,
@@ -286,79 +287,100 @@ class _LoginScreenState extends State<LoginScreen> {
                     icon: Icon(
                       obscurePassword ? Icons.visibility : Icons.visibility_off,
                     ),
-                    onPressed: () => setState(() => obscurePassword = !obscurePassword),
+                    onPressed: () =>
+                        setState(() => obscurePassword = !obscurePassword),
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(50),
                   ),
                 ),
               ),
               const SizedBox(height: 15),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _navigateToForgotPassword,
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                  ),
-                  child: const Text(
-                    "Forgot Password?",
-                    style: TextStyle(
-                      fontSize: AppFonts.md, // was 14
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 58,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : _login,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF173B69),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Color(0xFF173B69),
-                          ),
-                        )
-                      : const Text(
-                          "Login",
-                          style: TextStyle(
-                            fontSize: AppFonts.md, // was 20
-                          ),
+
+              // ---------- NEW: Remember Me + Forgot Password Row ----------
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: rememberMe,
+                        onChanged: (bool? value) {
+                          setState(() {
+                            rememberMe = value ?? false;
+                          });
+                          // If unchecked, clear saved email immediately
+                          if (!rememberMe) {
+                            _saveCredentials();
+                          }
+                        },
+                        activeColor: Colors.white,
+                        checkColor: const Color(0xFF173B69),
+                        side: const BorderSide(color: Colors.white),
+                      ),
+                      const Text(
+                        "Remember Me",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Center(
-                child: TextButton(
-                  onPressed: () {
-                    _showSnackBar(
-                      'Please contact system administrator for assistance',
-                      Colors.orange,
-                    );
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white70,
+                      ),
+                    ],
                   ),
-                  child: const Text(
-                    "Having trouble logging in? Contact Support",
-                    style: TextStyle(
-                      fontSize: AppFonts.md, // was 14
+                  TextButton(
+                    onPressed: _navigateToForgotPassword,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                    ),
+                    child: const Text(
+                      "Forgot Password?",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'Roboto',
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
+              // ---------- END NEW ----------
+
+              const SizedBox(height: 40),
+              SizedBox(
+  width: double.infinity,
+  height: 58,
+  child: ElevatedButton(
+    onPressed: isLoading ? null : _login,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.white,
+      foregroundColor: const Color(0xFF173B69),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(50),
+      ),
+    ),
+    child: isLoading
+        ? const SizedBox(
+            height: 20,
+            width: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Color(0xFF173B69),
+            ),
+          )
+        : const Text(
+            "Login",
+            style: TextStyle(
+              color: Color(0xFF173B69),
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Roboto',
+            ),
+          ),
+  ),
+),
+        
             ],
           ),
         ),
