@@ -6,7 +6,6 @@ import 'request_screen.dart';
 import 'settings_screen.dart';
 import '../admin/admin_dashboard.dart';
 import '../manager/manager_dashboard.dart';
-// 👇 Adjust import path to your AppFonts class
 import 'package:permission_system/app_fonts.dart';
 
 class Dashboard extends StatefulWidget {
@@ -22,7 +21,6 @@ class _DashboardState extends State<Dashboard> {
   String _userRole = 'staff';
   bool _isLoading = true;
 
-  // Gradient matching your primary colour (same as admin/manager)
   static const LinearGradient _gradient = LinearGradient(
     colors: [Color(0xFF173B69), Color(0xFF2A5F8F)],
     begin: Alignment.topLeft,
@@ -114,17 +112,16 @@ class _DashboardState extends State<Dashboard> {
       return const ManagerDashboard();
     }
 
-    // Staff dashboard with modern floating bottom nav
     return Scaffold(
-      extendBody: true, // lets the bottom nav float over the body
-      body: _pages[_currentIndex],
+      extendBody: true,
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: _buildModernBottomNavBar(),
     );
   }
 
-  // --------------------------------------------------------------------------
-  // Modern floating bottom navigation (same as AdminDashboard / ManagerDashboard)
-  // --------------------------------------------------------------------------
   Widget _buildModernBottomNavBar() {
     return Container(
       margin: const EdgeInsets.all(20),
@@ -150,24 +147,9 @@ class _DashboardState extends State<Dashboard> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(
-                    0,
-                    Icons.home_outlined,
-                    Icons.home,
-                    'Home',
-                  ),
-                  _buildNavItem(
-                    1,
-                    Icons.assignment_outlined,
-                    Icons.assignment,
-                    'Request',
-                  ),
-                  _buildNavItem(
-                    2,
-                    Icons.settings_outlined,
-                    Icons.settings,
-                    'Settings',
-                  ),
+                  _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
+                  _buildNavItem(1, Icons.assignment_outlined, Icons.assignment, 'Request'),
+                  _buildNavItem(2, Icons.settings_outlined, Icons.settings, 'Settings'),
                 ],
               ),
             ),
@@ -188,15 +170,21 @@ class _DashboardState extends State<Dashboard> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          if (mounted) {
-            setState(() => _currentIndex = index);
+          setState(() {
+            _currentIndex = index;
+          });
+          
+          // ✅ Refresh Home Screen when tapping Home tab
+          if (index == 0) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              StaffHomeScreenStateManager.refreshData();
+            });
           }
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color:
-                isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
             borderRadius: BorderRadius.circular(25),
           ),
           child: Column(
@@ -211,7 +199,7 @@ class _DashboardState extends State<Dashboard> {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: AppFonts.md, // your existing font size constant
+                  fontSize: AppFonts.md,
                   color: isSelected ? Colors.white : Colors.white70,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),

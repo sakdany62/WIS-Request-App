@@ -5,7 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../services/request_service.dart';
+import '../../services/telegram_service.dart';
 import 'package:permission_system/app_fonts.dart';
+import 'staff_home_screen.dart';
 
 class RequestScreen extends StatefulWidget {
   const RequestScreen({super.key});
@@ -23,32 +25,47 @@ class _RequestScreenState extends State<RequestScreen> {
   bool _isSubmitting = false;
   final RequestService _requestService = RequestService();
 
-  // ============ Image Variables ============
   File? _selectedImage;
   String? _imageName;
+
+  String _staffName = '';
+  String _staffPosition = '';
+  String _managerName = '';
+  String _managerId = '';
+
+  OverlayEntry? _overlayEntry;
 
   @override
   void initState() {
     super.initState();
-    _checkUserDepartment();
+    _loadUserData();
   }
 
-  Future<void> _checkUserDepartment() async {
+  Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        final doc = await FirebaseFirestore.instance
-            .collection('users')
-            .where('userId', isEqualTo: user.uid)
-            .get();
-        if (doc.docs.isNotEmpty) {
-          final data = doc.docs.first.data() as Map<String, dynamic>;
-          print('👤 Staff department: ${data['department']}');
-          print('👤 Staff roleId: ${data['roleId']}');
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      if (doc.docs.isNotEmpty) {
+        final data = doc.docs.first.data() as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _staffName = data['fullName'] ?? data['name'] ?? user.displayName ?? user.email ?? 'Staff';
+            _staffPosition = data['position'] ?? data['department'] ?? 'Employee';
+            _managerName = data['managerName'] ?? 'Manager';
+            _managerId = data['managerId'] ?? '';
+          });
         }
-      } catch (e) {
-        print('❌ Error checking user: $e');
+        print('👤 Staff: $_staffName, Position: $_staffPosition');
+        print('👤 Manager: $_managerName');
       }
+    } catch (e) {
+      print('❌ Error loading user data: $e');
     }
   }
 
@@ -78,7 +95,6 @@ class _RequestScreenState extends State<RequestScreen> {
     _showError('Request can only be for 1 day');
   }
 
-  // ============ PICK IMAGE ============
   Future<void> _pickImage() async {
     try {
       final ImagePicker picker = ImagePicker();
@@ -92,22 +108,13 @@ class _RequestScreenState extends State<RequestScreen> {
       if (image != null) {
         final file = File(image.path);
         final fileName = image.name;
-        
+
         setState(() {
           _selectedImage = file;
           _imageName = fileName;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✅ Image selected: $fileName',
-              style: TextStyle(fontSize: AppFonts.md),
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        _showSuccess('✅ Image selected: $fileName');
       }
     } catch (e) {
       print('❌ Error picking image: $e');
@@ -115,7 +122,6 @@ class _RequestScreenState extends State<RequestScreen> {
     }
   }
 
-  // ============ REMOVE IMAGE ============
   void _removeImage() {
     setState(() {
       _selectedImage = null;
@@ -137,7 +143,6 @@ class _RequestScreenState extends State<RequestScreen> {
       _showError('Invalid date range');
       return;
     }
-
     if (totalDays > 1) {
       _showError('Request can only be for 1 day');
       return;
@@ -148,10 +153,10 @@ class _RequestScreenState extends State<RequestScreen> {
     });
 
     try {
-      final finalReason = selectedReason == 'Other' 
-          ? otherController.text.trim() 
+      final finalReason = selectedReason == 'Other'
+          ? otherController.text.trim()
           : selectedReason;
-      
+
       if (selectedReason == 'Other' && finalReason.isEmpty) {
         _showError('Please specify a reason');
         setState(() {
@@ -178,10 +183,15 @@ class _RequestScreenState extends State<RequestScreen> {
         imageUrl: imageUrl,
       );
 
+      await _sendTelegramNotification(
+        requestId: result['requestId'] ?? 'N/A',
+        status: result['status'] ?? 'pending',
+      );
+
       if (mounted) {
         final status = result['status'];
         final message = result['message'];
-        
+
         if (status == 'approved') {
           _showSuccess(message ?? 'Request automatically approved!');
         } else if (message?.contains('contact') == true) {
@@ -189,23 +199,33 @@ class _RequestScreenState extends State<RequestScreen> {
         } else {
           _showWarning(message ?? 'Request is pending manager approval');
         }
-        
-        setState(() {
-          startDate = null;
-          endDate = null;
-          totalDays = 0;
-          selectedReason = 'Sick';
-          otherController.clear();
-          _selectedImage = null;
-          _imageName = null;
-          _isSubmitting = false;
+
+        if (mounted) {
+          setState(() {
+            startDate = null;
+            endDate = null;
+            totalDays = 0;
+            selectedReason = 'Sick';
+            otherController.clear();
+            _selectedImage = null;
+            _imageName = null;
+            _isSubmitting = false;
+          });
+        }
+
+        // ✅ Refresh Home Screen
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            StaffHomeScreenStateManager.refreshData();
+          }
         });
       }
     } on FirebaseException catch (e) {
       print('❌ Firebase Error: ${e.code} - ${e.message}');
       if (mounted) {
         if (e.code == 'permission-denied') {
-          _showError('You do not have permission to submit requests. Please contact Admin');
+          _showError(
+              'You do not have permission to submit requests. Please contact Admin');
         } else {
           _showError('System error: ${e.message}');
         }
@@ -224,47 +244,152 @@ class _RequestScreenState extends State<RequestScreen> {
     }
   }
 
+  Future<void> _sendTelegramNotification({
+    required String requestId,
+    required String status,
+  }) async {
+    try {
+      final reasonText = selectedReason == 'Other'
+          ? otherController.text.trim()
+          : selectedReason;
+
+      final details = {
+        'reason': reasonText,
+        'startDate': formatDate(startDate),
+        'endDate': formatDate(endDate),
+        'duration': totalDays,
+      };
+
+      final message = TelegramService.formatPermissionRequestWithInfo(
+        staffName: _staffName.isNotEmpty ? _staffName : 'Staff',
+        staffPosition: _staffPosition.isNotEmpty ? _staffPosition : 'Employee',
+        permissionType: _mapReasonToType(selectedReason),
+        details: details,
+        requestId: requestId,
+        status: status,
+      );
+
+      final bool sent = await TelegramService.sendToAll(message);
+
+      if (sent) {
+        print('✅ Telegram notification sent successfully');
+      } else {
+        print('⚠️ Failed to send Telegram notification');
+      }
+    } catch (e) {
+      print('⚠️ Telegram error (non-critical): $e');
+    }
+  }
+
+  String _mapReasonToType(String reason) {
+    final Map<String, String> mapping = {
+      'Sick': 'sick',
+      'Personal issue': 'personal',
+      'Vacation': 'leave',
+      'Emergency': 'other',
+      'Other': 'other',
+    };
+    return mapping[reason] ?? 'other';
+  }
+
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(fontSize: AppFonts.md),
-        ),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    _showOverlayMessage(message, Colors.red, Icons.error_outline);
   }
 
   void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(fontSize: AppFonts.md),
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    _showOverlayMessage(message, Colors.green, Icons.check_circle_outline);
   }
 
   void _showWarning(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(fontSize: AppFonts.md),
+    _showOverlayMessage(message, Colors.orange, Icons.warning_amber_rounded);
+  }
+
+  void _showOverlayMessage(String message, Color backgroundColor, IconData icon) {
+    _hideOverlayMessage();
+
+    if (!mounted) return;
+
+    final overlay = Overlay.of(context);
+    if (overlay == null) return;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 10,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: GestureDetector(
+            onTap: _hideOverlayMessage,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: TextStyle(
+                        fontSize: AppFonts.md,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _hideOverlayMessage,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        backgroundColor: Colors.orange,
-        behavior: SnackBarBehavior.floating,
       ),
     );
+
+    overlay.insert(_overlayEntry!);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      _hideOverlayMessage();
+    });
+  }
+
+  void _hideOverlayMessage() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
   }
 
   @override
   void dispose() {
+    _hideOverlayMessage();
     otherController.dispose();
     super.dispose();
   }
@@ -272,27 +397,36 @@ class _RequestScreenState extends State<RequestScreen> {
   @override
   Widget build(BuildContext context) {
     const Color primary = Color(0xFF1A3B68);
-
+    
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          "Leave Request",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: AppFonts.md,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16, top: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.assignment_outlined,
+                    color: primary,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    "Leave Request",
+                    style: TextStyle(
+                      color: primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppFonts.md + 5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 24),
+
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -346,10 +480,8 @@ class _RequestScreenState extends State<RequestScreen> {
                 ),
               ),
             ),
-            
             const SizedBox(height: 20),
-            
-            // ============ DOCUMENT REFERENCE ============
+
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -368,21 +500,66 @@ class _RequestScreenState extends State<RequestScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    
-                    // Image Selection
-                    _buildImageSelector(
-                      isSelected: _selectedImage != null,
-                      fileName: _imageName,
-                      onTap: _pickImage,
-                      onRemove: _removeImage,
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _pickImage,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: _selectedImage != null ? Colors.green : Colors.grey.shade300,
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            color: _selectedImage != null ? Colors.green.shade50 : Colors.white,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.image,
+                                color: _selectedImage != null ? Colors.green : Colors.grey.shade600,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _selectedImage != null 
+                                      ? _imageName ?? 'Image selected' 
+                                      : 'Select Image',
+                                  style: TextStyle(
+                                    fontSize: AppFonts.md,
+                                    color: _selectedImage != null ? Colors.black : Colors.grey.shade600,
+                                    fontWeight: _selectedImage != null ? FontWeight.w500 : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                              if (_selectedImage != null)
+                                IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.red),
+                                  onPressed: _removeImage,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  iconSize: 20,
+                                )
+                              else
+                                Icon(
+                                  Icons.arrow_forward_ios,
+                                  size: 16,
+                                  color: Colors.grey.shade400,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            
             const SizedBox(height: 20),
-            
+
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -418,8 +595,8 @@ class _RequestScreenState extends State<RequestScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         filled: true,
-                        fillColor: selectedReason == "Other" 
-                            ? Colors.white 
+                        fillColor: selectedReason == "Other"
+                            ? Colors.white
                             : Colors.grey.shade50,
                       ),
                       maxLines: 2,
@@ -430,7 +607,7 @@ class _RequestScreenState extends State<RequestScreen> {
             ),
             
             const SizedBox(height: 30),
-            
+
             SizedBox(
               width: double.infinity,
               height: 55,
@@ -466,54 +643,10 @@ class _RequestScreenState extends State<RequestScreen> {
                       ),
               ),
             ),
+            
+            const SizedBox(height: 100),
           ],
         ),
-      ),
-    );
-  }
-
-  // ============ IMAGE SELECTOR WIDGET ============
-  Widget _buildImageSelector({
-    required bool isSelected,
-    required String? fileName,
-    required VoidCallback onTap,
-    required VoidCallback onRemove,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(
-          color: isSelected ? Colors.green : Colors.grey.shade300,
-          width: 1.5,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        color: isSelected ? Colors.green.shade50 : Colors.white,
-      ),
-      child: ListTile(
-        leading: Icon(
-          Icons.image,
-          color: isSelected ? Colors.green : Colors.grey.shade600,
-        ),
-        title: Text(
-          isSelected ? fileName ?? 'Image selected' : 'Select Image',
-          style: TextStyle(
-            fontSize: AppFonts.md,
-            color: isSelected ? Colors.black : Colors.grey.shade600,
-            fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
-          ),
-        ),
-        trailing: isSelected
-            ? IconButton(
-                icon: const Icon(Icons.close, color: Colors.red),
-                onPressed: onRemove,
-                tooltip: 'Remove Image',
-              )
-            : Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.grey.shade400,
-              ),
-        onTap: onTap,
-        dense: true,
       ),
     );
   }

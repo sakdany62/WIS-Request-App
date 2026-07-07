@@ -6,6 +6,25 @@ import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'package:permission_system/app_fonts.dart';
 
+// ✅ State Manager សម្រាប់គ្រប់គ្រង Refresh
+class StaffHomeScreenStateManager {
+  static _StaffHomeScreenState? _instance;
+  
+  static void setInstance(_StaffHomeScreenState instance) {
+    _instance = instance;
+  }
+  
+  static void clearInstance() {
+    _instance = null;
+  }
+  
+  static Future<void> refreshData() async {
+    if (_instance != null && _instance!.mounted) {
+      await _instance!.refreshData();
+    }
+  }
+}
+
 class StaffHomeScreen extends StatefulWidget {
   const StaffHomeScreen({super.key});
 
@@ -30,8 +49,20 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
   @override
   void initState() {
     super.initState();
+    StaffHomeScreenStateManager.setInstance(this);
     _loadUserData();
     _loadLeaveStatus();
+  }
+
+  @override
+  void dispose() {
+    StaffHomeScreenStateManager.clearInstance();
+    super.dispose();
+  }
+
+  Future<void> refreshData() async {
+    await _loadLeaveStatus();
+    await _loadUserData();
   }
 
   Future<void> _loadUserData() async {
@@ -47,26 +78,34 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
         
         if (querySnapshot.docs.isNotEmpty) {
           final data = querySnapshot.docs.first.data();
-          setState(() {
-            userName = data['fullName'] ?? data['username'] ?? 'Staff User';
-            isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              userName = data['fullName'] ?? data['username'] ?? 'Staff User';
+              isLoading = false;
+            });
+          }
         } else {
-          setState(() {
-            userName = user.email?.split('@').first ?? 'Staff User';
-            isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              userName = user.email?.split('@').first ?? 'Staff User';
+              isLoading = false;
+            });
+          }
         }
       } catch (e) {
         print('Error loading user name: $e');
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
+        }
+      }
+    } else {
+      if (mounted) {
         setState(() {
           isLoading = false;
         });
       }
-    } else {
-      setState(() {
-        isLoading = false;
-      });
     }
   }
 
@@ -119,18 +158,20 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
 
       final remaining = 24 - totalDays;
 
-      setState(() {
-        leaveStatusList = requests;
-        leaveStats = {
-          'total': 24,
-          'used': totalDays,
-          'remaining': remaining < 0 ? 0 : remaining,
-          'pending': pending,
-          'approved': approved,
-          'rejected': rejected,
-          'autoApproved': autoApproved,
-        };
-      });
+      if (mounted) {
+        setState(() {
+          leaveStatusList = requests;
+          leaveStats = {
+            'total': 24,
+            'used': totalDays,
+            'remaining': remaining < 0 ? 0 : remaining,
+            'pending': pending,
+            'approved': approved,
+            'rejected': rejected,
+            'autoApproved': autoApproved,
+          };
+        });
+      }
     } catch (e) {
       print('Error loading leave status: $e');
     }
@@ -386,7 +427,7 @@ class _BalanceCardSmall extends StatelessWidget {
   }
 }
 
-// ================= USER HEADER WITH NOTIFICATION BADGE =================
+// ================= USER HEADER =================
 class _UserHeader extends StatelessWidget {
   final String userName;
   final bool isLoading;
@@ -447,7 +488,6 @@ class _UserHeader extends StatelessWidget {
             ],
           ),
         ),
-        // ============ NOTIFICATION ICON WITH BADGE ============
         _NotificationIconWithBadge(userId: userId),
       ],
     );
@@ -561,6 +601,7 @@ class _LeaveStatusSection extends StatelessWidget {
             )
           else
             ...leaveStatusList.map((request) => LeaveStatusCard(
+              key: ValueKey(request['id']),
               month: request['month'],
               date: request['date'],
               title: request['title'],
