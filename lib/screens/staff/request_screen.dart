@@ -35,6 +35,10 @@ class _RequestScreenState extends State<RequestScreen> {
 
   OverlayEntry? _overlayEntry;
 
+  // ⏰ Submit time variables
+  DateTime? _submitTime;
+  String _submitTimeString = '';
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +76,30 @@ class _RequestScreenState extends State<RequestScreen> {
   String formatDate(DateTime? date) {
     if (date == null) return "Select Date";
     return DateFormat('dd MMM yyyy').format(date);
+  }
+
+  // ⏰ មុខងារបំប្លែងពេលវេលាទៅជា AM/PM (ម៉ោងកម្ពុជា UTC+7)
+  String _formatTimeWithAMPM(DateTime time) {
+    // time គឺជា Cambodia time រួចហើយ មិនចាំបាច់បំប្លែងទៀតទេ
+    final cambodiaTime = time;
+    
+    int hour = cambodiaTime.hour;
+    final int minute = cambodiaTime.minute;
+    final String period = hour >= 12 ? 'PM' : 'AM';
+    
+    // បំប្លែងម៉ោងទៅជា 12-hour format
+    if (hour == 0) {
+      hour = 12;
+    } else if (hour > 12) {
+      hour = hour - 12;
+    }
+    
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+  }
+
+  // ⏰ មុខងារយកពេលបច្ចុប្បន្នតាមម៉ោងកម្ពុជា
+  DateTime _getCurrentCambodiaTime() {
+    return DateTime.now().toUtc().add(const Duration(hours: 7));
   }
 
   Future<void> pickStartDate() async {
@@ -148,6 +176,11 @@ class _RequestScreenState extends State<RequestScreen> {
       return;
     }
 
+    // ⏰ កត់ត្រាពេលចុច Submit (ម៉ោងកម្ពុជា UTC+7)
+    final now = _getCurrentCambodiaTime();
+    _submitTime = now;
+    _submitTimeString = _formatTimeWithAMPM(now);
+
     setState(() {
       _isSubmitting = true;
     });
@@ -181,6 +214,7 @@ class _RequestScreenState extends State<RequestScreen> {
         otherReason: otherController.text.trim(),
         fileUrl: null,
         imageUrl: imageUrl,
+        submitTime: _submitTime,
       );
 
       await _sendTelegramNotification(
@@ -192,12 +226,17 @@ class _RequestScreenState extends State<RequestScreen> {
         final status = result['status'];
         final message = result['message'];
 
+        // ⏰ បន្ថែមពេលវេលា Submit ក្នុងការជូនដំណឹង
+        final timeDisplay = _submitTimeString.isNotEmpty 
+            ? '\nSubmitted at: $_submitTimeString' 
+            : '';
+
         if (status == 'approved') {
-          _showSuccess(message ?? 'Request automatically approved!');
+          _showSuccess('Request automatically approved!$timeDisplay');
         } else if (message?.contains('contact') == true) {
-          _showWarning(message ?? 'You must contact your manager directly');
+          _showWarning('${message ?? 'You must contact your manager directly'}$timeDisplay');
         } else {
-          _showWarning(message ?? 'Request is pending manager approval');
+          _showWarning('${message ?? 'Request is pending manager approval'}$timeDisplay');
         }
 
         if (mounted) {
@@ -210,6 +249,8 @@ class _RequestScreenState extends State<RequestScreen> {
             _selectedImage = null;
             _imageName = null;
             _isSubmitting = false;
+            _submitTime = null;
+            _submitTimeString = '';
           });
         }
 
@@ -258,6 +299,7 @@ class _RequestScreenState extends State<RequestScreen> {
         'startDate': formatDate(startDate),
         'endDate': formatDate(endDate),
         'duration': totalDays,
+        'submitTime': _submitTimeString,
       };
 
       final message = TelegramService.formatPermissionRequestWithInfo(
@@ -377,7 +419,7 @@ class _RequestScreenState extends State<RequestScreen> {
 
     overlay.insert(_overlayEntry!);
 
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 4), () {
       _hideOverlayMessage();
     });
   }
@@ -445,10 +487,7 @@ class _RequestScreenState extends State<RequestScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text(
-                      "Start Date",
-                      style: TextStyle(fontSize: AppFonts.md),
-                    ),
+                    
                     const SizedBox(height: 8),
                     GestureDetector(
                       onTap: pickStartDate,

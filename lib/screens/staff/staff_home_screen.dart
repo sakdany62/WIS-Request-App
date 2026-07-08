@@ -36,6 +36,8 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
   String userName = 'Staff User';
   bool isLoading = true;
   List<Map<String, dynamic>> leaveStatusList = [];
+  List<Map<String, dynamic>> allLeaveStatusList = []; // រក្សាទុកទាំងអស់
+  bool showAll = false; // សម្រាប់បង្ហាញទាំងអស់
   Map<String, int> leaveStats = {
     'total': 24,
     'used': 0,
@@ -160,7 +162,13 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
 
       if (mounted) {
         setState(() {
-          leaveStatusList = requests;
+          allLeaveStatusList = requests;
+          // បង្ហាញតែ 3 សិន
+          if (requests.length > 3) {
+            leaveStatusList = requests.sublist(0, 3);
+          } else {
+            leaveStatusList = requests;
+          }
           leaveStats = {
             'total': 24,
             'used': totalDays,
@@ -213,6 +221,22 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     }
   }
 
+  // មុខងារប្តូររវាងបង្ហាញ 3 និងទាំងអស់
+  void _toggleShowAll() {
+    setState(() {
+      showAll = !showAll;
+      if (showAll) {
+        leaveStatusList = allLeaveStatusList;
+      } else {
+        if (allLeaveStatusList.length > 3) {
+          leaveStatusList = allLeaveStatusList.sublist(0, 3);
+        } else {
+          leaveStatusList = allLeaveStatusList;
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -232,7 +256,12 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
                 leaveStats: leaveStats,
               ),
               const SizedBox(height: 20),
-              _LeaveStatusSection(leaveStatusList: leaveStatusList),
+              _LeaveStatusSection(
+                leaveStatusList: leaveStatusList,
+                allLeaveStatusList: allLeaveStatusList,
+                showAll: showAll,
+                onToggleShowAll: _toggleShowAll,
+              ),
             ],
           ),
         ),
@@ -569,8 +598,16 @@ class _NotificationIconWithBadge extends StatelessWidget {
 // ================= LEAVE STATUS SECTION =================
 class _LeaveStatusSection extends StatelessWidget {
   final List<Map<String, dynamic>> leaveStatusList;
+  final List<Map<String, dynamic>> allLeaveStatusList;
+  final bool showAll;
+  final VoidCallback onToggleShowAll;
 
-  const _LeaveStatusSection({required this.leaveStatusList});
+  const _LeaveStatusSection({
+    required this.leaveStatusList,
+    required this.allLeaveStatusList,
+    required this.showAll,
+    required this.onToggleShowAll,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -609,24 +646,35 @@ class _LeaveStatusSection extends StatelessWidget {
               statusColor: request['statusColor'],
             )),
           const SizedBox(height: 12),
-          Center(
-            child: TextButton(
-              onPressed: () {
-                // Navigate to full history
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF173B69),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              child: Text(
-                'See More',
-                style: TextStyle(
-                  fontSize: AppFonts.md,
-                  fontWeight: FontWeight.w600,
+          // បង្ហាញ "See More" ប្រសិនបើមានច្រើនជាង 3
+          if (allLeaveStatusList.length > 3)
+            Center(
+              child: TextButton(
+                onPressed: onToggleShowAll,
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF173B69),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      showAll ? 'Show Less' : 'See More',
+                      style: TextStyle(
+                        fontSize: AppFonts.md,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      showAll ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 20,
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
+          const SizedBox(height: 20),
         ],
       ),
     );

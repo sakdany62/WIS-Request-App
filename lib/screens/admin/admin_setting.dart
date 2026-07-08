@@ -94,14 +94,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
                     const SizedBox(height: 40),
 
-                    // Version info
-                    Text(
-                      'Version 1.0.0',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: AppFonts.md,
-                      ),
-                    ),
                   ],
                 ),
               ),

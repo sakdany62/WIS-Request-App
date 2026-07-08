@@ -70,11 +70,11 @@ class UserModel {
       case '1':
         return '👑 Admin';
       case '2':
-        return '👤 Staff';
+        return 'Staff';
       case '3':
-        return '📋 Manager';
+        return 'Manager';
       case '4':
-        return '🎯 Director';
+        return 'Director';
       default:
         return 'Unknown';
     }

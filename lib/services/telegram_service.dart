@@ -120,6 +120,80 @@ class TelegramService {
     }
   }
 
+  // ===== ⏰ Get current Cambodia time (UTC+7) =====
+  static DateTime _getCambodiaTime() {
+    return DateTime.now().toUtc().add(const Duration(hours: 7));
+  }
+
+  // ===== ⏰ Format time only (HH:MM AM/PM) Cambodia Time =====
+  static String _formatTimeOnlyAMPM([DateTime? time]) {
+    final DateTime now = time ?? DateTime.now();
+    
+    // Convert to Cambodia time (UTC+7)
+    final cambodiaTime = now.toUtc().add(const Duration(hours: 7));
+    
+    int hour = cambodiaTime.hour;
+    final int minute = cambodiaTime.minute;
+    final String period = hour >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format
+    if (hour == 0) {
+      hour = 12;
+    } else if (hour > 12) {
+      hour = hour - 12;
+    }
+    
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+  }
+
+  // ===== ⏰ Format date and time to AM/PM (Cambodia Time UTC+7) =====
+  static String _formatDateTimeAMPM([DateTime? time]) {
+    final DateTime now = time ?? DateTime.now();
+    
+    // Convert to Cambodia time (UTC+7)
+    final cambodiaTime = now.toUtc().add(const Duration(hours: 7));
+    
+    final day = cambodiaTime.day.toString().padLeft(2, '0');
+    final month = cambodiaTime.month.toString().padLeft(2, '0');
+    final year = cambodiaTime.year;
+    int hour = cambodiaTime.hour;
+    final int minute = cambodiaTime.minute;
+    final String period = hour >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format
+    if (hour == 0) {
+      hour = 12;
+    } else if (hour > 12) {
+      hour = hour - 12;
+    }
+    
+    return '$day/$month/$year ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+  }
+
+  // ===== ⏰ Format submit time from details (supports both DateTime and String) =====
+  static String _formatSubmitTime(dynamic submitTime) {
+    // If no submitTime, use current Cambodia time
+    if (submitTime == null) {
+      return _formatTimeOnlyAMPM();
+    }
+    
+    // If it's a String, use it directly (already formatted)
+    if (submitTime is String) {
+      if (submitTime.isNotEmpty) {
+        return submitTime;
+      }
+      return _formatTimeOnlyAMPM();
+    }
+    
+    // If it's a DateTime, convert to AM/PM
+    if (submitTime is DateTime) {
+      return _formatTimeOnlyAMPM(submitTime);
+    }
+    
+    // Default: use current Cambodia time
+    return _formatTimeOnlyAMPM();
+  }
+
   // ===== Send message to Group =====
   static Future<bool> sendToGroup(String message) async {
     return _sendMessage(_groupChatId, message);
@@ -205,6 +279,9 @@ class TelegramService {
     String reason = details['reason'] ?? typeDisplay;
     String formattedStatus = _formatStatus(status);
 
+    // ⏰ Get submit time from details (supports both DateTime and String)
+    String submitTime = _formatSubmitTime(details['submitTime']);
+
     String detailsText = '';
     details.forEach((key, value) {
       final labels = {
@@ -214,11 +291,11 @@ class TelegramService {
         'duration': 'Duration',
       };
       final label = labels[key] ?? key;
-      detailsText += '\n  - ${label}: ${value ?? "N/A"}';
+      // Skip if value is null or empty, and skip submitTime (already displayed above)
+      if (value != null && value.toString().isNotEmpty && key != 'submitTime') {
+        detailsText += '\n  - ${label}: ${value}';
+      }
     });
-
-    final now = DateTime.now();
-    final formattedDate = '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}';
 
     return '''
 NEW PERMISSION REQUEST
@@ -227,7 +304,7 @@ Staff Name: $finalStaffName
 Position: $finalStaffPosition
 Type: $typeDisplay
 Reason: $reason
-Request Date: $formattedDate
+Submit Time: $submitTime
 
 Details:$detailsText
 
@@ -252,6 +329,9 @@ Please check the app to approve or reject this request.
     String reason = details['reason'] ?? typeDisplay;
     String formattedStatus = _formatStatus(status);
 
+    // ⏰ Get submit time from details (supports both DateTime and String)
+    String submitTime = _formatSubmitTime(details['submitTime']);
+
     String detailsText = '';
     details.forEach((key, value) {
       final labels = {
@@ -261,18 +341,18 @@ Please check the app to approve or reject this request.
         'duration': 'Duration',
       };
       final label = labels[key] ?? key;
-      detailsText += '\n  - ${label}: ${value ?? "N/A"}';
+      // Skip if value is null or empty, and skip submitTime (already displayed above)
+      if (value != null && value.toString().isNotEmpty && key != 'submitTime') {
+        detailsText += '\n  - ${label}: ${value}';
+      }
     });
-
-    final now = DateTime.now();
-    final formattedDate = '${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}';
 
     return '''
 NEW PERMISSION REQUEST
 
 Staff Name: $staffName
 Position: $staffPosition
-Request Date: $formattedDate
+Submit Time: $submitTime
 
 Details:$detailsText
 
@@ -291,8 +371,9 @@ Status: $formattedStatus
   }) {
     String formattedStatus = _formatStatus(status);
     String typeDisplay = _getPermissionTypeDisplay(permissionType);
-
-    final formattedDate = '${respondedAt.day}/${respondedAt.month}/${respondedAt.year} ${respondedAt.hour}:${respondedAt.minute.toString().padLeft(2, '0')}';
+    
+    // ⏰ Use Cambodia time for response
+    String formattedTime = _formatDateTimeAMPM(respondedAt);
 
     return '''
 PERMISSION REQUEST RESULT
@@ -303,7 +384,7 @@ Status: $formattedStatus
 
 Comment: ${responseNote ?? 'None'}
 
-Responded At: $formattedDate
+Responded At: $formattedTime
 
 ---
 Thank you for using the system!
@@ -313,13 +394,14 @@ Thank you for using the system!
   // ===== Send test message =====
   static Future<bool> sendTestMessage() async {
     final staffInfo = await _getStaffInfo();
+    // ⏰ Use Cambodia time for test message
     final testMessage = '''
-TEST MESSAGE FROM WIS PERMISSION SYSTEM
+TEST MESSAGE FROM PERMISSION SYSTEM
 
 Staff: ${staffInfo['name']}
 Position: ${staffInfo['position']}
 Status: Bot is working correctly!
-Date: ${DateTime.now().toLocal().toString().substring(0, 16)}
+Date: ${_formatDateTimeAMPM()}
 
 ---
 This is a test message sent to:

@@ -22,6 +22,7 @@ class RequestService {
     required String? otherReason,
     required String? fileUrl,
     required String? imageUrl,
+    DateTime? submitTime,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
@@ -100,6 +101,17 @@ class RequestService {
       autoMessage = "Your request is pending approval from Manager";
     }
 
+    // ============================================================
+    // ⏰ FIXED: Convert submitTime to UTC for storage
+    // ============================================================
+    String? submitTimeString;
+    if (submitTime != null) {
+      // submitTime from request_screen.dart is already Cambodia time (UTC+7)
+      // Convert to UTC by subtracting 7 hours before storing
+      final utcTime = submitTime.toUtc().subtract(const Duration(hours: 7));
+      submitTimeString = utcTime.toIso8601String();
+    }
+
     final requestData = {
       'userId': user.uid,
       'userEmail': userEmail,
@@ -119,6 +131,7 @@ class RequestService {
       'autoApproved': status == 'approved',
       'needManagerApproval': needManagerApproval,
       'policyId': policy?.id,
+      'submitTime': submitTimeString,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -144,18 +157,19 @@ class RequestService {
       extraData: {
         'requestNumber': requestNumber,
         'totalDays': totalDays,
+        'submitTime': submitTimeString,
       },
     );
 
-    // 2. 🔥 FIX: Notify ALL Managers (regardless of department)
-    await _notifyManagersForNewRequest(requestData, docRef.id, status);
+    // 2. Notify ALL Managers (regardless of department)
+    await _notifyManagersForNewRequest(requestData, docRef.id, status, submitTimeString);
 
     // 3. If approval needed, notify Admins
     if (needManagerApproval) {
-      await _notifyAdminsForApproval(requestData, docRef.id);
+      await _notifyAdminsForApproval(requestData, docRef.id, submitTimeString);
     } else {
       // 4. If Auto Approved, notify Admins
-      await _notifyAdminsForAutoApproval(requestData, docRef.id);
+      await _notifyAdminsForAutoApproval(requestData, docRef.id, submitTimeString);
     }
 
     print('🔔 ====== NOTIFICATIONS COMPLETED ======');
@@ -170,7 +184,7 @@ class RequestService {
   }
 
   // ==================== NOTIFY MANAGERS FOR NEW REQUEST ====================
-  Future<void> _notifyManagersForNewRequest(Map<String, dynamic> requestData, String requestId, String status) async {
+  Future<void> _notifyManagersForNewRequest(Map<String, dynamic> requestData, String requestId, String status, String? submitTimeString) async {
     final department = requestData['department'] ?? '';
     final isAutoApproved = status == 'approved';
     final staffName = requestData['userName'] ?? 'Unknown';
@@ -186,8 +200,7 @@ class RequestService {
     print('🔔 Is Auto Approved: $isAutoApproved');
     
     try {
-      // 🔥 FIX: Get ALL managers regardless of department
-      // Get all users with roleId = '3' (Manager) 
+      // Get ALL managers regardless of department
       final managerSnapshot = await _firestore
           .collection('users')
           .where('roleId', isEqualTo: '3')
@@ -210,7 +223,7 @@ class RequestService {
       allManagers.addAll(managerSnapshot.docs);
       allManagers.addAll(directorSnapshot.docs);
       
-      // Remove duplicates (if any)
+      // Remove duplicates
       Set<String> userIds = {};
       List<QueryDocumentSnapshot> uniqueManagers = [];
       for (var doc in allManagers) {
@@ -229,7 +242,6 @@ class RequestService {
         return;
       }
       
-      // Send notification to ALL managers (no department filter)
       print('🔔 Sending notifications to ${uniqueManagers.length} managers/directors');
       
       int sentCount = 0;
@@ -241,13 +253,11 @@ class RequestService {
         final managerDepartment = data['department'] ?? 'No Department';
         final roleId = data['roleId']?.toString() ?? '';
         
-        // Skip if no userId
         if (userId.isEmpty) {
           print('⚠️ Manager has no userId: $managerEmail');
           continue;
         }
         
-        // Skip if the manager is the same as the requester
         if (userId == requestData['userId']) {
           print('⚠️ Skipping self notification for: $managerEmail');
           continue;
@@ -255,15 +265,15 @@ class RequestService {
         
         print('📨 Sending to manager: $managerEmail ($managerName) - Dept: $managerDepartment - Role: $roleId');
         
-        // Build message
         String deptInfo = department.isNotEmpty ? ' ($department)' : '';
-        String statusText = isAutoApproved ? '✅ Auto-approved' : '⏳ Needs approval';
+        String statusText = isAutoApproved ? 'Auto-approved' : 'Needs approval';
+        String timeInfo = submitTimeString != null ? ' Submitted: $submitTimeString' : '';
         
         await _sendNotificationToUser(
           userId: userId,
           userEmail: managerEmail,
           title: isAutoApproved ? 'New Request Auto-Approved' : 'New Request Needs Your Approval',
-          message: '$staffName$deptInfo submitted request #$requestNumber ($totalDays day(s)) - $statusText',
+          message: '$staffName$deptInfo submitted request #$requestNumber ($totalDays day(s)) - $statusText$timeInfo',
           type: isAutoApproved ? 'auto_approved' : 'need_approval',
           requestId: requestId,
           extraData: {
@@ -276,6 +286,7 @@ class RequestService {
             'autoApproved': isAutoApproved,
             'managerDepartment': managerDepartment,
             'roleId': roleId,
+            'submitTime': submitTimeString,
           },
         );
         sentCount++;
@@ -564,7 +575,6 @@ class RequestService {
 
   // ==================== NOTIFICATION METHODS ====================
 
-  /// Send notification to a single user
   Future<void> _sendNotificationToUser({
     required String userId,
     required String userEmail,
@@ -600,7 +610,6 @@ class RequestService {
     }
   }
 
-  /// Send notifications to Managers in a department
   Future<void> _notifyManagersInDepartment({
     required String department,
     required String title,
@@ -671,7 +680,6 @@ class RequestService {
     }
   }
 
-  /// Send notifications to all Admins
   Future<void> _notifyAllAdmins({
     required String title,
     required String message,
@@ -731,7 +739,6 @@ class RequestService {
     }
   }
 
-  /// Send notification when new request needs approval to Managers
   Future<void> _notifyManagersForApproval(Map<String, dynamic> requestData, String requestId) async {
     final department = requestData['department'] ?? '';
     await _notifyManagersInDepartment(
@@ -749,12 +756,12 @@ class RequestService {
     );
   }
 
-  /// Send notification when new request needs approval to Admins
-  Future<void> _notifyAdminsForApproval(Map<String, dynamic> requestData, String requestId) async {
+  Future<void> _notifyAdminsForApproval(Map<String, dynamic> requestData, String requestId, String? submitTimeString) async {
     final department = requestData['department'] ?? '';
+    String timeInfo = submitTimeString != null ? ' Submitted: $submitTimeString' : '';
     await _notifyAllAdmins(
       title: 'New Request Needs Approval',
-      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s))',
+      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s))$timeInfo',
       type: 'need_approval',
       requestId: requestId,
       extraData: {
@@ -762,16 +769,17 @@ class RequestService {
         'requestNumber': requestData['requestNumber'],
         'totalDays': requestData['totalDays'],
         'department': department,
+        'submitTime': submitTimeString,
       },
     );
   }
 
-  /// Send notification when auto-approved to Admins
-  Future<void> _notifyAdminsForAutoApproval(Map<String, dynamic> requestData, String requestId) async {
+  Future<void> _notifyAdminsForAutoApproval(Map<String, dynamic> requestData, String requestId, String? submitTimeString) async {
     final department = requestData['department'] ?? '';
+    String timeInfo = submitTimeString != null ? ' Submitted: $submitTimeString' : '';
     await _notifyAllAdmins(
       title: 'Request Auto-Approved',
-      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s)) and was auto-approved',
+      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s)) and was auto-approved$timeInfo',
       type: 'auto_approved',
       requestId: requestId,
       extraData: {
@@ -779,11 +787,11 @@ class RequestService {
         'requestNumber': requestData['requestNumber'],
         'totalDays': requestData['totalDays'],
         'department': department,
+        'submitTime': submitTimeString,
       },
     );
   }
 
-  /// Send notification when request is approved to Admins
   Future<void> _notifyAdminsForRequestApproved(Map<String, dynamic> requestData, String approvedBy, String requestId) async {
     final department = requestData['department'] ?? '';
     await _notifyAllAdmins(
@@ -800,7 +808,6 @@ class RequestService {
     );
   }
 
-  /// Send notification when request is rejected to Admins
   Future<void> _notifyAdminsForRequestRejected(Map<String, dynamic> requestData, String rejectedBy, String? reason, String requestId) async {
     final department = requestData['department'] ?? '';
     await _notifyAllAdmins(
@@ -937,7 +944,6 @@ class RequestService {
 
   // ==================== NOTIFICATION CRUD METHODS ====================
   
-  /// Get user's notifications
   Stream<QuerySnapshot> getUserNotifications(String userId) {
     return _notificationsCollection
         .where('userId', isEqualTo: userId)
@@ -945,7 +951,6 @@ class RequestService {
         .snapshots();
   }
 
-  /// Mark a notification as read
   Future<void> markNotificationAsRead(String notificationId) async {
     try {
       await _notificationsCollection.doc(notificationId).update({
@@ -959,7 +964,6 @@ class RequestService {
     }
   }
 
-  /// Mark all notifications as read for a user
   Future<void> markAllNotificationsAsRead(String userId) async {
     try {
       final snapshot = await _notificationsCollection
@@ -987,7 +991,6 @@ class RequestService {
     }
   }
 
-  /// Get unread notification count for a user
   Future<int> getUnreadNotificationCount(String userId) async {
     try {
       final snapshot = await _notificationsCollection
@@ -1001,7 +1004,6 @@ class RequestService {
     }
   }
 
-  /// Delete a notification
   Future<void> deleteNotification(String notificationId) async {
     try {
       await _notificationsCollection.doc(notificationId).delete();
@@ -1012,7 +1014,6 @@ class RequestService {
     }
   }
 
-  /// Delete all notifications for a user
   Future<void> deleteAllNotifications(String userId) async {
     try {
       final snapshot = await _notificationsCollection

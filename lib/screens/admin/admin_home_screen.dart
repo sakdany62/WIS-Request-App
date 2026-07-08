@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../../app_fonts.dart';
 import '../../services/request_service.dart';
 import '../../services/user_service.dart';
@@ -314,7 +315,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 isLoading: isLoading,
                 unreadCount: _unreadCount,
                 onNotificationPressed: _refreshUnreadCount,
-                useWhiteTheme: true, // tell header to use white text/icons
+                useWhiteTheme: true,
               ),
             ),
             // ---------- Scrollable content ----------
@@ -485,7 +486,7 @@ class _AdminUserHeader extends StatelessWidget {
   final bool isLoading;
   final int unreadCount;
   final VoidCallback? onNotificationPressed;
-  final bool useWhiteTheme; // new flag
+  final bool useWhiteTheme;
 
   const _AdminUserHeader({
     required this.adminName,
@@ -714,6 +715,136 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     }
   }
 
+  // ⏰ Format submit time to Cambodia time (UTC+7)
+  String _formatSubmitTimeLikeTelegram(dynamic submitTime) {
+    if (submitTime == null) return 'N/A';
+    
+    try {
+      // If it's already a String with AM/PM, return as is
+      if (submitTime is String) {
+        String cleaned = submitTime.trim();
+        if (cleaned.contains('AM') || cleaned.contains('PM')) {
+          return cleaned;
+        }
+      }
+      
+      // Try to parse as DateTime
+      DateTime? parsedDateTime;
+      bool isUTC = false;
+      
+      if (submitTime is String) {
+        String cleaned = submitTime.trim();
+        
+        // Check if it's ISO format with Z (UTC) - THIS IS THE KEY!
+        // Firestore stores submitTime as ISO string with Z
+        if (cleaned.contains('T') && cleaned.endsWith('Z')) {
+          try {
+            parsedDateTime = DateTime.parse(cleaned);
+            isUTC = true; // This is UTC time
+          } catch (e) {
+            // Ignore
+          }
+        }
+        // Check if it's ISO format without Z
+        else if (cleaned.contains('T')) {
+          try {
+            parsedDateTime = DateTime.parse(cleaned);
+            isUTC = false;
+          } catch (e) {
+            // Ignore
+          }
+        }
+        // Try "yyyy-MM-dd HH:mm:ss" format (already Cambodia time)
+        else if (cleaned.contains(' ') && cleaned.contains('-')) {
+          final parts = cleaned.split(' ');
+          if (parts.length == 2) {
+            final dateParts = parts[0].split('-');
+            final timeParts = parts[1].split(':');
+            
+            if (dateParts.length == 3 && timeParts.length >= 2) {
+              final year = int.parse(dateParts[0]);
+              final month = int.parse(dateParts[1]);
+              final day = int.parse(dateParts[2]);
+              final hour = int.parse(timeParts[0]);
+              final minute = int.parse(timeParts[1]);
+              parsedDateTime = DateTime(year, month, day, hour, minute);
+              isUTC = false; // This is already Cambodia time
+            }
+          }
+        }
+        // Try "dd/MM/yyyy HH:mm:ss" format
+        else if (cleaned.contains('/') && cleaned.contains(' ')) {
+          final parts = cleaned.split(' ');
+          if (parts.length == 2) {
+            final dateParts = parts[0].split('/');
+            final timeParts = parts[1].split(':');
+            
+            if (dateParts.length == 3 && timeParts.length >= 2) {
+              final day = int.parse(dateParts[0]);
+              final month = int.parse(dateParts[1]);
+              final year = int.parse(dateParts[2]);
+              final hour = int.parse(timeParts[0]);
+              final minute = int.parse(timeParts[1]);
+              parsedDateTime = DateTime(year, month, day, hour, minute);
+              isUTC = false;
+            }
+          }
+        }
+        // Try "yyyy-MM-dd" format
+        else if (cleaned.contains('-') && !cleaned.contains(' ')) {
+          final parts = cleaned.split('-');
+          if (parts.length == 3) {
+            final year = int.parse(parts[0]);
+            final month = int.parse(parts[1]);
+            final day = int.parse(parts[2]);
+            parsedDateTime = DateTime(year, month, day, 0, 0);
+            isUTC = false;
+          }
+        }
+      }
+      else if (submitTime is Timestamp) {
+        parsedDateTime = submitTime.toDate();
+        isUTC = true; // Timestamp is always UTC
+      }
+      else if (submitTime is DateTime) {
+        parsedDateTime = submitTime;
+        isUTC = submitTime.isUtc;
+      }
+      
+      if (parsedDateTime == null) {
+        return submitTime.toString();
+      }
+      
+      // Convert to Cambodia time (UTC+7) if it's UTC
+      DateTime cambodiaTime;
+      if (isUTC) {
+        cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
+      } else {
+        cambodiaTime = parsedDateTime;
+      }
+      
+      // Format: yyyy-MM-dd h:MMPM (Telegram style)
+      final year = cambodiaTime.year;
+      final month = cambodiaTime.month.toString().padLeft(2, '0');
+      final day = cambodiaTime.day.toString().padLeft(2, '0');
+      int hour = cambodiaTime.hour;
+      final int minute = cambodiaTime.minute;
+      final String period = hour >= 12 ? 'PM' : 'AM';
+      
+      if (hour == 0) {
+        hour = 12;
+      } else if (hour > 12) {
+        hour = hour - 12;
+      }
+      
+      return '$year-$month-$day $hour:${minute.toString().padLeft(2, '0')}$period';
+      
+    } catch (e) {
+      print('❌ Error formatting submitTime: $e');
+      return 'N/A';
+    }
+  }
+
   Future<void> _loadRequests({String? status}) async {
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance
         .collection('leave_requests');
@@ -742,6 +873,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         'startDate': data['startDate'],
         'endDate': data['endDate'],
         'createdAt': data['createdAt'],
+        'submitTime': data['submitTime'],
         'fullName': userData['fullName'] ?? data['userName'] ?? 'Unknown',
         'email': userData['email'] ?? 'N/A',
         'department': userData['department'] ?? 'N/A',
@@ -791,6 +923,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         'startDate': data['startDate'],
         'endDate': data['endDate'],
         'createdAt': data['createdAt'],
+        'submitTime': data['submitTime'],
         'fullName': userData['fullName'] ?? data['userName'] ?? 'Unknown',
         'email': userData['email'] ?? 'N/A',
         'department': userData['department'] ?? 'N/A',
@@ -862,19 +995,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
       if (timestamp == null) return 'N/A';
       if (timestamp is Timestamp) {
         return '${timestamp.toDate().day}/${timestamp.toDate().month}/${timestamp.toDate().year}';
-      }
-      return 'N/A';
-    } catch (e) {
-      return 'N/A';
-    }
-  }
-
-  String _formatDateTime(dynamic timestamp) {
-    try {
-      if (timestamp == null) return 'N/A';
-      if (timestamp is Timestamp) {
-        final date = timestamp.toDate();
-        return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
       }
       return 'N/A';
     } catch (e) {
@@ -1006,6 +1126,8 @@ class _DetailListScreenState extends State<_DetailListScreen> {
   }
 
   Widget _buildItemCard(Map<String, dynamic> item) {
+    final String submitTimeDisplay = _formatSubmitTimeLikeTelegram(item['submitTime']);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       elevation: 2,
@@ -1048,8 +1170,12 @@ class _DetailListScreenState extends State<_DetailListScreen> {
               style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[600]),
             ),
             Text(
-              'Requested: ${_formatDateTime(item['createdAt'])}',
-              style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[500]),
+              'Submitted: $submitTimeDisplay',
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                color: Colors.blue[700],
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -1094,110 +1220,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
           ],
         ),
         isThreeLine: true,
-        onTap: () => _showRequestDetail(item),
-      ),
-    );
-  }
-
-  void _showRequestDetail(Map<String, dynamic> request) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              _getStatusIcon(request['status'] ?? 'pending'),
-              color: _getStatusColor(request['status'] ?? 'pending'),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Request Detail',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: AppFonts.md,
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Divider(),
-              _buildSectionHeader('👤 User Information'),
-              _buildDetailRow('Full Name', request['fullName'] ?? request['userName'] ?? 'N/A'),
-              _buildDetailRow('Email', request['email'] ?? 'N/A'),
-              _buildDetailRow('Phone', request['phone'] ?? 'N/A'),
-              _buildDetailRow('Role', _getRoleName(request['role'] ?? 'user')),
-              _buildDetailRow('Department', request['department'] ?? 'N/A'),
-
-              const SizedBox(height: 12),
-              _buildSectionHeader('📋 Request Information'),
-              _buildDetailRow('Status', request['status']?.toString().toUpperCase() ?? 'PENDING'),
-              _buildDetailRow('Reason', request['reason'] ?? 'No reason'),
-              _buildDetailRow('Start Date', _formatDate(request['startDate'])),
-              _buildDetailRow('End Date', _formatDate(request['endDate'])),
-              _buildDetailRow('Requested', _formatDateTime(request['createdAt'])),
-
-              const SizedBox(height: 12),
-              _buildSectionHeader('🔑 System Information'),
-              _buildDetailRow('User ID', request['userId'] ?? 'N/A'),
-              _buildDetailRow('Request ID', request['id'] ?? 'N/A'),
-              _buildDetailRow('Department ID', request['departmentId'] ?? 'N/A'),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: AppFonts.md,
-          color: Colors.grey[700],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              '$label:',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey,
-                fontSize: AppFonts.md,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: AppFonts.md),
-            ),
-          ),
-        ],
       ),
     );
   }

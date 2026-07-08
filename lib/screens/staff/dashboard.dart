@@ -112,8 +112,8 @@ class _DashboardState extends State<Dashboard> {
       return const ManagerDashboard();
     }
 
+    // ✅ ប្រើ Scaffold រុំ IndexedStack ដើម្បីឱ្យ bottomNavigationBar នៅជាប់ជានិច្ច
     return Scaffold(
-      extendBody: true,
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,

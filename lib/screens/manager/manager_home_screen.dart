@@ -120,7 +120,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✅ Request approved successfully',
+              'Request approved successfully',
               style: TextStyle(fontSize: AppFonts.md),
             ),
             backgroundColor: Colors.green,
@@ -214,7 +214,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        '✅ Request rejected',
+                        ' Request rejected',
                         style: TextStyle(fontSize: AppFonts.md),
                       ),
                       backgroundColor: Colors.red,
@@ -302,8 +302,8 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     }
 
     String departmentDisplay = managerDepartment.isNotEmpty
-        ? '📁 $managerDepartment'
-        : '⚠️ No department assigned';
+        ? ' $managerDepartment'
+        : ' No department assigned';
 
     // ---------- New structure: fixed header + scrollable content ----------
     return Scaffold(
@@ -878,7 +878,7 @@ class _PendingCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '📁 $department',
+                        ' $department',
                         style: TextStyle(
                           fontSize: AppFonts.md,
                           color: Colors.blue[700],

@@ -29,9 +29,9 @@ class UserService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
-      print('✅ User updated successfully');
+      print('User updated successfully');
     } catch (e) {
-      print('❌ Failed to update user: $e');
+      print(' Failed to update user: $e');
       throw Exception('Failed to update user: $e');
     }
   }
@@ -45,9 +45,9 @@ class UserService {
           await user.delete();
         }
       }
-      print('✅ User deleted successfully');
+      print('User deleted successfully');
     } catch (e) {
-      print('❌ Failed to delete user: $e');
+      print('Failed to delete user: $e');
       throw Exception('Failed to delete user: $e');
     }
   }
@@ -94,7 +94,7 @@ class UserService {
       
       return stats;
     } catch (e) {
-      print('❌ Failed to get user stats: $e');
+      print(' Failed to get user stats: $e');
       return {};
     }
   }

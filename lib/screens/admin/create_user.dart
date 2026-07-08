@@ -76,7 +76,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ User created successfully!'),
+            content: Text('User created successfully!'),
             backgroundColor: Colors.green,
           ),
         );
