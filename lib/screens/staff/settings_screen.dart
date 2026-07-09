@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import '../../app_fonts.dart';
+import '../../providers/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,7 +14,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final Color primary = const Color(0xFF1A3B68);
 
-  // ✅ Your original list – unchanged
   final List<SettingsItem> _allItems = const [
     SettingsItem(
       icon: Icons.description,
@@ -34,12 +35,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final bgColor = isDarkMode ? Colors.grey[900] : const Color(0xFFF7F8FA);
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    final cardColor = isDarkMode ? Colors.grey[850] : Colors.white;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
+      backgroundColor: bgColor,
       body: SafeArea(
         child: Column(
           children: [
-            // ---------- Custom header (matches admin style) ----------
+            // ---------- Custom header ----------
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
@@ -71,14 +78,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
 
-            // ---------- Your original list of items (scrollable) ----------
+            // ---------- Settings List ----------
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
+                    // ---------- Dark Mode Toggle ----------
+                    _buildToggleItem(
+                      icon: Icons.dark_mode,
+                      title: 'Dark Mode',
+                      value: isDarkMode,
+                      onChanged: (value) {
+                        themeProvider.setDarkMode(value);
+                      },
+                      isDarkMode: isDarkMode,
+                    ),
+                    
+                    const SizedBox(height: 8),
+                    
+                    // ---------- Other Settings Items ----------
                     ..._allItems.map(
-                      (item) => _buildItem(item.icon, item.title, context),
+                      (item) => _buildItem(
+                        item.icon, 
+                        item.title, 
+                        context,
+                        isDarkMode: isDarkMode,
+                        cardColor: cardColor!,
+                        textColor: textColor!,
+                      ),
                     ),
                   ],
                 ),
@@ -90,22 +118,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ---------- Your original _buildItem (unchanged) ----------
-  Widget _buildItem(IconData icon, String title, BuildContext context) {
+  // ---------- Build Toggle Item ----------
+  Widget _buildToggleItem({
+    required IconData icon,
+    required String title,
+    required bool value,
+    required Function(bool) onChanged,
+    required bool isDarkMode,
+  }) {
+    final cardColor = isDarkMode ? Colors.grey[850] : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Colors.black;
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
+      color: cardColor,
       child: ListTile(
         leading: Icon(icon, color: primary),
         title: Text(
           title,
-          style: TextStyle(fontSize: AppFonts.md),
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            color: textColor,
+          ),
         ),
-        trailing:
-            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        trailing: Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: primary,
+          activeTrackColor: primary.withOpacity(0.3),
+        ),
+        onTap: () {
+          onChanged(!value);
+        },
+      ),
+    );
+  }
+
+  // ---------- Build Regular Item ----------
+  Widget _buildItem(
+    IconData icon, 
+    String title, 
+    BuildContext context, {
+    required bool isDarkMode,
+    required Color cardColor,
+    required Color textColor,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      color: cardColor,
+      child: ListTile(
+        leading: Icon(icon, color: primary),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            color: textColor,
+          ),
+        ),
+        trailing: Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: isDarkMode ? Colors.grey[400] : Colors.grey,
+        ),
         onTap: () {
           if (title == 'About App') {
             Navigator.push(
@@ -119,6 +201,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   '$title feature coming soon',
                   style: TextStyle(fontSize: AppFonts.md),
                 ),
+                backgroundColor: isDarkMode ? Colors.grey[800] : null,
               ),
             );
           }
@@ -128,7 +211,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-// ---------- SettingsItem – unchanged ----------
+// ---------- SettingsItem ----------
 class SettingsItem {
   final IconData icon;
   final String title;
@@ -139,14 +222,22 @@ class SettingsItem {
   });
 }
 
-// ===================== ABOUT SCREEN (unchanged) =====================
+// ===================== ABOUT SCREEN WITH DARK MODE =====================
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final bgColor = isDarkMode ? Colors.grey[900] : const Color(0xFFF8FAFC);
+    final cardColor = isDarkMode ? Colors.grey[850] : Colors.white;
+    final textColor = isDarkMode ? Colors.white : const Color(0xFF475569);
+    final labelColor = isDarkMode ? Colors.grey[400]! : Colors.grey;
+    final valueColor = isDarkMode ? Colors.white : Colors.black87;
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E457E),
         elevation: 0,
@@ -173,7 +264,7 @@ class AboutScreen extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardColor,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -200,7 +291,7 @@ class AboutScreen extends StatelessWidget {
               "Version 1.0.0",
               style: TextStyle(
                 fontSize: AppFonts.md,
-                color: Colors.grey,
+                color: isDarkMode ? Colors.grey[400] : Colors.grey,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -211,7 +302,7 @@ class AboutScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15)),
                 elevation: 1,
-                color: Colors.white,
+                color: cardColor,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -230,16 +321,25 @@ class AboutScreen extends StatelessWidget {
                         "This mobile leave request application is designed to modernize and streamline the leave-taking workflow for staff at Westland International School.",
                         style: TextStyle(
                           fontSize: AppFonts.md,
-                          color: const Color(0xFF475569),
+                          color: textColor,
                           height: 1.5,
                         ),
                         textAlign: TextAlign.justify,
                       ),
                       const Divider(height: 30, thickness: 0.5),
                       _buildInfoRow(
-                          "Institution:", "Westland International School"),
+                          "Institution:", 
+                          "Westland International School",
+                          labelColor,
+                          valueColor!,
+                      ),
                       const SizedBox(height: 8),
-                      _buildInfoRow("Academic Year:", "2025 - 2026"),
+                      _buildInfoRow(
+                          "Academic Year:", 
+                          "2025 - 2026",
+                          labelColor,
+                          valueColor!,
+                      ),
                     ],
                   ),
                 ),
@@ -248,7 +348,10 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 40),
             Text(
               "© 2026 Westland International School. All Rights Reserved.",
-              style: TextStyle(fontSize: AppFonts.md, color: Colors.grey),
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                color: isDarkMode ? Colors.grey[500] : Colors.grey,
+              ),
             ),
             const SizedBox(height: 20),
           ],
@@ -257,7 +360,7 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildInfoRow(String label, String value, Color labelColor, Color valueColor) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -265,7 +368,7 @@ class AboutScreen extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: AppFonts.md,
-            color: Colors.grey,
+            color: labelColor,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -273,7 +376,7 @@ class AboutScreen extends StatelessWidget {
           value,
           style: TextStyle(
             fontSize: AppFonts.md,
-            color: Colors.black87,
+            color: valueColor,
             fontWeight: FontWeight.bold,
           ),
         ),

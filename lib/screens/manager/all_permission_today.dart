@@ -357,7 +357,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   }
 
   // ============================================================
-  // ⏰ Show Custom Filter Dialog - Check by Day
+  // ⏰ Show Custom Filter Dialog - Simple Version
   // ============================================================
   Future<void> _showCustomFilterDialog() async {
     await _getAvailableDates();
@@ -373,9 +373,33 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       return;
     }
 
-    DateTime? tempStart = _startDate ?? _availableDates.first;
-    DateTime? tempEnd = _endDate ?? _availableDates.last;
-    bool tempCustom = _isCustomFilter;
+    // Determine current filter
+    String selectedFilter = 'all';
+    if (_isCustomFilter && _startDate != null && _endDate != null) {
+      final now = DateTime.now();
+      final sevenDaysAgo = now.subtract(const Duration(days: 7));
+      final firstDayOfMonth = DateTime(now.year, now.month, 1);
+      final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+      
+      if (_startDate!.isAtSameMomentAs(_availableDates.first) && 
+          _endDate!.isAtSameMomentAs(_availableDates.last)) {
+        selectedFilter = 'all';
+      }
+      else if (_startDate!.isAfter(sevenDaysAgo) || _startDate!.isAtSameMomentAs(sevenDaysAgo)) {
+        selectedFilter = 'last7days';
+      }
+      else if (_startDate!.isAfter(firstDayOfMonth.subtract(const Duration(days: 1))) &&
+               _endDate!.isBefore(lastDayOfMonth.add(const Duration(days: 1)))) {
+        selectedFilter = 'thismonth';
+      }
+      else {
+        selectedFilter = 'custom';
+      }
+    }
+
+    String tempFilter = selectedFilter;
+    DateTime? tempStartDate = _startDate;
+    DateTime? tempEndDate = _endDate;
 
     await showDialog(
       context: context,
@@ -386,51 +410,43 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
               children: [
                 Icon(Icons.filter_alt, color: const Color(0xFF173B69)),
                 const SizedBox(width: 8),
-                const Text('Custom Filter'),
+                const Text('Filter by Date'),
               ],
             ),
             content: SizedBox(
-              width: double.maxFinite,
+              width: 300,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // ⏰ Available Data Summary
                   Container(
-                    padding: const EdgeInsets.all(10),
-                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.blue.shade200),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.calendar_today, color: Colors.blue[700], size: 18),
-                        const SizedBox(width: 8),
+                        Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '📊 Available Data',
+                                '📅 ${_availableDates.length} days with data',
                                 style: TextStyle(
                                   fontSize: AppFonts.md,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue[700],
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blue.shade700,
                                 ),
                               ),
                               Text(
                                 '${DateFormat('dd MMM yyyy').format(_availableDates.first)} - ${DateFormat('dd MMM yyyy').format(_availableDates.last)}',
                                 style: TextStyle(
                                   fontSize: AppFonts.md,
-                                  color: Colors.blue[600],
-                                ),
-                              ),
-                              Text(
-                                '${_availableDates.length} day(s) with data',
-                                style: TextStyle(
-                                  fontSize: AppFonts.md,
-                                  color: Colors.blue[500],
+                                  color: Colors.blue.shade600,
                                 ),
                               ),
                             ],
@@ -440,211 +456,203 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                     ),
                   ),
                   
-                  // ⏰ Enable/Disable Filter
-                  SwitchListTile(
-                    title: const Text('Enable Date Filter'),
-                    subtitle: const Text('Filter by date range'),
-                    value: tempCustom,
-                    onChanged: (value) {
+                  _buildFilterOption(
+                    context: context,
+                    label: 'All Data',
+                    icon: Icons.view_list,
+                    isSelected: tempFilter == 'all',
+                    onTap: () {
                       setStateDialog(() {
-                        tempCustom = value;
-                        if (value && _availableDates.isNotEmpty) {
-                          tempStart = _availableDates.first;
-                          tempEnd = _availableDates.last;
-                        } else {
-                          tempStart = null;
-                          tempEnd = null;
-                        }
+                        tempFilter = 'all';
+                        tempStartDate = _availableDates.first;
+                        tempEndDate = _availableDates.last;
                       });
                     },
-                    activeColor: const Color(0xFF173B69),
                   ),
                   
-                  if (tempCustom && _availableDates.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  
+                  _buildFilterOption(
+                    context: context,
+                    label: 'Last 7 Days',
+                    icon: Icons.today,
+                    isSelected: tempFilter == 'last7days',
+                    onTap: () {
+                      setStateDialog(() {
+                        tempFilter = 'last7days';
+                        final now = DateTime.now();
+                        final sevenDaysAgo = now.subtract(const Duration(days: 7));
+                        tempStartDate = _availableDates.firstWhere(
+                          (d) => d.isAfter(sevenDaysAgo) || d.isAtSameMomentAs(sevenDaysAgo),
+                          orElse: () => _availableDates.first,
+                        );
+                        tempEndDate = _availableDates.lastWhere(
+                          (d) => d.isBefore(now) || d.isAtSameMomentAs(now),
+                          orElse: () => _availableDates.last,
+                        );
+                      });
+                    },
+                  ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  _buildFilterOption(
+                    context: context,
+                    label: 'This Month',
+                    icon: Icons.calendar_month,
+                    isSelected: tempFilter == 'thismonth',
+                    onTap: () {
+                      setStateDialog(() {
+                        tempFilter = 'thismonth';
+                        final now = DateTime.now();
+                        final firstDay = DateTime(now.year, now.month, 1);
+                        final lastDay = DateTime(now.year, now.month + 1, 0);
+                        tempStartDate = _availableDates.firstWhere(
+                          (d) => d.isAfter(firstDay.subtract(const Duration(days: 1))),
+                          orElse: () => _availableDates.first,
+                        );
+                        tempEndDate = _availableDates.lastWhere(
+                          (d) => d.isBefore(lastDay.add(const Duration(days: 1))),
+                          orElse: () => _availableDates.last,
+                        );
+                      });
+                    },
+                  ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  _buildFilterOption(
+                    context: context,
+                    label: 'Custom Range',
+                    icon: Icons.calendar_today,
+                    isSelected: tempFilter == 'custom',
+                    onTap: () {
+                      setStateDialog(() {
+                        tempFilter = 'custom';
+                        if (tempStartDate == null) tempStartDate = _availableDates.first;
+                        if (tempEndDate == null) tempEndDate = _availableDates.last;
+                      });
+                    },
+                  ),
+                  
+                  if (tempFilter == 'custom') ...[
+                    const SizedBox(height: 12),
                     const Divider(),
+                    const SizedBox(height: 12),
                     
-                    // ⏰ Start Date
-                    ListTile(
-                      title: Text(
-                        'Start Date',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppFonts.md,
-                        ),
-                      ),
-                      subtitle: Text(
-                        tempStart != null
-                            ? DateFormat('dd MMM yyyy').format(tempStart!)
-                            : 'Select start date',
-                        style: TextStyle(
-                          color: tempStart != null ? Colors.black : Colors.grey,
-                        ),
-                      ),
-                      trailing: const Icon(Icons.calendar_today, color: Color(0xFF173B69)),
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: tempStart ?? _availableDates.first,
-                          firstDate: _availableDates.first,
-                          lastDate: _availableDates.last,
-                        );
-                        if (picked != null) {
-                          if (_availableDates.any((d) => 
-                              d.year == picked.year && 
-                              d.month == picked.month && 
-                              d.day == picked.day)) {
-                            setStateDialog(() {
-                              tempStart = picked;
-                            });
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('❌ No data on ${DateFormat('dd MMM yyyy').format(picked)}'),
-                                backgroundColor: Colors.orange,
-                              ),
-                            );
-                          }
-                        }
+                    _buildSimpleDatePicker(
+                      context: context,
+                      label: 'Start Date',
+                      date: tempStartDate ?? _availableDates.first,
+                      availableDates: _availableDates,
+                      onChanged: (date) {
+                        setStateDialog(() {
+                          tempStartDate = date;
+                        });
                       },
                     ),
                     
-                    // ⏰ End Date
-                    ListTile(
-                      title: Text(
-                        'End Date',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: AppFonts.md,
-                        ),
-                      ),
-                      subtitle: Text(
-                        tempEnd != null
-                            ? DateFormat('dd MMM yyyy').format(tempEnd!)
-                            : 'Select end date',
-                        style: TextStyle(
-                          color: tempEnd != null ? Colors.black : Colors.grey,
-                        ),
-                      ),
-                      trailing: const Icon(Icons.calendar_today, color: Color(0xFF173B69)),
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: tempEnd ?? _availableDates.last,
-                          firstDate: _availableDates.first,
-                          lastDate: _availableDates.last,
-                        );
-                        if (picked != null) {
-                          if (_availableDates.any((d) => 
-                              d.year == picked.year && 
-                              d.month == picked.month && 
-                              d.day == picked.day)) {
-                            setStateDialog(() {
-                              tempEnd = picked;
-                            });
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('❌ No data on ${DateFormat('dd MMM yyyy').format(picked)}'),
-                                backgroundColor: Colors.orange,
-                              ),
-                            );
-                          }
-                        }
+                    const SizedBox(height: 8),
+                    
+                    _buildSimpleDatePicker(
+                      context: context,
+                      label: 'End Date',
+                      date: tempEndDate ?? _availableDates.last,
+                      availableDates: _availableDates,
+                      onChanged: (date) {
+                        setStateDialog(() {
+                          tempEndDate = date;
+                        });
                       },
                     ),
                     
-                    // ⏰ Show days with data in selected range
-                    if (tempStart != null && tempEnd != null)
-                      _buildDateRangeSummary(tempStart!, tempEnd!),
-                    
-                    // ⏰ Quick Select
-                    if (tempStart != null && tempEnd != null)
+                    if (tempStartDate != null && tempEndDate != null) ...[
+                      const SizedBox(height: 12),
                       Container(
-                        padding: const EdgeInsets.all(8),
-                        margin: const EdgeInsets.only(top: 8),
-                        child: Wrap(
-                          spacing: 4,
-                          runSpacing: 4,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: Row(
                           children: [
-                            _buildQuickChip(
-                              'All Available',
-                              () {
-                                setStateDialog(() {
-                                  tempStart = _availableDates.first;
-                                  tempEnd = _availableDates.last;
-                                });
-                              },
-                            ),
-                            _buildQuickChip(
-                              'Last 7 Days',
-                              () {
-                                final now = DateTime.now();
-                                final sevenDaysAgo = now.subtract(const Duration(days: 7));
-                                final start = _availableDates.firstWhere(
-                                  (d) => d.isAfter(sevenDaysAgo) || d.isAtSameMomentAs(sevenDaysAgo),
-                                  orElse: () => _availableDates.first,
-                                );
-                                final end = _availableDates.lastWhere(
-                                  (d) => d.isBefore(now) || d.isAtSameMomentAs(now),
-                                  orElse: () => _availableDates.last,
-                                );
-                                if (start.isBefore(end) || start.isAtSameMomentAs(end)) {
-                                  tempStart = start;
-                                  tempEnd = end;
-                                  setStateDialog(() {});
-                                }
-                              },
-                            ),
-                            _buildQuickChip(
-                              'This Month',
-                              () {
-                                final now = DateTime.now();
-                                final firstDay = DateTime(now.year, now.month, 1);
-                                final lastDay = DateTime(now.year, now.month + 1, 0);
-                                final start = _availableDates.firstWhere(
-                                  (d) => d.isAfter(firstDay.subtract(const Duration(days: 1))),
-                                  orElse: () => _availableDates.first,
-                                );
-                                final end = _availableDates.lastWhere(
-                                  (d) => d.isBefore(lastDay.add(const Duration(days: 1))),
-                                  orElse: () => _availableDates.last,
-                                );
-                                if (start.isBefore(end) || start.isAtSameMomentAs(end)) {
-                                  tempStart = start;
-                                  tempEnd = end;
-                                  setStateDialog(() {});
-                                }
-                              },
+                            Icon(Icons.check_circle, color: Colors.green.shade700, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '${DateFormat('dd MMM yyyy').format(tempStartDate!)} - ${DateFormat('dd MMM yyyy').format(tempEndDate!)}',
+                                style: TextStyle(
+                                  fontSize: AppFonts.md,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.green.shade700,
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       ),
+                    ],
                   ],
-                  if (_isLoadingDates)
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Center(child: CircularProgressIndicator()),
+                  
+                  if (tempFilter != 'custom' && tempStartDate != null && tempEndDate != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.blue.shade700, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${DateFormat('dd MMM yyyy').format(tempStartDate!)} - ${DateFormat('dd MMM yyyy').format(tempEndDate!)}',
+                              style: TextStyle(
+                                fontSize: AppFonts.md,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
                 ],
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: () => Navigator.pop(context),
                 child: const Text('Cancel'),
               ),
-              TextButton(
+              ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    _startDate = tempCustom ? tempStart : null;
-                    _endDate = tempCustom ? tempEnd : null;
-                    _isCustomFilter = tempCustom;
-                  });
-                  Navigator.pop(context);
-                  _loadAllRequests();
+                  if (tempStartDate != null && tempEndDate != null) {
+                    setState(() {
+                      _startDate = tempStartDate;
+                      _endDate = tempEndDate;
+                      _isCustomFilter = true;
+                    });
+                    Navigator.pop(context);
+                    _loadAllRequests();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please select a date range'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF173B69),
+                  foregroundColor: Colors.white,
+                ),
                 child: const Text('Apply'),
               ),
             ],
@@ -655,167 +663,131 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   }
 
   // ============================================================
-  // ⏰ Build Date Range Summary - Show which days have data
+  // ⏰ Filter Option Widget
   // ============================================================
-  Widget _buildDateRangeSummary(DateTime start, DateTime end) {
-    List<DateTime> daysInRange = [];
-    List<DateTime> daysWithData = [];
-    
-    // Get all days in the range
-    DateTime current = start;
-    while (current.isBefore(end) || current.isAtSameMomentAs(end)) {
-      daysInRange.add(current);
-      current = current.add(const Duration(days: 1));
-    }
-    
-    // Check which days have data
-    for (var day in daysInRange) {
-      if (_availableDates.any((d) => 
-          d.year == day.year && 
-          d.month == day.month && 
-          d.day == day.day)) {
-        daysWithData.add(day);
-      }
-    }
-    
-    if (daysWithData.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        margin: const EdgeInsets.only(top: 8),
+  Widget _buildFilterOption({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.red.withOpacity(0.3)),
+          color: isSelected ? const Color(0xFF173B69).withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFF173B69) : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
         ),
         child: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 20),
-            const SizedBox(width: 8),
+            Icon(
+              icon,
+              color: isSelected ? const Color(0xFF173B69) : Colors.grey.shade600,
+              size: 22,
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
-                '⚠️ No data found in this date range!',
+                label,
                 style: TextStyle(
                   fontSize: AppFonts.md,
-                  color: Colors.red[700],
-                  fontWeight: FontWeight.bold,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  color: isSelected ? const Color(0xFF173B69) : Colors.black87,
                 ),
               ),
             ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle,
+                color: const Color(0xFF173B69),
+                size: 20,
+              ),
           ],
         ),
-      );
-    }
-    
-    // Build day chips
-    List<Widget> dayChips = [];
-    for (var day in daysInRange) {
-      final bool hasData = daysWithData.any((d) => 
-          d.year == day.year && 
-          d.month == day.month && 
-          d.day == day.day);
-      
-      dayChips.add(
-        Container(
-          margin: const EdgeInsets.all(2),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          decoration: BoxDecoration(
-            color: hasData ? Colors.green.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(
-              color: hasData ? Colors.green : Colors.grey,
-              width: 1,
-            ),
-          ),
-          child: Text(
-            '${day.day}',
-            style: TextStyle(
-              fontSize: AppFonts.md,
-              fontWeight: hasData ? FontWeight.bold : FontWeight.normal,
-              color: hasData ? Colors.green[700] : Colors.grey[500],
-            ),
-          ),
-        ),
-      );
-    }
-    
-    return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.only(top: 8),
-      decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.calendar_view_day, color: Colors.blue[700], size: 18),
-              const SizedBox(width: 8),
-              Text(
-                '📊 ${daysWithData.length} / ${daysInRange.length} days have data',
-                style: TextStyle(
-                  fontSize: AppFonts.md,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue[700],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            children: dayChips,
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Has Data',
-                style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[600]),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: Colors.grey,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'No Data',
-                style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
 
-  Widget _buildQuickChip(String label, VoidCallback onTap) {
-    return ActionChip(
-      label: Text(
-        label,
-        style: TextStyle(fontSize: AppFonts.md),
-      ),
-      onPressed: onTap,
-      backgroundColor: Colors.blue.withOpacity(0.1),
-      shape: StadiumBorder(
-        side: BorderSide(color: Colors.blue.withOpacity(0.3)),
+  // ============================================================
+  // ⏰ Simple Date Picker Widget
+  // ============================================================
+  Widget _buildSimpleDatePicker({
+    required BuildContext context,
+    required String label,
+    required DateTime? date,
+    required List<DateTime> availableDates,
+    required Function(DateTime) onChanged,
+  }) {
+    return GestureDetector(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: date ?? availableDates.first,
+          firstDate: availableDates.first,
+          lastDate: availableDates.last,
+        );
+        if (picked != null) {
+          if (availableDates.any((d) =>
+              d.year == picked.year &&
+              d.month == picked.month &&
+              d.day == picked.day)) {
+            onChanged(picked);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ No data on ${DateFormat('dd MMM yyyy').format(picked)}'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(10),
+          color: Colors.white,
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_today, color: const Color(0xFF173B69), size: 18),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: AppFonts.md,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  Text(
+                    date != null
+                        ? DateFormat('dd MMM yyyy').format(date!)
+                        : 'Select date',
+                    style: TextStyle(
+                      fontSize: AppFonts.md,
+                      fontWeight: FontWeight.w500,
+                      color: date != null ? Colors.black : Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 14),
+          ],
+        ),
       ),
     );
   }
@@ -831,33 +803,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       _filterStatus = 'all';
     });
     _loadAllRequests();
-  }
-
-  Map<String, int> get _stats {
-    final stats = {
-      'total': _filteredRequests.length,
-      'pending': 0,
-      'approved': 0,
-      'rejected': 0,
-      'autoApproved': 0,
-      'totalDays': 0,
-    };
-
-    for (var r in _filteredRequests) {
-      if (r.status == 'pending') {
-        stats['pending'] = (stats['pending'] ?? 0) + 1;
-      } else if (r.status == 'approved') {
-        stats['approved'] = (stats['approved'] ?? 0) + 1;
-        if (r.autoApproved) {
-          stats['autoApproved'] = (stats['autoApproved'] ?? 0) + 1;
-        }
-      } else if (r.status == 'rejected') {
-        stats['rejected'] = (stats['rejected'] ?? 0) + 1;
-      }
-      stats['totalDays'] = (stats['totalDays'] ?? 0) + r.totalDays;
-    }
-
-    return stats;
   }
 
   Future<void> _exportToExcel() async {
@@ -980,10 +925,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final stats = _stats;
     final filtered = _filteredRequests;
-
-    String departmentDisplay = _isManager && _managerDepartment.isNotEmpty
+    final String departmentDisplay = _isManager && _managerDepartment.isNotEmpty
         ? '$_managerDepartment'
         : '';
 
@@ -1123,148 +1066,65 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
+          : filtered.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _StatCard(
-                        label: 'Total',
-                        value: stats['total']?.toString() ?? '0',
-                        color: const Color(0xFF173B69),
+                      Icon(Icons.inbox, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text(
+                        '📭 No requests found',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: AppFonts.md,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                      _StatCard(
-                        label: 'Pending',
-                        value: stats['pending']?.toString() ?? '0',
-                        color: Colors.orange,
+                      if (_availableDates.isNotEmpty)
+                        Text(
+                          'Available data: ${DateFormat('dd MMM yyyy').format(_availableDates.first)} - ${DateFormat('dd MMM yyyy').format(_availableDates.last)}',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: AppFonts.md,
+                          ),
+                        ),
+                      Text(
+                        _getFilterLabel(),
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: AppFonts.md,
+                        ),
                       ),
-                      _StatCard(
-                        label: 'Approved',
-                        value: stats['approved']?.toString() ?? '0',
-                        color: Colors.green,
-                      ),
-                      _StatCard(
-                        label: 'Rejected',
-                        value: stats['rejected']?.toString() ?? '0',
-                        color: Colors.red,
-                      ),
-                      _StatCard(
-                        label: 'Total Days',
-                        value: stats['totalDays']?.toString() ?? '0',
-                        color: Colors.purple,
+                      if (_isManager && _managerDepartment.isNotEmpty)
+                        Text(
+                          'Department: $_managerDepartment',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: AppFonts.md,
+                          ),
+                        ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: _showCustomFilterDialog,
+                        icon: const Icon(Icons.filter_alt),
+                        label: const Text('Change Filter'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF173B69),
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ],
                   ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  itemCount: filtered.length,
+                  itemBuilder: (context, index) {
+                    final r = filtered[index];
+                    return _RequestCard(request: r);
+                  },
                 ),
-                Expanded(
-                  child: filtered.isEmpty                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.inbox, size: 64, color: Colors.grey),
-                              const SizedBox(height: 16),
-                              Text(
-                                '📭 No requests found',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: AppFonts.md,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              if (_availableDates.isNotEmpty)
-                                Text(
-                                  'Available data: ${DateFormat('dd MMM yyyy').format(_availableDates.first)} - ${DateFormat('dd MMM yyyy').format(_availableDates.last)}',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: AppFonts.md,
-                                  ),
-                                ),
-                              Text(
-                                _getFilterLabel(),
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: AppFonts.md,
-                                ),
-                              ),
-                              if (_isManager && _managerDepartment.isNotEmpty)
-                                Text(
-                                  'Department: $_managerDepartment',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: AppFonts.md,
-                                  ),
-                                ),
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                onPressed: _showCustomFilterDialog,
-                                icon: const Icon(Icons.filter_alt),
-                                label: const Text('Change Filter'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF173B69),
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final r = filtered[index];
-                            return _RequestCard(request: r);
-                          },
-                        ),
-                ),
-              ],
-            ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: AppFonts.md,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: AppFonts.md,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

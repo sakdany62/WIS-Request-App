@@ -21,6 +21,14 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   String managerId = '';
   String? errorMessage;
   int _staffCount = 0;
+  
+  // Statistics
+  int _totalRequests = 0;
+  int _pendingRequests = 0;
+  int _approvedRequests = 0;
+  int _rejectedRequests = 0;
+  int _autoApprovedRequests = 0;
+  int _totalDays = 0;
 
   @override
   void initState() {
@@ -44,6 +52,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
 
     await _loadManagerData();
     await _loadStaffCount();
+    await _loadStatistics();
   }
 
   Future<void> _loadManagerData() async {
@@ -106,6 +115,64 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     }
   }
 
+  // ============================================================
+  // ⏰ Load Statistics from Firestore
+  // ============================================================
+  Future<void> _loadStatistics() async {
+    try {
+      Query query = FirebaseFirestore.instance.collection('leave_requests');
+      
+      // Filter by department if manager has department
+      if (managerDepartment.isNotEmpty) {
+        query = query.where('department', isEqualTo: managerDepartment);
+      }
+      
+      final snapshot = await query.get();
+      
+      int total = 0;
+      int pending = 0;
+      int approved = 0;
+      int rejected = 0;
+      int autoApproved = 0;
+      int totalDays = 0;
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        total++;
+        
+        final status = data['status'] ?? 'pending';
+        final autoApprovedValue = data['autoApproved'] ?? false;
+        final days = (data['totalDays'] as num?)?.toInt() ?? 0;
+        
+        if (status == 'pending') {
+          pending++;
+        } else if (status == 'approved') {
+          approved++;
+          if (autoApprovedValue) {
+            autoApproved++;
+          }
+        } else if (status == 'rejected') {
+          rejected++;
+        }
+        
+        totalDays += days;
+      }
+      
+      setState(() {
+        _totalRequests = total;
+        _pendingRequests = pending;
+        _approvedRequests = approved;
+        _rejectedRequests = rejected;
+        _autoApprovedRequests = autoApproved;
+        _totalDays = totalDays;
+      });
+      
+      print('📊 Statistics loaded: Total=$total, Pending=$pending, Approved=$approved, Rejected=$rejected');
+    } catch (e) {
+      print('❌ Error loading statistics: $e');
+    }
+  }
+
   Future<void> _approveRequest(
       String requestId, String userName, int totalDays) async {
     try {
@@ -116,11 +183,14 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         managerDepartment,
       );
 
+      // Refresh statistics after approval
+      await _loadStatistics();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Request approved successfully',
+              '✅ Request approved successfully',
               style: TextStyle(fontSize: AppFonts.md),
             ),
             backgroundColor: Colors.green,
@@ -210,11 +280,14 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                       : null,
                 );
 
+                // Refresh statistics after rejection
+                await _loadStatistics();
+
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        ' Request rejected',
+                        '✅ Request rejected',
                         style: TextStyle(fontSize: AppFonts.md),
                       ),
                       backgroundColor: Colors.red,
@@ -305,7 +378,6 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         ? ' $managerDepartment'
         : ' No department assigned';
 
-    // ---------- New structure: fixed header + scrollable content ----------
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: SafeArea(
@@ -326,7 +398,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                 managerName: managerName,
                 isLoading: isLoading,
                 userId: managerId,
-                useWhiteTheme: true, // use white text/icons on dark background
+                useWhiteTheme: true,
               ),
             ),
             // ---------- Scrollable content ----------
@@ -335,6 +407,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                 onRefresh: () async {
                   await _loadManagerData();
                   await _loadStaffCount();
+                  await _loadStatistics();
                 },
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -342,7 +415,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Department & staff count row (moved here)
+                      // Department & staff count row
                       Row(
                         children: [
                           Container(
@@ -396,61 +469,60 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24),
-                      StreamBuilder<QuerySnapshot>(
-                        stream: _requestService
-                            .getPendingRequestsForManager(managerDepartment),
-                        builder: (context, snapshot) {
-                          if (snapshot.hasError) {
-                            return Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                children: [
-                                  const Icon(Icons.error_outline, color: Colors.red),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Error loading requests: ${snapshot.error}',
-                                    style: TextStyle(
-                                        color: Colors.red, fontSize: AppFonts.md),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  ElevatedButton(
-                                    onPressed: () {
-                                      setState(() {});
-                                    },
-                                    child: Text(
-                                      'Retry',
-                                      style: TextStyle(fontSize: AppFonts.md),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
-                          }
-
-                          final pendingCount = snapshot.data?.docs.length ?? 0;
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: _StatCard(
-                                  count: '$pendingCount',
-                                  label: 'Pending Requests',
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                      const SizedBox(height: 16),
+                      
+                      // ============================================================
+                      // ⏰ Statistics Cards - Total, Pending, Approved, Rejected
+                      // ============================================================
+                      Row(
+                        children: [
+                          _buildStatCard(
+                            label: 'Total',
+                            value: '$_totalRequests',
+                            color: const Color(0xFF173B69),
+                          ),
+                          _buildStatCard(
+                            label: 'Pending',
+                            value: '$_pendingRequests',
+                            color: Colors.orange,
+                          ),
+                          _buildStatCard(
+                            label: 'Approved',
+                            value: '$_approvedRequests',
+                            color: Colors.green,
+                          ),
+                          _buildStatCard(
+                            label: 'Rejected',
+                            value: '$_rejectedRequests',
+                            color: Colors.red,
+                          ),
+                        ],
                       ),
+                      
+                      const SizedBox(height: 8),
+                      
+                      // Auto Approved and Total Days
+                      Row(
+                        children: [
+                          _buildStatCard(
+                            label: 'Auto Approved',
+                            value: '$_autoApprovedRequests',
+                            color: Colors.purple,
+                          ),
+                          _buildStatCard(
+                            label: 'Total Days',
+                            value: '$_totalDays',
+                            color: Colors.teal,
+                          ),
+                          const Expanded(
+                            child: SizedBox(),
+                          ),
+                        ],
+                      ),
+                      
                       const SizedBox(height: 24),
+                      
+                      // Pending Approvals Title
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -481,6 +553,8 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
+                      
+                      // Pending Requests List
                       StreamBuilder<QuerySnapshot>(
                         stream: _requestService
                             .getPendingRequestsForManager(managerDepartment),
@@ -575,6 +649,46 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     );
   }
 
+  // ============================================================
+  // ⏰ Build Stat Card
+  // ============================================================
+  Widget _buildStatCard({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _getMonthFromDate(String? dateStr) {
     if (dateStr == null) return 'N/A';
     final parts = dateStr.split(' ');
@@ -596,7 +710,7 @@ class _ManagerUserHeader extends StatelessWidget {
   final String managerName;
   final bool isLoading;
   final String userId;
-  final bool useWhiteTheme; // new flag
+  final bool useWhiteTheme;
 
   const _ManagerUserHeader({
     required this.managerName,
@@ -607,7 +721,6 @@ class _ManagerUserHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Choose colors based on theme
     final textColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
     final subTextColor = useWhiteTheme ? Colors.white70 : Colors.grey;
     final iconColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
@@ -661,7 +774,6 @@ class _ManagerUserHeader extends StatelessWidget {
             ],
           ),
         ),
-        // Notification icon with badge (uses white icon when useWhiteTheme)
         _NotificationIconWithBadge(
           userId: userId,
           iconColor: iconColor,
@@ -739,49 +851,6 @@ class _NotificationIconWithBadge extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String count;
-  final String label;
-
-  const _StatCard({
-    required this.count,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF173B69),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            count,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: AppFonts.md,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: AppFonts.md,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 }
