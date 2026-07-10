@@ -26,12 +26,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   final List<Map<String, String>> _departments = [
     {'id': 'dept_it', 'name': 'IT Department'},
     {'id': 'dept_education', 'name': 'Education'},
-    {'id': 'dept_hr', 'name': 'HR'},
-    {'id': 'dept_finance', 'name': 'Finance'},
-    {'id': 'dept_marketing', 'name': 'Marketing'},
-    {'id': 'dept_sales', 'name': 'Sales'},
+    {'id': 'dept_administration', 'name': 'Administration Department'},
     {'id': 'dept_service', 'name': 'Service'},
-    {'id': 'dept_management', 'name': 'Management'},
+   
   ];
 
   @override
@@ -155,9 +152,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ),
                   items: const [
                     DropdownMenuItem(value: '1', child: Text('👑 Admin')),
-                    DropdownMenuItem(value: '2', child: Text('👤 Staff')),
-                    DropdownMenuItem(value: '3', child: Text('📋 Manager')),
-                    DropdownMenuItem(value: '4', child: Text('🎯 Director')),
+                    DropdownMenuItem(value: '2', child: Text(' Staff')),
+                    DropdownMenuItem(value: '3', child: Text(' Manager')),
+                    DropdownMenuItem(value: '4', child: Text(' Director')),
                   ],
                   onChanged: (value) {
                     if (value != null) selectedRole = value;
@@ -257,7 +254,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('✅ User updated successfully'),
+                    content: Text(' User updated successfully'),
                     backgroundColor: Colors.green,
                   ),
                 );
@@ -324,7 +321,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ User deleted successfully'),
+            content: Text(' User deleted successfully'),
             backgroundColor: Colors.green,
           ),
         );
@@ -582,7 +579,7 @@ class _UserCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '📁 ${user.department}',
+                            ' ${user.department}',
                             style: TextStyle(
                               fontSize: AppFonts.md,
                               color: Colors.blue[700],

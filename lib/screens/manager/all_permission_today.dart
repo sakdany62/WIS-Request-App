@@ -1,3 +1,4 @@
+// lib/screens/staff/list_staff_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
@@ -97,14 +98,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   bool _isLoading = true;
   String _filterStatus = 'all';
   
-  // ⏰ Custom Filter
-  DateTime? _startDate;
-  DateTime? _endDate;
-  bool _isCustomFilter = false;
-  
-  // ⏰ Available dates with data
-  List<DateTime> _availableDates = [];
-  bool _isLoadingDates = false;
+  // ⏰ Report Type & Date (Same as Admin Report)
+  String _selectedReportType = 'daily';
+  DateTime _selectedDate = DateTime.now();
   
   String _managerDepartment = '';
   bool _isManager = false;
@@ -200,47 +196,66 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
-  // ============================================================
-  // ⏰ Get available dates with data
-  // ============================================================
-  Future<List<DateTime>> _getAvailableDates() async {
-    setState(() {
-      _isLoadingDates = true;
-    });
+  // ⏰ Format time to Cambodia time (UTC+7) with AM/PM - Same as Admin Report
+  String _formatToCambodiaTime(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
     
     try {
-      Query query = _firestore.collection('leave_requests');
+      DateTime? parsedDateTime;
+      bool isUTC = false;
       
-      if (_isManager && _managerDepartment.isNotEmpty) {
-        query = query.where('department', isEqualTo: _managerDepartment);
+      if (timestamp is Timestamp) {
+        parsedDateTime = timestamp.toDate();
+        isUTC = true;
+      } else if (timestamp is DateTime) {
+        parsedDateTime = timestamp;
+        isUTC = timestamp.isUtc;
+      } else {
+        return 'N/A';
       }
       
-      final snapshot = await query.get();
-      
-      Set<DateTime> uniqueDates = {};
-      for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
-        if (createdAt != null) {
-          final dateOnly = DateTime(createdAt.year, createdAt.month, createdAt.day);
-          uniqueDates.add(dateOnly);
-        }
+      // Convert to Cambodia time (UTC+7) if it's UTC
+      DateTime cambodiaTime;
+      if (isUTC) {
+        cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
+      } else {
+        cambodiaTime = parsedDateTime;
       }
       
-      final sortedDates = uniqueDates.toList()..sort((a, b) => a.compareTo(b));
+      // Format: dd/MM/yyyy hh:mm AM/PM
+      return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
       
-      setState(() {
-        _availableDates = sortedDates;
-        _isLoadingDates = false;
-      });
-      
-      return sortedDates;
     } catch (e) {
-      print('❌ Error getting available dates: $e');
+      print('❌ Error formatting timestamp: $e');
+      return 'N/A';
+    }
+  }
+
+  String _getDateLabel() {
+    switch (_selectedReportType) {
+      case 'daily':
+        return DateFormat('dd MMM yyyy').format(_selectedDate);
+      case 'monthly':
+        return DateFormat('MMMM yyyy').format(_selectedDate);
+      case 'yearly':
+        return DateFormat('yyyy').format(_selectedDate);
+      default:
+        return '';
+    }
+  }
+
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null) {
       setState(() {
-        _isLoadingDates = false;
+        _selectedDate = picked;
       });
-      return [];
+      _loadAllRequests();
     }
   }
 
@@ -277,7 +292,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       print('Error checking manager department: $e');
     }
 
-    await _getAvailableDates();
     _loadAllRequests();
   }
 
@@ -288,15 +302,34 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     });
 
     try {
-      Query query = _firestore.collection('leave_requests');
+      DateTime startDate;
+      DateTime endDate;
 
-      if (_isCustomFilter && _startDate != null && _endDate != null) {
-        final startTimestamp = Timestamp.fromDate(_startDate!);
-        final endTimestamp = Timestamp.fromDate(_endDate!);
-        query = query
-            .where('createdAt', isGreaterThanOrEqualTo: startTimestamp)
-            .where('createdAt', isLessThanOrEqualTo: endTimestamp);
+      switch (_selectedReportType) {
+        case 'daily':
+          startDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+          endDate = startDate.add(const Duration(days: 1));
+          break;
+        case 'monthly':
+          startDate = DateTime(_selectedDate.year, _selectedDate.month, 1);
+          endDate = DateTime(_selectedDate.year, _selectedDate.month + 1, 1);
+          break;
+        case 'yearly':
+          startDate = DateTime(_selectedDate.year, 1, 1);
+          endDate = DateTime(_selectedDate.year + 1, 1, 1);
+          break;
+        default:
+          startDate = DateTime.now();
+          endDate = DateTime.now().add(const Duration(days: 1));
       }
+
+      final startTimestamp = Timestamp.fromDate(startDate);
+      final endTimestamp = Timestamp.fromDate(endDate);
+
+      Query query = _firestore
+          .collection('leave_requests')
+          .where('createdAt', isGreaterThanOrEqualTo: startTimestamp)
+          .where('createdAt', isLessThan: endTimestamp);
 
       final querySnapshot = await query.get();
       
@@ -352,457 +385,14 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   }
 
   Future<void> _refresh() async {
-    await _getAvailableDates();
     await _loadAllRequests();
   }
 
-  // ============================================================
-  // ⏰ Show Custom Filter Dialog - Simple Version
-  // ============================================================
-  Future<void> _showCustomFilterDialog() async {
-    await _getAvailableDates();
-    
-    if (_availableDates.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('📭 No data available to filter'),
-          backgroundColor: Colors.orange,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-
-    // Determine current filter
-    String selectedFilter = 'all';
-    if (_isCustomFilter && _startDate != null && _endDate != null) {
-      final now = DateTime.now();
-      final sevenDaysAgo = now.subtract(const Duration(days: 7));
-      final firstDayOfMonth = DateTime(now.year, now.month, 1);
-      final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
-      
-      if (_startDate!.isAtSameMomentAs(_availableDates.first) && 
-          _endDate!.isAtSameMomentAs(_availableDates.last)) {
-        selectedFilter = 'all';
-      }
-      else if (_startDate!.isAfter(sevenDaysAgo) || _startDate!.isAtSameMomentAs(sevenDaysAgo)) {
-        selectedFilter = 'last7days';
-      }
-      else if (_startDate!.isAfter(firstDayOfMonth.subtract(const Duration(days: 1))) &&
-               _endDate!.isBefore(lastDayOfMonth.add(const Duration(days: 1)))) {
-        selectedFilter = 'thismonth';
-      }
-      else {
-        selectedFilter = 'custom';
-      }
-    }
-
-    String tempFilter = selectedFilter;
-    DateTime? tempStartDate = _startDate;
-    DateTime? tempEndDate = _endDate;
-
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setStateDialog) {
-          return AlertDialog(
-            title: Row(
-              children: [
-                Icon(Icons.filter_alt, color: const Color(0xFF173B69)),
-                const SizedBox(width: 8),
-                const Text('Filter by Date'),
-              ],
-            ),
-            content: SizedBox(
-              width: 300,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '📅 ${_availableDates.length} days with data',
-                                style: TextStyle(
-                                  fontSize: AppFonts.md,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blue.shade700,
-                                ),
-                              ),
-                              Text(
-                                '${DateFormat('dd MMM yyyy').format(_availableDates.first)} - ${DateFormat('dd MMM yyyy').format(_availableDates.last)}',
-                                style: TextStyle(
-                                  fontSize: AppFonts.md,
-                                  color: Colors.blue.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  _buildFilterOption(
-                    context: context,
-                    label: 'All Data',
-                    icon: Icons.view_list,
-                    isSelected: tempFilter == 'all',
-                    onTap: () {
-                      setStateDialog(() {
-                        tempFilter = 'all';
-                        tempStartDate = _availableDates.first;
-                        tempEndDate = _availableDates.last;
-                      });
-                    },
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  _buildFilterOption(
-                    context: context,
-                    label: 'Last 7 Days',
-                    icon: Icons.today,
-                    isSelected: tempFilter == 'last7days',
-                    onTap: () {
-                      setStateDialog(() {
-                        tempFilter = 'last7days';
-                        final now = DateTime.now();
-                        final sevenDaysAgo = now.subtract(const Duration(days: 7));
-                        tempStartDate = _availableDates.firstWhere(
-                          (d) => d.isAfter(sevenDaysAgo) || d.isAtSameMomentAs(sevenDaysAgo),
-                          orElse: () => _availableDates.first,
-                        );
-                        tempEndDate = _availableDates.lastWhere(
-                          (d) => d.isBefore(now) || d.isAtSameMomentAs(now),
-                          orElse: () => _availableDates.last,
-                        );
-                      });
-                    },
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  _buildFilterOption(
-                    context: context,
-                    label: 'This Month',
-                    icon: Icons.calendar_month,
-                    isSelected: tempFilter == 'thismonth',
-                    onTap: () {
-                      setStateDialog(() {
-                        tempFilter = 'thismonth';
-                        final now = DateTime.now();
-                        final firstDay = DateTime(now.year, now.month, 1);
-                        final lastDay = DateTime(now.year, now.month + 1, 0);
-                        tempStartDate = _availableDates.firstWhere(
-                          (d) => d.isAfter(firstDay.subtract(const Duration(days: 1))),
-                          orElse: () => _availableDates.first,
-                        );
-                        tempEndDate = _availableDates.lastWhere(
-                          (d) => d.isBefore(lastDay.add(const Duration(days: 1))),
-                          orElse: () => _availableDates.last,
-                        );
-                      });
-                    },
-                  ),
-                  
-                  const SizedBox(height: 8),
-                  
-                  _buildFilterOption(
-                    context: context,
-                    label: 'Custom Range',
-                    icon: Icons.calendar_today,
-                    isSelected: tempFilter == 'custom',
-                    onTap: () {
-                      setStateDialog(() {
-                        tempFilter = 'custom';
-                        if (tempStartDate == null) tempStartDate = _availableDates.first;
-                        if (tempEndDate == null) tempEndDate = _availableDates.last;
-                      });
-                    },
-                  ),
-                  
-                  if (tempFilter == 'custom') ...[
-                    const SizedBox(height: 12),
-                    const Divider(),
-                    const SizedBox(height: 12),
-                    
-                    _buildSimpleDatePicker(
-                      context: context,
-                      label: 'Start Date',
-                      date: tempStartDate ?? _availableDates.first,
-                      availableDates: _availableDates,
-                      onChanged: (date) {
-                        setStateDialog(() {
-                          tempStartDate = date;
-                        });
-                      },
-                    ),
-                    
-                    const SizedBox(height: 8),
-                    
-                    _buildSimpleDatePicker(
-                      context: context,
-                      label: 'End Date',
-                      date: tempEndDate ?? _availableDates.last,
-                      availableDates: _availableDates,
-                      onChanged: (date) {
-                        setStateDialog(() {
-                          tempEndDate = date;
-                        });
-                      },
-                    ),
-                    
-                    if (tempStartDate != null && tempEndDate != null) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.check_circle, color: Colors.green.shade700, size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '${DateFormat('dd MMM yyyy').format(tempStartDate!)} - ${DateFormat('dd MMM yyyy').format(tempEndDate!)}',
-                                style: TextStyle(
-                                  fontSize: AppFonts.md,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.green.shade700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                  
-                  if (tempFilter != 'custom' && tempStartDate != null && tempEndDate != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.blue.shade700, size: 16),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '${DateFormat('dd MMM yyyy').format(tempStartDate!)} - ${DateFormat('dd MMM yyyy').format(tempEndDate!)}',
-                              style: TextStyle(
-                                fontSize: AppFonts.md,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blue.shade700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (tempStartDate != null && tempEndDate != null) {
-                    setState(() {
-                      _startDate = tempStartDate;
-                      _endDate = tempEndDate;
-                      _isCustomFilter = true;
-                    });
-                    Navigator.pop(context);
-                    _loadAllRequests();
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please select a date range'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF173B69),
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Apply'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  // ============================================================
-  // ⏰ Filter Option Widget
-  // ============================================================
-  Widget _buildFilterOption({
-    required BuildContext context,
-    required String label,
-    required IconData icon,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF173B69).withOpacity(0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? const Color(0xFF173B69) : Colors.grey.shade300,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? const Color(0xFF173B69) : Colors.grey.shade600,
-              size: 22,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: AppFonts.md,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? const Color(0xFF173B69) : Colors.black87,
-                ),
-              ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: const Color(0xFF173B69),
-                size: 20,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // ⏰ Simple Date Picker Widget
-  // ============================================================
-  Widget _buildSimpleDatePicker({
-    required BuildContext context,
-    required String label,
-    required DateTime? date,
-    required List<DateTime> availableDates,
-    required Function(DateTime) onChanged,
-  }) {
-    return GestureDetector(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: date ?? availableDates.first,
-          firstDate: availableDates.first,
-          lastDate: availableDates.last,
-        );
-        if (picked != null) {
-          if (availableDates.any((d) =>
-              d.year == picked.year &&
-              d.month == picked.month &&
-              d.day == picked.day)) {
-            onChanged(picked);
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('❌ No data on ${DateFormat('dd MMM yyyy').format(picked)}'),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(10),
-          color: Colors.white,
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_today, color: const Color(0xFF173B69), size: 18),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: AppFonts.md,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                  Text(
-                    date != null
-                        ? DateFormat('dd MMM yyyy').format(date!)
-                        : 'Select date',
-                    style: TextStyle(
-                      fontSize: AppFonts.md,
-                      fontWeight: FontWeight.w500,
-                      color: date != null ? Colors.black : Colors.grey.shade500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 14),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // ⏰ Clear Custom Filter
-  // ============================================================
   void _clearFilter() {
     setState(() {
-      _startDate = null;
-      _endDate = null;
-      _isCustomFilter = false;
       _filterStatus = 'all';
     });
-    _loadAllRequests();
+    _applyFilters();
   }
 
   Future<void> _exportToExcel() async {
@@ -832,7 +422,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         'Status',
         'Approval Type',
         'Request Number',
-        'Created At',
+        'Created At (Cambodia Time)',
         'Submit Time',
         'Department',
       ];
@@ -852,6 +442,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       for (int i = 0; i < _filteredRequests.length; i++) {
         final r = _filteredRequests[i];
         final submitTimeDisplay = _formatSubmitTime(r.submitTime);
+        final createdAtDisplay = _formatToCambodiaTime(r.createdAt);
         
         sheet.appendRow([
           (i + 1),
@@ -865,13 +456,13 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           r.status.toUpperCase(),
           r.approvalType,
           r.requestNumber,
-          DateFormat('dd/MM/yyyy HH:mm').format(r.createdAt),
+          createdAtDisplay,
           submitTimeDisplay,
           r.department ?? '',
         ]);
       }
 
-      final colWidths = [6, 12, 20, 25, 15, 15, 12, 25, 14, 14, 16, 20, 18, 20];
+      final colWidths = [6, 12, 20, 25, 15, 15, 12, 25, 14, 14, 16, 25, 18, 20];
       for (int i = 0; i < colWidths.length; i++) {
         sheet.setColWidth(i, colWidths[i].toDouble());
       }
@@ -913,24 +504,71 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
-  String _getFilterLabel() {
-    if (_isCustomFilter && _startDate != null && _endDate != null) {
-      return '${DateFormat('dd MMM').format(_startDate!)} - ${DateFormat('dd MMM yyyy').format(_endDate!)}';
-    }
-    if (_availableDates.isNotEmpty) {
-      return 'All Data (${DateFormat('dd MMM').format(_availableDates.first)} - ${DateFormat('dd MMM yyyy').format(_availableDates.last)})';
-    }
-    return 'All Time';
+  Map<String, dynamic> _calculateSummary(List<TodayRequest> data) {
+    int total = data.length;
+    int pending = data.where((r) => r.status == 'pending').length;
+    int approved = data.where((r) => r.status == 'approved').length;
+    int rejected = data.where((r) => r.status == 'rejected').length;
+    int autoApproved = data.where((r) => r.autoApproved == true).length;
+    int totalDays = data.fold(0, (sum, r) => sum + r.totalDays);
+
+    return {
+      'total': total,
+      'pending': pending,
+      'approved': approved,
+      'rejected': rejected,
+      'autoApproved': autoApproved,
+      'totalDays': totalDays,
+    };
+  }
+
+  Widget _buildSummaryCard({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      width: 70,
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredRequests;
+    final summary = _calculateSummary(filtered);
     final String departmentDisplay = _isManager && _managerDepartment.isNotEmpty
         ? '$_managerDepartment'
         : '';
 
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: Text(
           'Permission List',
@@ -941,6 +579,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -952,179 +591,296 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
             onPressed: _exportToExcel,
             tooltip: 'Export to Excel',
           ),
-          IconButton(
-            icon: const Icon(Icons.filter_alt),
-            onPressed: _showCustomFilterDialog,
-            tooltip: 'Custom Filter',
-          ),
-          if (_isCustomFilter || _filterStatus != 'all')
-            IconButton(
-              icon: const Icon(Icons.clear_all),
-              onPressed: _clearFilter,
-              tooltip: 'Clear Filter',
-            ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(110),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.filter_alt, size: 16, color: Colors.white70),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Filter: ${_getFilterLabel()}',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: AppFonts.md,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    if (departmentDisplay.isNotEmpty) ...[
-                      const SizedBox(width: 16),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          departmentDisplay,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: AppFonts.md,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: DropdownButton<String>(
-                          value: _filterStatus,
-                          icon: const Icon(Icons.filter_list),
-                          underline: const SizedBox(),
-                          isExpanded: true,
-                          style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
-                          items: [
-                            const DropdownMenuItem(value: 'all', child: Text('All Status')),
-                            const DropdownMenuItem(value: 'pending', child: Text(' Pending')),
-                            const DropdownMenuItem(value: 'approved', child: Text(' Approved')),
-                            const DropdownMenuItem(value: 'auto_approved', child: Text(' Auto Approved')),
-                            const DropdownMenuItem(value: 'rejected', child: Text(' Rejected')),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              _filterStatus = value!;
-                              _applyFilters();
-                            });
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline, size: 16, color: Colors.grey[700]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${filtered.length}',
-                            style: TextStyle(
-                              fontSize: AppFonts.md,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF173B69),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  // Filter Section (Same as Admin Report)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                    color: Colors.grey[100],
+                    child: Column(
+                      children: [
+                        // Row 1: Report Type & Date (Same as Admin Report)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _selectedReportType,
+                                decoration: InputDecoration(
+                                  labelText: 'Report Type',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(value: 'daily', child: Text(' Daily')),
+                                  DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                                  DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      _selectedReportType = value;
+                                    });
+                                    _loadAllRequests();
+                                  }
+                                },
+                              ),
                             ),
+                            const SizedBox(width: 12),
+                            SizedBox(
+                              height: 50,
+                              child: ElevatedButton.icon(
+                                onPressed: _selectDate,
+                                icon: const Icon(Icons.calendar_today, size: 18),
+                                label: Text(
+                                  _getDateLabel(),
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF173B69),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Row 2: Status Filter
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _filterStatus,
+                                decoration: InputDecoration(
+                                  labelText: 'Status Filter',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(value: 'all', child: Text('All')),
+                                  DropdownMenuItem(value: 'pending', child: Text(' Pending')),
+                                  DropdownMenuItem(value: 'approved', child: Text(' Approved')),
+                                  DropdownMenuItem(value: 'auto_approved', child: Text(' Auto Approved')),
+                                  DropdownMenuItem(value: 'rejected', child: Text(' Rejected')),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() {
+                                      _filterStatus = value;
+                                    });
+                                    _applyFilters();
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // Clear Filters Button (next to status filter)
+                            SizedBox(
+                              height: 50,
+                              child: _filterStatus != 'all'
+                                  ? ElevatedButton(
+                                      onPressed: _clearFilter,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red.shade50,
+                                        foregroundColor: Colors.red.shade700,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                          side: BorderSide(color: Colors.red.shade200),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Clear',
+                                        style: TextStyle(fontSize: 13),
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          ],
+                        ),
+
+                        // Row 3: Department Display (if manager)
+                        if (departmentDisplay.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.business, size: 18, color: Colors.green),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        ' $departmentDisplay',
+                                        style: TextStyle(
+                                          fontSize: AppFonts.md,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                  // Summary Cards (Same as Admin Report)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    child: SizedBox(
+                      height: 70,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          _buildSummaryCard(
+                            label: 'Total',
+                            value: summary['total'].toString(),
+                            color: const Color(0xFF173B69),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildSummaryCard(
+                            label: 'Pending',
+                            value: summary['pending'].toString(),
+                            color: Colors.orange,
+                          ),
+                          const SizedBox(width: 6),
+                          _buildSummaryCard(
+                            label: 'Approved',
+                            value: summary['approved'].toString(),
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 6),
+                          _buildSummaryCard(
+                            label: 'Rejected',
+                            value: summary['rejected'].toString(),
+                            color: Colors.red,
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : filtered.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inbox, size: 64, color: Colors.grey),
-                      const SizedBox(height: 16),
-                      Text(
-                        '📭 No requests found',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: AppFonts.md,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (_availableDates.isNotEmpty)
-                        Text(
-                          'Available data: ${DateFormat('dd MMM yyyy').format(_availableDates.first)} - ${DateFormat('dd MMM yyyy').format(_availableDates.last)}',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: AppFonts.md,
-                          ),
-                        ),
-                      Text(
-                        _getFilterLabel(),
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontSize: AppFonts.md,
-                        ),
-                      ),
-                      if (_isManager && _managerDepartment.isNotEmpty)
-                        Text(
-                          'Department: $_managerDepartment',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: AppFonts.md,
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: _showCustomFilterDialog,
-                        icon: const Icon(Icons.filter_alt),
-                        label: const Text('Change Filter'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF173B69),
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final r = filtered[index];
-                    return _RequestCard(request: r);
-                  },
-                ),
+
+                  // Total Days Card (Same as Admin Report)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.calendar_today, color: Colors.purple, size: 18),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Total Days: ${summary['totalDays']}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.purple,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${summary['autoApproved']} Auto',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.purple,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // List of Requests
+                  filtered.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(40),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.inbox,
+                                size: 64,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                ' No requests found',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: AppFonts.md,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              if (_isManager && _managerDepartment.isNotEmpty)
+                                Text(
+                                  'Department: $_managerDepartment',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: AppFonts.md,
+                                  ),
+                                ),
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: _refresh,
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Refresh'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF173B69),
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            final r = filtered[index];
+                            return _RequestCard(request: r);
+                          },
+                        ),
+                ],
+              ),
+            ),
     );
   }
 }
@@ -1242,32 +998,69 @@ class _RequestCard extends StatelessWidget {
     }
   }
 
+  // ⏰ Format time to Cambodia time (UTC+7) with AM/PM - Same as Admin Report
+  String _formatToCambodiaTime(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+    
+    try {
+      DateTime? parsedDateTime;
+      bool isUTC = false;
+      
+      if (timestamp is Timestamp) {
+        parsedDateTime = timestamp.toDate();
+        isUTC = true;
+      } else if (timestamp is DateTime) {
+        parsedDateTime = timestamp;
+        isUTC = timestamp.isUtc;
+      } else {
+        return 'N/A';
+      }
+      
+      // Convert to Cambodia time (UTC+7) if it's UTC
+      DateTime cambodiaTime;
+      if (isUTC) {
+        cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
+      } else {
+        cambodiaTime = parsedDateTime;
+      }
+      
+      // Format: dd/MM/yyyy hh:mm AM/PM
+      return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
+      
+    } catch (e) {
+      print('❌ Error formatting timestamp: $e');
+      return 'N/A';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final submitTimeDisplay = _formatSubmitTime(request.submitTime);
+    final createdAtDisplay = _formatToCambodiaTime(request.createdAt);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 6),
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 CircleAvatar(
+                  radius: 16,
                   backgroundColor: _statusColor.withOpacity(0.2),
                   child: Icon(
                     _statusIcon,
                     color: _statusColor,
-                    size: 20,
+                    size: 16,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1282,7 +1075,7 @@ class _RequestCard extends StatelessWidget {
                       Text(
                         request.userEmail,
                         style: TextStyle(
-                          fontSize: AppFonts.md,
+                          fontSize: 12,
                           color: Colors.grey[600],
                         ),
                       ),
@@ -1290,150 +1083,127 @@ class _RequestCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
                     color: _statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _statusColor.withOpacity(0.3)),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     request.status.toUpperCase(),
                     style: TextStyle(
                       color: _statusColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: AppFonts.md,
+                      fontSize: 11,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Row(
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '📅 ${request.startDate} → ${request.endDate}',
-                        style: TextStyle(
-                          fontSize: AppFonts.md,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '📝 ${request.reason}',
-                        style: TextStyle(
-                          fontSize: AppFonts.md,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '🕐 Submitted: $submitTimeDisplay',
-                        style: TextStyle(
-                          fontSize: AppFonts.md,
-                          color: Colors.blue[700],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '${request.startDate} → ${request.endDate}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[700],
                   ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${request.totalDays} day${request.totalDays > 1 ? 's' : ''}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                          fontSize: AppFonts.md,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'ID #${request.requestNumber}',
-                      style: TextStyle(
-                        fontSize: AppFonts.md,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 3),
+            Row(
+              children: [
+                Icon(Icons.note, size: 12, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    request.reason,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[700],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${request.totalDays} days',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: request.autoApproved
                         ? Colors.purple.withOpacity(0.1)
                         : Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     request.autoApproved ? ' Auto' : ' Manual',
                     style: TextStyle(
-                      fontSize: AppFonts.md,
+                      fontSize: 11,
                       color: request.autoApproved ? Colors.purple : Colors.orange,
-                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (request.approvedByName != null)
-                  Text(
-                    'by ${request.approvedByName}',
-                    style: TextStyle(
-                      fontSize: AppFonts.md,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                const Spacer(),
+                const SizedBox(width: 6),
                 Text(
-                  DateFormat('HH:mm').format(request.createdAt),
+                  '#${request.requestNumber}',
                   style: TextStyle(
-                    fontSize: AppFonts.md,
+                    fontSize: 11,
                     color: Colors.grey[500],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Show Cambodia time with AM/PM
+                Text(
+                  createdAtDisplay,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.blue[700],
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
             if (request.status == 'rejected' && request.rejectionReason != null)
               Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withOpacity(0.2)),
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(
+                  '⚠️ ${request.rejectionReason}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red[700],
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.red[300], size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Rejected: ${request.rejectionReason}',
-                          style: TextStyle(
-                            fontSize: AppFonts.md,
-                            color: Colors.red[700],
-                          ),
-                        ),
-                      ),
-                    ],
+                ),
+              ),
+            if (request.approvedByName != null && request.approvedByName!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  ' Approved by: ${request.approvedByName}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.green[700],
                   ),
                 ),
               ),

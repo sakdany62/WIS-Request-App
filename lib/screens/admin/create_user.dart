@@ -25,16 +25,18 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   final List<Map<String, String>> _departments = [
     {'id': 'dept_it', 'name': 'IT Department'},
     {'id': 'dept_education', 'name': 'Education Department'},
-    {'id': 'dept_hr', 'name': 'HR Department'},
-    {'id': 'dept_finance', 'name': 'Finance Department'},
-    {'id': 'dept_marketing', 'name': 'Marketing Department'},
-    {'id': 'dept_sales', 'name': 'Sales Department'},
+    {'id': 'dept_administration', 'name': 'Administration Department'},
     {'id': 'dept_service', 'name': 'Service Department'},
-    {'id': 'dept_management', 'name': 'Management Department'},
   ];
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Check if department should be shown
+  bool _showDepartment() {
+    // Hide for Admin (roleId = '1') and Director (roleId = '4')
+    return _selectedRole != '1' && _selectedRole != '4';
+  }
 
   Future<void> _createUser() async {
     if (!_formKey.currentState!.validate()) return;
@@ -48,7 +50,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      
 
       // Find department name from Department ID
       String departmentName = '';
@@ -301,6 +302,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                       if (value != null) {
                         setState(() {
                           _selectedRole = value;
+                          // Reset department when Admin or Director is selected
+                          if (value == '1' || value == '4') {
+                            _selectedDepartmentId = '';
+                          }
                         });
                       }
                     },
@@ -309,52 +314,62 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
               ),
               const SizedBox(height: 16),
 
-              const Text(
-                'Department',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedDepartmentId.isEmpty ? null : _selectedDepartmentId,
-                    hint: const Text(
-                      'Select Department',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: '',
-                        child: Text('No Department'),
-                      ),
-                      ..._departments.map((dept) {
-                        return DropdownMenuItem(
-                          value: dept['id'],
-                          child: Text(dept['name']!),
-                        );
-                      }),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedDepartmentId = value ?? '';
-                      });
-                    },
+              // Department field - only shown when not Admin or Director
+              if (_showDepartment()) ...[
+                const Text(
+                  'Department',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey,
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 6),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedDepartmentId.isEmpty ? null : _selectedDepartmentId,
+                      hint: const Text(
+                        'Select Department',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('No Department'),
+                        ),
+                        ..._departments.map((dept) {
+                          return DropdownMenuItem(
+                            value: dept['id'],
+                            child: Text(dept['name']!),
+                          );
+                        }),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedDepartmentId = value ?? '';
+                        });
+                      },
+                      validator: (value) {
+                        // Only validate if department is shown (not Admin or Director)
+                        if (_showDepartment() && (value == null || value.isEmpty)) {
+                          return 'Please select a department';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               const Text(
                 'Status',
