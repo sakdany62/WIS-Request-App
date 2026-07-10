@@ -30,7 +30,7 @@ class TelegramService {
       }
       return user.displayName ?? user.email ?? 'Staff';
     } catch (e) {
-      print('❌ Error getting staff name: $e');
+      print(' Error getting staff name: $e');
       return 'Staff';
     }
   }
@@ -53,7 +53,7 @@ class TelegramService {
       }
       return 'Employee';
     } catch (e) {
-      print('❌ Error getting staff position: $e');
+      print(' Error getting staff position: $e');
       return 'Employee';
     }
   }
@@ -84,7 +84,7 @@ class TelegramService {
         'position': 'Employee',
       };
     } catch (e) {
-      print('❌ Error getting staff info: $e');
+      print(' Error getting staff info: $e');
       return {'name': 'Staff', 'position': 'Employee'};
     }
   }
@@ -126,7 +126,7 @@ class TelegramService {
   }
 
   // ===== ⏰ Format time only (HH:MM AM/PM) Cambodia Time =====
-  static String _formatTimeOnlyAMPM([DateTime? time]) {
+  static String formatTimeOnlyAMPM([DateTime? time]) {
     final DateTime now = time ?? DateTime.now();
     
     // Convert to Cambodia time (UTC+7)
@@ -174,7 +174,7 @@ class TelegramService {
   static String _formatSubmitTime(dynamic submitTime) {
     // If no submitTime, use current Cambodia time
     if (submitTime == null) {
-      return _formatTimeOnlyAMPM();
+      return formatTimeOnlyAMPM();
     }
     
     // If it's a String, use it directly (already formatted)
@@ -182,16 +182,16 @@ class TelegramService {
       if (submitTime.isNotEmpty) {
         return submitTime;
       }
-      return _formatTimeOnlyAMPM();
+      return formatTimeOnlyAMPM();
     }
     
     // If it's a DateTime, convert to AM/PM
     if (submitTime is DateTime) {
-      return _formatTimeOnlyAMPM(submitTime);
+      return formatTimeOnlyAMPM(submitTime);
     }
     
     // Default: use current Cambodia time
-    return _formatTimeOnlyAMPM();
+    return formatTimeOnlyAMPM();
   }
 
   // ===== Send message to Group =====
@@ -216,10 +216,10 @@ class TelegramService {
       bool adminSent = await _sendMessage(_adminChatId, message);
       bool groupSent = await _sendMessage(_groupChatId, message);
       
-      print('✅ Manager: $managerSent, Admin: $adminSent, Group: $groupSent');
+      print(' Manager: $managerSent, Admin: $adminSent, Group: $groupSent');
       return managerSent && adminSent && groupSent;
     } catch (e) {
-      print('❌ Telegram Error (sendToAll): $e');
+      print(' Telegram Error (sendToAll): $e');
       return false;
     }
   }
@@ -252,14 +252,14 @@ class TelegramService {
       );
 
       if (response.statusCode == 200) {
-        print('✅ Message sent to Telegram successfully (Chat: $chatId)');
+        print(' Message sent to Telegram successfully (Chat: $chatId)');
         return true;
       } else {
-        print('❌ Telegram Error: ${response.statusCode} - ${response.body}');
+        print(' Telegram Error: ${response.statusCode} - ${response.body}');
         return false;
       }
     } catch (e) {
-      print('❌ Telegram Exception: $e');
+      print(' Telegram Exception: $e');
       return false;
     }
   }

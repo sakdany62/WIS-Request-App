@@ -1,7 +1,9 @@
+// lib/screens/manager/manager_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/request_service.dart';
+import '../../services/telegram_service.dart';
 import '../staff/notifications_screen.dart';
 import '../staff/profile_screen.dart';
 import '../../app_fonts.dart';
@@ -115,14 +117,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     }
   }
 
-  // ============================================================
-  // ⏰ Load Statistics from Firestore
-  // ============================================================
   Future<void> _loadStatistics() async {
     try {
       Query query = FirebaseFirestore.instance.collection('leave_requests');
       
-      // Filter by department if manager has department
       if (managerDepartment.isNotEmpty) {
         query = query.where('department', isEqualTo: managerDepartment);
       }
@@ -167,21 +165,58 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         _totalDays = totalDays;
       });
       
-      print('📊 Statistics loaded: Total=$total, Pending=$pending, Approved=$approved, Rejected=$rejected');
+      print(' Statistics loaded: Total=$total, Pending=$pending, Approved=$approved, Rejected=$rejected');
     } catch (e) {
-      print('❌ Error loading statistics: $e');
+      print(' Error loading statistics: $e');
     }
   }
 
+  // ============================================================
+  // APPROVE REQUEST WITH TELEGRAM NOTIFICATION
+  // ============================================================
   Future<void> _approveRequest(
       String requestId, String userName, int totalDays) async {
     try {
+      // Get request details before approval
+      final requestDoc = await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .doc(requestId)
+          .get();
+      
+      final requestData = requestDoc.data() as Map<String, dynamic>;
+      final permissionType = requestData['permissionType'] ?? 'Leave';
+      final reason = requestData['reason'] ?? 'No reason provided';
+      final startDate = requestData['startDate'] ?? 'N/A';
+      final endDate = requestData['endDate'] ?? 'N/A';
+
+      // Approve the request
       await _requestService.approveRequestAsManager(
         requestId,
         managerId,
         managerName,
         managerDepartment,
       );
+
+      // ===== SEND TELEGRAM NOTIFICATION =====
+      final approvalMessage = '''
+✅ REQUEST APPROVED
+
+Staff: $userName
+Reason: $reason
+Date: $startDate - $endDate
+Total Days: $totalDays
+
+Approved By: $managerName (Manager)
+Department: $managerDepartment
+Time: ${TelegramService.formatTimeOnlyAMPM()}
+
+Status: APPROVED 
+      ''';
+      
+      // Send to Manager, Admin, and Group
+      await TelegramService.sendToAll(approvalMessage);
+      
+      print(' Telegram notifications sent for approval');
 
       // Refresh statistics after approval
       await _loadStatistics();
@@ -190,7 +225,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✅ Request approved successfully',
+              ' Request approved successfully',
               style: TextStyle(fontSize: AppFonts.md),
             ),
             backgroundColor: Colors.green,
@@ -227,6 +262,9 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     }
   }
 
+  // ============================================================
+  // REJECT REQUEST WITH TELEGRAM NOTIFICATION
+  // ============================================================
   Future<void> _showRejectDialog(
       String requestId, String userName, int totalDays) async {
     final reasonController = TextEditingController();
@@ -270,15 +308,51 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
             onPressed: () async {
               Navigator.pop(context);
               try {
+                // Get request details before rejection
+                final requestDoc = await FirebaseFirestore.instance
+                    .collection('leave_requests')
+                    .doc(requestId)
+                    .get();
+                
+                final requestData = requestDoc.data() as Map<String, dynamic>;
+                final permissionType = requestData['permissionType'] ?? 'Leave';
+                final reason = requestData['reason'] ?? 'No reason provided';
+                final startDate = requestData['startDate'] ?? 'N/A';
+                final endDate = requestData['endDate'] ?? 'N/A';
+                final rejectionReason = reasonController.text.isNotEmpty
+                    ? reasonController.text
+                    : 'No reason provided';
+
+                // Reject the request
                 await _requestService.rejectRequestAsManager(
                   requestId,
                   managerId,
                   managerName,
                   managerDepartment,
-                  reason: reasonController.text.isNotEmpty
-                      ? reasonController.text
-                      : null,
+                  reason: rejectionReason,
                 );
+
+                // ===== SEND TELEGRAM NOTIFICATION =====
+                final rejectionMessage = '''
+❌ REQUEST REJECTED
+
+Staff: $userName
+Reason: $reason
+Date: $startDate - $endDate
+Total Days: $totalDays
+
+Rejected By: $managerName (Manager)
+Department: $managerDepartment
+Time: ${TelegramService.formatTimeOnlyAMPM()}
+Rejection Reason: $rejectionReason
+
+Status: REJECTED 
+                ''';
+                
+                // Send to Manager, Admin, and Group
+                await TelegramService.sendToAll(rejectionMessage);
+                
+                print(' Telegram notifications sent for rejection');
 
                 // Refresh statistics after rejection
                 await _loadStatistics();
@@ -287,7 +361,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        '✅ Request rejected',
+                        'Request rejected',
                         style: TextStyle(fontSize: AppFonts.md),
                       ),
                       backgroundColor: Colors.red,
@@ -471,9 +545,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                       ),
                       const SizedBox(height: 16),
                       
-                      // ============================================================
-                      // ⏰ Statistics Cards - Total, Pending, Approved, Rejected
-                      // ============================================================
+                      // Statistics Cards
                       Row(
                         children: [
                           _buildStatCard(
@@ -622,16 +694,26 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                                   data['department'] ?? 'No Department';
 
                               return _PendingCard(
+                                requestId: doc.id,
                                 employeeName: data['userName'] ?? 'Unknown',
                                 month: _getMonthFromDate(data['startDate']),
                                 date: _getDateFromDate(data['startDate']),
                                 reason: data['reason'] ?? 'No reason',
                                 totalDays: data['totalDays'] ?? 0,
                                 department: requestDepartment,
-                                onApprove: () => _approveRequest(doc.id,
-                                    data['userName'] ?? '', data['totalDays'] ?? 0),
-                                onReject: () => _showRejectDialog(doc.id,
-                                    data['userName'] ?? '', data['totalDays'] ?? 0),
+                                permissionType: data['permissionType'] ?? 'Leave',
+                                startDate: data['startDate'] ?? 'N/A',
+                                endDate: data['endDate'] ?? 'N/A',
+                                onApprove: () => _approveRequest(
+                                  doc.id,
+                                  data['userName'] ?? 'Unknown',
+                                  data['totalDays'] ?? 0,
+                                ),
+                                onReject: () => _showRejectDialog(
+                                  doc.id,
+                                  data['userName'] ?? 'Unknown',
+                                  data['totalDays'] ?? 0,
+                                ),
                               );
                             }).toList(),
                           );
@@ -649,9 +731,6 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     );
   }
 
-  // ============================================================
-  // ⏰ Build Stat Card
-  // ============================================================
   Widget _buildStatCard({
     required String label,
     required String value,
@@ -705,7 +784,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   }
 }
 
-// ================= MANAGER USER HEADER WITH NOTIFICATION BADGE =================
+// ================= MANAGER USER HEADER =================
 class _ManagerUserHeader extends StatelessWidget {
   final String managerName;
   final bool isLoading;
@@ -855,23 +934,32 @@ class _NotificationIconWithBadge extends StatelessWidget {
   }
 }
 
+// ================= PENDING CARD =================
 class _PendingCard extends StatelessWidget {
+  final String requestId;
   final String employeeName;
   final String month;
   final String date;
   final String reason;
   final int totalDays;
   final String department;
+  final String permissionType;
+  final String startDate;
+  final String endDate;
   final VoidCallback onApprove;
   final VoidCallback onReject;
 
   const _PendingCard({
+    required this.requestId,
     required this.employeeName,
     required this.month,
     required this.date,
     required this.reason,
     required this.totalDays,
     required this.department,
+    required this.permissionType,
+    required this.startDate,
+    required this.endDate,
     required this.onApprove,
     required this.onReject,
   });
@@ -966,21 +1054,42 @@ class _PendingCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '$totalDays day${totalDays > 1 ? 's' : ''}',
-                        style: TextStyle(
-                          fontSize: AppFonts.md,
-                          color: Colors.orange,
-                          fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$totalDays day${totalDays > 1 ? 's' : ''}',
+                            style: TextStyle(
+                              fontSize: AppFonts.md,
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            permissionType,
+                            style: TextStyle(
+                              fontSize: AppFonts.md,
+                              color: Colors.purple,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

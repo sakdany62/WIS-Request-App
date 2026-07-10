@@ -2,6 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import 'package:permission_system/app_fonts.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -14,7 +17,10 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? userData;
   bool isLoading = true;
+  bool isUploading = false;
   String? errorMessage;
+  String? profileImageUrl;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -36,7 +42,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       print('🔍 Loading user data for UID: ${user.uid}');
       
-      // Query user by userId
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('userId', isEqualTo: user.uid)
@@ -51,6 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         
         setState(() {
           userData = Map<String, dynamic>.from(data);
+          profileImageUrl = data['profileImageUrl'] ?? '';
           isLoading = false;
         });
       } else {
@@ -67,6 +73,240 @@ class _ProfileScreenState extends State<ProfileScreen> {
         isLoading = false;
       });
     }
+  }
+
+  // ============================================================
+  // PICK AND UPLOAD PROFILE IMAGE
+  // ============================================================
+  Future<void> _pickAndUploadImage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showSnackBar('Please login first', Colors.red);
+      return;
+    }
+
+    // Show options: Camera or Gallery
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Choose Image Source',
+          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Color(0xFF173B69)),
+              title: Text('Gallery', style: TextStyle(fontSize: AppFonts.md)),
+              onTap: () => Navigator.pop(context, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Color(0xFF173B69)),
+              title: Text('Camera', style: TextStyle(fontSize: AppFonts.md)),
+              onTap: () => Navigator.pop(context, 'camera'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(fontSize: AppFonts.md)),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == null) return;
+
+    try {
+      // Pick image
+      final XFile? image = await _imagePicker.pickImage(
+        source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery,
+        maxWidth: 500,
+        maxHeight: 500,
+        imageQuality: 80,
+      );
+
+      if (image == null) return;
+
+      setState(() {
+        isUploading = true;
+      });
+
+      // Upload to Firebase Storage
+      final String imageUrl = await _uploadImageToStorage(image, user.uid);
+      
+      // Update Firestore with the new image URL
+      await _updateProfileImageUrl(imageUrl);
+
+      setState(() {
+        profileImageUrl = imageUrl;
+        isUploading = false;
+      });
+
+      _showSnackBar('Profile image updated successfully!', Colors.green);
+    } catch (e) {
+      setState(() {
+        isUploading = false;
+      });
+      _showSnackBar('Error uploading image: $e', Colors.red);
+      print('❌ Image upload error: $e');
+    }
+  }
+
+  // ============================================================
+  // UPLOAD IMAGE TO FIREBASE STORAGE
+  // ============================================================
+  Future<String> _uploadImageToStorage(XFile image, String userId) async {
+    try {
+      // Create a reference to the file
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child('$userId.jpg');
+
+      // Upload the file
+      final uploadTask = storageRef.putFile(File(image.path));
+      
+      // Wait for upload to complete
+      final snapshot = await uploadTask.whenComplete(() => {});
+      
+      // Get download URL
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+      
+      print('✅ Image uploaded successfully: $downloadUrl');
+      return downloadUrl;
+    } catch (e) {
+      print('❌ Error uploading image: $e');
+      throw Exception('Failed to upload image: $e');
+    }
+  }
+
+  // ============================================================
+  // UPDATE FIRESTORE WITH IMAGE URL
+  // ============================================================
+  Future<void> _updateProfileImageUrl(String imageUrl) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      // Find the user document
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userId', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final docRef = querySnapshot.docs.first.reference;
+        
+        // Update the document with the new image URL
+        await docRef.update({
+          'profileImageUrl': imageUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        
+        print('✅ Firestore updated with profile image URL');
+        
+        // Update local userData
+        setState(() {
+          userData?['profileImageUrl'] = imageUrl;
+        });
+      } else {
+        throw Exception('User document not found');
+      }
+    } catch (e) {
+      print('❌ Error updating Firestore: $e');
+      throw Exception('Failed to update profile: $e');
+    }
+  }
+
+  // ============================================================
+  // DELETE PROFILE IMAGE
+  // ============================================================
+  Future<void> _deleteProfileImage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // Confirm deletion
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Delete Profile Image',
+          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to delete your profile image?',
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(fontSize: AppFonts.md)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Delete',
+              style: TextStyle(fontSize: AppFonts.md, color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      setState(() {
+        isUploading = true;
+      });
+
+      // Delete from Firebase Storage
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_images')
+          .child('${user.uid}.jpg');
+      
+      try {
+        await storageRef.delete();
+        print('✅ Image deleted from storage');
+      } catch (e) {
+        // If file doesn't exist, ignore
+        print('⚠️ No image to delete or error: $e');
+      }
+
+      // Update Firestore - remove the image URL
+      await _updateProfileImageUrl('');
+
+      setState(() {
+        profileImageUrl = null;
+        isUploading = false;
+      });
+
+      _showSnackBar('Profile image deleted successfully', Colors.orange);
+    } catch (e) {
+      setState(() {
+        isUploading = false;
+      });
+      _showSnackBar('Error deleting image: $e', Colors.red);
+      print('❌ Image deletion error: $e');
+    }
+  }
+
+  // ============================================================
+  // SHOW SNACKBAR
+  // ============================================================
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: TextStyle(fontSize: AppFonts.md)),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -213,17 +453,92 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Center(
       child: Column(
         children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFF173B69),
-              border: Border.all(color: const Color(0xFF173B69), width: 3),
-            ),
-            child: const Icon(Icons.person, size: 50, color: Colors.white),
+          // ===== PROFILE IMAGE WITH UPLOAD BUTTON =====
+          Stack(
+            children: [
+              // Profile Image Container
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF173B69),
+                  border: Border.all(color: const Color(0xFF173B69), width: 4),
+                  image: (profileImageUrl != null && profileImageUrl!.isNotEmpty)
+                      ? DecorationImage(
+                          image: NetworkImage(profileImageUrl!),
+                          fit: BoxFit.cover,
+                          onError: (exception, stackTrace) {
+                            print('⚠️ Error loading image: $exception');
+                          },
+                        )
+                      : null,
+                ),
+                child: (profileImageUrl == null || profileImageUrl!.isEmpty)
+                    ? const Icon(Icons.person, size: 60, color: Colors.white)
+                    : null,
+              ),
+              
+              // Upload/Edit Button (Camera Icon)
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: isUploading ? null : _pickAndUploadImage,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF173B69),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                    ),
+                    child: isUploading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 22,
+                          ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          
+          const SizedBox(height: 12),
+          
+          // Image Actions (Delete if image exists)
+          if (profileImageUrl != null && profileImageUrl!.isNotEmpty)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: isUploading ? null : _deleteProfileImage,
+                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                  label: Text(
+                    'Remove Image',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: AppFonts.md,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          
+          const SizedBox(height: 8),
+          
+          // User Name
           Text(
             userData?['fullName'] ?? userData?['username'] ?? 'Staff User',
             style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
@@ -265,7 +580,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Helper method to safely get a value from userData
   String _getValue(String key, [String? fallbackKey]) {
     final String defaultValue = 'N/A';
     
@@ -301,6 +615,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
