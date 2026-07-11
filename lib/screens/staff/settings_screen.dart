@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../../app_fonts.dart';
-import '../../providers/theme_provider.dart';
+// ប្រើ alias សម្រាប់ AuthProvider របស់អ្នក
+import '../../providers/auth_provider.dart' as app_auth;
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -35,14 +36,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-    final bgColor = isDarkMode ? Colors.grey[900] : const Color(0xFFF7F8FA);
-    final textColor = isDarkMode ? Colors.white : Colors.black;
-    final cardColor = isDarkMode ? Colors.grey[850] : Colors.white;
-
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: const Color(0xFFF7F8FA),
       body: SafeArea(
         child: Column(
           children: [
@@ -50,9 +45,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-              decoration: BoxDecoration(
-                color: primary,
-                borderRadius: const BorderRadius.only(
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A3B68),
+                borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(20),
                   bottomRight: Radius.circular(20),
                 ),
@@ -84,17 +79,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    // ---------- Dark Mode Toggle ----------
-                    _buildToggleItem(
-                      icon: Icons.dark_mode,
-                      title: 'Dark Mode',
-                      value: isDarkMode,
-                      onChanged: (value) {
-                        themeProvider.setDarkMode(value);
-                      },
-                      isDarkMode: isDarkMode,
-                    ),
-                    
+                    // ---------- Logout Button ----------
+                    _buildLogoutItem(context),
                     const SizedBox(height: 8),
                     
                     // ---------- Other Settings Items ----------
@@ -103,9 +89,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         item.icon, 
                         item.title, 
                         context,
-                        isDarkMode: isDarkMode,
-                        cardColor: cardColor!,
-                        textColor: textColor!,
                       ),
                     ),
                   ],
@@ -118,42 +101,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ---------- Build Toggle Item ----------
-  Widget _buildToggleItem({
-    required IconData icon,
-    required String title,
-    required bool value,
-    required Function(bool) onChanged,
-    required bool isDarkMode,
-  }) {
-    final cardColor = isDarkMode ? Colors.grey[850] : Colors.white;
-    final textColor = isDarkMode ? Colors.white : Colors.black;
-    
+  // ---------- Build Logout Item ----------
+  Widget _buildLogoutItem(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      color: cardColor,
+      color: Colors.white,
       child: ListTile(
-        leading: Icon(icon, color: primary),
+        leading: const Icon(Icons.logout, color: Colors.red),
         title: Text(
-          title,
+          'Logout',
           style: TextStyle(
             fontSize: AppFonts.md,
-            color: textColor,
+            color: Colors.red,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        trailing: Switch(
-          value: value,
-          onChanged: onChanged,
-          activeColor: primary,
-          activeTrackColor: primary.withOpacity(0.3),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: Colors.grey,
         ),
         onTap: () {
-          onChanged(!value);
+          _showLogoutDialog(context);
         },
+      ),
+    );
+  }
+
+  // ---------- Show Logout Dialog ----------
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close dialog
+              
+              // Logout - ប្រើ app_auth.AuthProvider
+              final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+              await authProvider.signOut();
+              
+              // Navigate to Login screen
+              if (mounted) {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (route) => false,
+                );
+              }
+            },
+            child: const Text(
+              'Logout',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -162,31 +175,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildItem(
     IconData icon, 
     String title, 
-    BuildContext context, {
-    required bool isDarkMode,
-    required Color cardColor,
-    required Color textColor,
-  }) {
+    BuildContext context,
+  ) {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      color: cardColor,
+      color: Colors.white,
       child: ListTile(
         leading: Icon(icon, color: primary),
         title: Text(
           title,
           style: TextStyle(
             fontSize: AppFonts.md,
-            color: textColor,
+            color: Colors.black,
           ),
         ),
-        trailing: Icon(
+        trailing: const Icon(
           Icons.arrow_forward_ios,
           size: 16,
-          color: isDarkMode ? Colors.grey[400] : Colors.grey,
+          color: Colors.grey,
         ),
         onTap: () {
           if (title == 'About App') {
@@ -201,7 +211,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   '$title feature coming soon',
                   style: TextStyle(fontSize: AppFonts.md),
                 ),
-                backgroundColor: isDarkMode ? Colors.grey[800] : null,
+                backgroundColor: Colors.grey[800],
               ),
             );
           }
@@ -222,22 +232,14 @@ class SettingsItem {
   });
 }
 
-// ===================== ABOUT SCREEN WITH DARK MODE =====================
+// ===================== ABOUT SCREEN =====================
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDarkMode = themeProvider.isDarkMode;
-    final bgColor = isDarkMode ? Colors.grey[900] : const Color(0xFFF8FAFC);
-    final cardColor = isDarkMode ? Colors.grey[850] : Colors.white;
-    final textColor = isDarkMode ? Colors.white : const Color(0xFF475569);
-    final labelColor = isDarkMode ? Colors.grey[400]! : Colors.grey;
-    final valueColor = isDarkMode ? Colors.white : Colors.black87;
-    
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E457E),
         elevation: 0,
@@ -251,8 +253,7 @@ class AboutScreen extends StatelessWidget {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new,
-              color: Colors.white, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -264,17 +265,21 @@ class AboutScreen extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: cardColor,
+                  color: Colors.white,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4)),
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
                   ],
                 ),
-                child: const Icon(Icons.school,
-                    size: 70, color: Color(0xFF1E457E)),
+                child: const Icon(
+                  Icons.school,
+                  size: 70,
+                  color: Color(0xFF1E457E),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -291,7 +296,7 @@ class AboutScreen extends StatelessWidget {
               "Version 1.0.0",
               style: TextStyle(
                 fontSize: AppFonts.md,
-                color: isDarkMode ? Colors.grey[400] : Colors.grey,
+                color: Colors.grey,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -300,9 +305,10 @@ class AboutScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Card(
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15)),
+                  borderRadius: BorderRadius.circular(15),
+                ),
                 elevation: 1,
-                color: cardColor,
+                color: Colors.white,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -321,24 +327,20 @@ class AboutScreen extends StatelessWidget {
                         "This mobile leave request application is designed to modernize and streamline the leave-taking workflow for staff at Westland International School.",
                         style: TextStyle(
                           fontSize: AppFonts.md,
-                          color: textColor,
+                          color: const Color(0xFF475569),
                           height: 1.5,
                         ),
                         textAlign: TextAlign.justify,
                       ),
                       const Divider(height: 30, thickness: 0.5),
                       _buildInfoRow(
-                          "Institution:", 
-                          "Westland International School",
-                          labelColor,
-                          valueColor!,
+                        "Institution:", 
+                        "Westland International School",
                       ),
                       const SizedBox(height: 8),
                       _buildInfoRow(
-                          "Academic Year:", 
-                          "2025 - 2026",
-                          labelColor,
-                          valueColor!,
+                        "Academic Year:", 
+                        "2025 - 2026",
                       ),
                     ],
                   ),
@@ -350,7 +352,7 @@ class AboutScreen extends StatelessWidget {
               "© 2026 Westland International School. All Rights Reserved.",
               style: TextStyle(
                 fontSize: AppFonts.md,
-                color: isDarkMode ? Colors.grey[500] : Colors.grey,
+                color: Colors.grey,
               ),
             ),
             const SizedBox(height: 20),
@@ -360,7 +362,7 @@ class AboutScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, Color labelColor, Color valueColor) {
+  Widget _buildInfoRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -368,7 +370,7 @@ class AboutScreen extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: AppFonts.md,
-            color: labelColor,
+            color: Colors.grey,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -376,7 +378,7 @@ class AboutScreen extends StatelessWidget {
           value,
           style: TextStyle(
             fontSize: AppFonts.md,
-            color: valueColor,
+            color: Colors.black87,
             fontWeight: FontWeight.bold,
           ),
         ),

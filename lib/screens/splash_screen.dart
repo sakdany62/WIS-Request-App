@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-// 👇 Adjust the import path to your AppFonts class
-import 'package:permission_system/app_fonts.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../models/user_model.dart';
+import '../app_fonts.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -15,19 +16,45 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
+    _initializeApp();
   }
 
-  Future<void> _checkLoginStatus() async {
+  Future<void> _initializeApp() async {
+    // ពន្យាពេលសម្រាប់ splash animation
     await Future.delayed(const Duration(seconds: 2));
-    final user = FirebaseAuth.instance.currentUser;
     
-    if (mounted) {
-      if (user != null) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
+    if (!mounted) return;
+    
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    // ដំឡើងកម្មវិធី - ពិនិត្យមើល user ដែលកំពុង login
+    await authProvider.initializeApp();
+    
+    if (!mounted) return;
+    
+    // ចូលទៅកាន់ទំព័រសមស្រប
+    _navigateToNextScreen();
+  }
+
+  void _navigateToNextScreen() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.currentUser;
+    
+    if (user != null) {
+      // លុប splash screen ចេញពីប្រវត្តិ
+      Navigator.pushReplacementNamed(context, _getDashboardRoute(user));
+    } else {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
+  String _getDashboardRoute(UserModel user) {
+    if (user.isAdmin) {
+      return '/admin-dashboard';
+    } else if (user.isManager) {
+      return '/manager-dashboard';
+    } else {
+      return '/dashboard'; // staff
     }
   }
 
@@ -42,11 +69,15 @@ class _SplashScreenState extends State<SplashScreen> {
             Container(
               width: 120,
               height: 120,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.school, size: 60, color: Color(0xFF173B69)),
+              child: const Icon(
+                Icons.school,
+                size: 60,
+                color: Color(0xFF173B69),
+              ),
             ),
             const SizedBox(height: 30),
             Text(

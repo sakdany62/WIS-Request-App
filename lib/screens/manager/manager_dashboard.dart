@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../app_fonts.dart';
 import 'manager_home_screen.dart';
 import 'all_permission_today.dart' as permission;
 import '../staff/settings_screen.dart';
-import '../../app_fonts.dart';
+
 class ManagerDashboard extends StatefulWidget {
   const ManagerDashboard({super.key});
 
@@ -14,7 +17,6 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   int _currentIndex = 0;
   late final List<Widget> _pages;
 
-  // Gradient matching your primary colour (same as AdminDashboard)
   static const LinearGradient _gradient = LinearGradient(
     colors: [Color(0xFF173B69), Color(0xFF2A5F8F)],
     begin: Alignment.topLeft,
@@ -25,7 +27,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   void initState() {
     super.initState();
     _pages = [
-      ManagerHomeScreen(),                       // not const
+      ManagerHomeScreen(),
       const permission.ListStaffScreen(),
       const SettingsScreen(),
     ];
@@ -33,10 +35,46 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true, // lets the bottom nav float over the body
-      body: _pages[_currentIndex],
-      bottomNavigationBar: _buildModernBottomNavBar(),
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) async {
+        if (didPop) return;
+        _showExitDialog(context);
+      },
+      child: Scaffold(
+        extendBody: true,
+        body: _pages[_currentIndex],
+        bottomNavigationBar: _buildModernBottomNavBar(),
+      ),
+    );
+  }
+
+  void _showExitDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit App'),
+        content: const Text('Do you want to exit the app?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              authProvider.signOut();
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/login',
+                (route) => false,
+              );
+            },
+            child: const Text('Logout & Exit'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -65,24 +103,9 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(
-                    0,
-                    Icons.home_outlined,
-                    Icons.home,
-                    'Home',
-                  ),
-                  _buildNavItem(
-                    1,
-                    Icons.assignment_outlined,
-                    Icons.assignment,
-                    'Request Today',
-                  ),
-                  _buildNavItem(
-                    2,
-                    Icons.settings_outlined,
-                    Icons.settings,
-                    'Settings',
-                  ),
+                  _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
+                  _buildNavItem(1, Icons.assignment_outlined, Icons.assignment, 'Request Today'),
+                  _buildNavItem(2, Icons.settings_outlined, Icons.settings, 'Settings'),
                 ],
               ),
             ),
@@ -110,8 +133,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color:
-                isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
             borderRadius: BorderRadius.circular(25),
           ),
           child: Column(
@@ -126,7 +148,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: AppFonts.md, // your existing font size constant
+                  fontSize: AppFonts.md,
                   color: isSelected ? Colors.white : Colors.white70,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),

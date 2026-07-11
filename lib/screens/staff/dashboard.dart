@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../app_fonts.dart';
 import 'staff_home_screen.dart';
 import 'request_screen.dart';
 import 'settings_screen.dart';
-import '../admin/admin_dashboard.dart';
-import '../manager/manager_dashboard.dart';
-import 'package:permission_system/app_fonts.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -18,8 +16,6 @@ class Dashboard extends StatefulWidget {
 class _DashboardState extends State<Dashboard> {
   int _currentIndex = 0;
   late final List<Widget> _pages;
-  String _userRole = 'staff';
-  bool _isLoading = true;
 
   static const LinearGradient _gradient = LinearGradient(
     colors: [Color(0xFF173B69), Color(0xFF2A5F8F)],
@@ -30,95 +26,58 @@ class _DashboardState extends State<Dashboard> {
   @override
   void initState() {
     super.initState();
-    _checkUserRole();
-  }
-
-  Future<void> _checkUserRole() async {
-    final user = FirebaseAuth.instance.currentUser;
-    
-    if (user != null) {
-      try {
-        final querySnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .where('userId', isEqualTo: user.uid)
-            .limit(1)
-            .get();
-        
-        if (querySnapshot.docs.isNotEmpty) {
-          final data = querySnapshot.docs.first.data() as Map<String, dynamic>;
-          final roleId = data['roleId']?.toString() ?? '2';
-          
-          print('🔍 User roleId: $roleId');
-          
-          String role = 'staff';
-          if (roleId == '1') {
-            role = 'admin';
-          } else if (roleId == '3') {
-            role = 'manager';
-          } else if (roleId == '4') {
-            role = 'director';
-          }
-          
-          print('✅ Role determined: $role');
-          
-          if (mounted) {
-            setState(() {
-              _userRole = role;
-              _isLoading = false;
-            });
-          }
-        } else {
-          if (mounted) {
-            setState(() => _isLoading = false);
-          }
-        }
-      } catch (e) {
-        print('❌ Error checking user role: $e');
-        if (mounted) {
-          setState(() => _isLoading = false);
-        }
-      }
-    } else {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-    _initPages();
-  }
-
-  void _initPages() {
-    _pages = [
-      const StaffHomeScreen(),
-      const RequestScreen(),
-      const SettingsScreen(),
+    _pages = const [
+      StaffHomeScreen(),
+      RequestScreen(),
+      SettingsScreen(),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    print('🎯 Current role: $_userRole');
-
-    if (_userRole == 'admin') {
-      return const AdminDashboard();
-    }
-
-    if (_userRole == 'manager') {
-      return const ManagerDashboard();
-    }
-
-    // ✅ ប្រើ Scaffold រុំ IndexedStack ដើម្បីឱ្យ bottomNavigationBar នៅជាប់ជានិច្ច
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) async {
+        if (didPop) return;
+        // ប្រសិនបើចុច Back ហើយនៅទំព័រ root
+        _showExitDialog(context);
+      },
+      child: Scaffold(
+        extendBody: true,
+        body: _pages[_currentIndex],
+        bottomNavigationBar: _buildModernBottomNavBar(),
       ),
-      bottomNavigationBar: _buildModernBottomNavBar(),
+    );
+  }
+
+  void _showExitDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit App'),
+        content: const Text('Do you want to exit the app?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Logout
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              authProvider.signOut();
+              // ចូលទៅ Login
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/login',
+                (route) => false,
+              );
+            },
+            child: const Text('Logout & Exit'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -173,8 +132,6 @@ class _DashboardState extends State<Dashboard> {
           setState(() {
             _currentIndex = index;
           });
-          
-          // ✅ Refresh Home Screen when tapping Home tab
           if (index == 0) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               StaffHomeScreenStateManager.refreshData();

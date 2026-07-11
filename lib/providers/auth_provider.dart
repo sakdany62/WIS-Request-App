@@ -1,77 +1,134 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user_model.dart';
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  User? _user;
-  String? _userRole;
+  UserModel? _currentUser;
   bool _isLoading = false;
+  bool _isInitialized = false;
 
-  User? get user => _user;
-  String? get userRole => _userRole;
+  UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
+  bool get isInitialized => _isInitialized;
+  bool get isLoggedIn => _currentUser != null;
+
+  // Getters សម្រាប់ពិនិត្យ role
+  bool get isAdmin => _currentUser?.isAdmin ?? false;
+  bool get isManager => _currentUser?.isManager ?? false;
+  bool get isStaff => _currentUser?.isStaff ?? false;
+  bool get isHead => _currentUser?.isHead ?? false;
+  String? get userRole => _currentUser?.roleId;
 
   AuthProvider() {
-    _auth.authStateChanges().listen((User? user) {
-      _user = user;
+    _auth.authStateChanges().listen((User? user) async {
       if (user != null) {
-        _loadUserRole(user.uid);
+        await _loadUserFromFirestore(user.uid);
       } else {
-        _userRole = null;
+        _currentUser = null;
+        _isInitialized = true;
         notifyListeners();
       }
     });
   }
 
-  Future<void> _loadUserRole(String userId) async {
+  Future<void> initializeApp() async {
+    if (_isInitialized) return;
+    
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      final doc = await _firestore
+      User? firebaseUser = _auth.currentUser;
+      if (firebaseUser != null) {
+        await _loadUserFromFirestore(firebaseUser.uid);
+      }
+    } catch (e) {
+      print('❌ Error initializing app: $e');
+    } finally {
+      _isLoading = false;
+      _isInitialized = true;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadUserFromFirestore(String userId) async {
+    try {
+      print('🔄 Loading user data for: $userId');
+      
+      final QuerySnapshot query = await _firestore
           .collection('users')
           .where('userId', isEqualTo: userId)
           .limit(1)
           .get();
       
-      if (doc.docs.isNotEmpty) {
-        final data = doc.docs.first.data();
-        _userRole = data['roleId']?.toString() ?? '2';
+      if (query.docs.isNotEmpty) {
+        final doc = query.docs.first;
+        _currentUser = UserModel.fromFirestore(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
+        print('✅ User loaded: ${_currentUser?.fullName}, Role: ${_currentUser?.roleId}');
+      } else {
+        print('⚠️ User document not found in Firestore');
+        await _auth.signOut();
+        _currentUser = null;
       }
-      notifyListeners();
     } catch (e) {
-      print('Error loading user role: $e');
+      print('❌ Error loading user: $e');
+      _currentUser = null;
     }
+    notifyListeners();
   }
 
-  Future<void> signIn(String email, String password) async {
+  Future<bool> signIn(String email, String password) async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
-      await _auth.signInWithEmailAndPassword(
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      
+      if (userCredential.user != null) {
+        await _loadUserFromFirestore(userCredential.user!.uid);
+        _isLoading = false;
+        notifyListeners();
+        return _currentUser != null;
+      }
+      return false;
     } catch (e) {
-      rethrow;
-    } finally {
+      print('❌ Login error: $e');
       _isLoading = false;
       notifyListeners();
+      rethrow;
     }
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
-    _userRole = null;
+    try {
+      await _auth.signOut();
+      _currentUser = null;
+      _isInitialized = false;
+      notifyListeners();
+      print('✅ User signed out successfully');
+    } catch (e) {
+      print('❌ Sign out error: $e');
+    }
+  }
+
+  Future<void> refreshUser() async {
+    if (_currentUser != null) {
+      await _loadUserFromFirestore(_currentUser!.userId);
+    }
+  }
+
+  void updateUser(UserModel user) {
+    _currentUser = user;
     notifyListeners();
-  }
-
-  bool get isManager {
-    return _userRole == '1' || _userRole == '3';
-  }
-
-  bool get isStaff {
-    return _userRole == '2';
   }
 }

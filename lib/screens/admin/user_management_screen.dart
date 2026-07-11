@@ -25,9 +25,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   // ✅ Department names now in English
   final List<Map<String, String>> _departments = [
     {'id': 'dept_it', 'name': 'IT Department'},
-    {'id': 'dept_education', 'name': 'Education'},
+    {'id': 'dept_education', 'name': 'Education Department'},
     {'id': 'dept_administration', 'name': 'Administration Department'},
-    {'id': 'dept_service', 'name': 'Service'},
+    {'id': 'dept_service', 'name': 'Service Department'},
    
   ];
 
@@ -196,8 +196,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     border: OutlineInputBorder(),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'Active', child: Text('🟢 Active')),
-                    DropdownMenuItem(value: 'Inactive', child: Text('🔴 Inactive')),
+                    DropdownMenuItem(value: 'Active', child: Text(' Active')),
+                    DropdownMenuItem(value: 'Inactive', child: Text(' Inactive')),
                   ],
                   onChanged: (value) {
                     if (value != null) selectedStatus = value;

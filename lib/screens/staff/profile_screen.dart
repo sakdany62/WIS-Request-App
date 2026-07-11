@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:cross_file/cross_file.dart';
 import 'package:permission_system/app_fonts.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -156,18 +156,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ============================================================
-  // UPLOAD IMAGE TO FIREBASE STORAGE
+  // UPLOAD IMAGE TO FIREBASE STORAGE - FIXED FOR WEB
   // ============================================================
   Future<String> _uploadImageToStorage(XFile image, String userId) async {
     try {
+      // Read image as bytes (works on both Mobile and Web)
+      final bytes = await image.readAsBytes();
+      
       // Create a reference to the file
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('profile_images')
           .child('$userId.jpg');
 
-      // Upload the file
-      final uploadTask = storageRef.putFile(File(image.path));
+      // Upload bytes directly (Works on all platforms)
+      final uploadTask = storageRef.putData(
+        bytes,
+        SettableMetadata(
+          contentType: 'image/jpeg',
+          cacheControl: 'public,max-age=3600',
+        ),
+      );
       
       // Wait for upload to complete
       final snapshot = await uploadTask.whenComplete(() => {});
@@ -274,7 +283,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await storageRef.delete();
         print('✅ Image deleted from storage');
       } catch (e) {
-        // If file doesn't exist, ignore
         print('⚠️ No image to delete or error: $e');
       }
 

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../app_fonts.dart';
 import 'admin_home_screen.dart';
 import 'admin_setting.dart';
@@ -15,7 +17,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   int _currentIndex = 0;
   late final List<Widget> _pages;
 
-  // Gradient matching your primary color
   static const LinearGradient _gradient = LinearGradient(
     colors: [Color(0xFF173B69), Color(0xFF2A5F8F)],
     begin: Alignment.topLeft,
@@ -34,10 +35,46 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true, // lets the bottom nav float over the body
-      body: _pages[_currentIndex],
-      bottomNavigationBar: _buildModernBottomNavBar(),
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) async {
+        if (didPop) return;
+        _showExitDialog(context);
+      },
+      child: Scaffold(
+        extendBody: true,
+        body: _pages[_currentIndex],
+        bottomNavigationBar: _buildModernBottomNavBar(),
+      ),
+    );
+  }
+
+  void _showExitDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Exit App'),
+        content: const Text('Do you want to exit the app?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              authProvider.signOut();
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/login',
+                (route) => false,
+              );
+            },
+            child: const Text('Logout & Exit'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -66,24 +103,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(
-                    0,
-                    Icons.home_outlined,
-                    Icons.home,
-                    'Home',
-                  ),
-                  _buildNavItem(
-                    1,
-                    Icons.assessment_outlined,
-                    Icons.assessment,
-                    'Reports',
-                  ),
-                  _buildNavItem(
-                    2,
-                    Icons.settings_outlined,
-                    Icons.settings,
-                    'Settings',
-                  ),
+                  _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
+                  _buildNavItem(1, Icons.assessment_outlined, Icons.assessment, 'Reports'),
+                  _buildNavItem(2, Icons.settings_outlined, Icons.settings, 'Settings'),
                 ],
               ),
             ),
@@ -107,8 +129,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color:
-                isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
             borderRadius: BorderRadius.circular(25),
           ),
           child: Column(
@@ -123,7 +144,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: AppFonts.md, // or 11 if you prefer
+                  fontSize: AppFonts.md,
                   color: isSelected ? Colors.white : Colors.white70,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // <-- NEW
-import '../../app_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../providers/auth_provider.dart';
+import '../app_fonts.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,15 +16,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
   bool obscurePassword = true;
-  bool rememberMe = false; // <-- NEW
+  bool rememberMe = false;
 
   @override
-  void initState() { // <-- NEW
+  void initState() {
     super.initState();
     _loadSavedCredentials();
   }
 
-  // ---------- NEW: Load saved email ----------
   Future<void> _loadSavedCredentials() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -41,7 +40,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // ---------- NEW: Save or clear email ----------
   Future<void> _saveCredentials() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -57,67 +55,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _createUserDocumentIfNotExists(User user) async {
-    try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isEmpty) {
-        String name =
-            user.displayName ?? user.email?.split('@').first ?? 'User';
-
-        String formattedName = name
-            .split(' ')
-            .map((word) => word.isNotEmpty
-                ? word[0].toUpperCase() + word.substring(1).toLowerCase()
-                : '')
-            .join(' ');
-
-        await FirebaseFirestore.instance.collection('users').add({
-          'userId': user.uid,
-          'email': user.email ?? '',
-          'fullName': formattedName,
-          'username': user.email?.split('@').first ?? 'user',
-          'phone': '',
-          'roleId': '2',
-          'status': 'Active',
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        print('✅ User document created for ${user.uid}');
-      } else {
-        print('✅ User document already exists for ${user.uid}');
-      }
-    } catch (e) {
-      print('❌ Error creating user document: $e');
-    }
-  }
-
-  Future<String> _getUserRole(String uid) async {
-    try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userId', isEqualTo: uid)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        final data = querySnapshot.docs.first.data();
-        final roleId = data['roleId']?.toString() ?? '2';
-        print('✅ User role found: $roleId');
-        return roleId;
-      }
-      return '2';
-    } catch (e) {
-      print('❌ Error getting user role: $e');
-      return '2';
-    }
-  }
-
   Future<void> _login() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
@@ -130,64 +67,36 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => isLoading = true);
 
     try {
-      UserCredential userCredential =
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // ប្រើ AuthProvider សម្រាប់ login
+      bool success = await authProvider.signIn(email, password);
 
-      User? user = userCredential.user;
-      if (user == null) {
-        _showSnackBar('Login failed: User not found', Colors.red);
-        setState(() => isLoading = false);
-        return;
-      }
+      if (success && mounted) {
+        // រក្សាទុក credentials
+        await _saveCredentials();
 
-      print('✅ User logged in: ${user.email}');
-      print('✅ User UID: ${user.uid}');
-
-      // ---------- NEW: Save credentials if Remember Me is checked ----------
-      await _saveCredentials();
-
-      await _createUserDocumentIfNotExists(user);
-
-      String roleId = await _getUserRole(user.uid);
-      print('✅ Role ID: $roleId');
-
-      if (mounted) {
-        if (roleId == '1') {
-          print('🚀 Navigating to Admin Dashboard');
-          Navigator.pushReplacementNamed(context, '/admin-dashboard');
-        } else if (roleId == '3') {
-          print('🚀 Navigating to Manager Dashboard');
-          Navigator.pushReplacementNamed(context, '/manager-dashboard');
-        } else if (roleId == '4') {
-          print('🚀 Navigating to Director Dashboard');
-          Navigator.pushReplacementNamed(context, '/admin-dashboard');
-        } else {
-          print('🚀 Navigating to Staff Dashboard');
-          Navigator.pushReplacementNamed(context, '/dashboard');
+        final user = authProvider.currentUser;
+        if (user != null) {
+          String route;
+          if (user.isAdmin) {
+            route = '/admin-dashboard';
+          } else if (user.isManager) {
+            route = '/manager-dashboard';
+          } else {
+            route = '/dashboard';
+          }
+          
+          // លុបប្រវត្តិ navigation ទាំងអស់
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            route,
+            (route) => false,
+          );
         }
       }
-    } on FirebaseAuthException catch (e) {
-      String message;
-      if (e.code == 'user-not-found') {
-        message = 'No user found with this email';
-      } else if (e.code == 'wrong-password') {
-        message = 'Wrong password';
-      } else if (e.code == 'invalid-email') {
-        message = 'Invalid email format';
-      } else if (e.code == 'too-many-requests') {
-        message = 'Too many attempts. Please try again later';
-      } else if (e.code == 'user-disabled') {
-        message = 'This account has been disabled';
-      } else {
-        message = 'Login failed: ${e.message}';
-      }
-      _showSnackBar(message, Colors.red);
     } catch (e) {
-      print('❌ Login error: $e');
-      _showSnackBar('Error: $e', Colors.red);
+      _showSnackBar('Login failed: ${e.toString()}', Colors.red);
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -271,7 +180,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 30),
-              const SizedBox(height: 10),
               TextField(
                 controller: passwordController,
                 obscureText: obscurePassword,
@@ -297,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 15),
 
-              // ---------- NEW: Remember Me + Forgot Password Row ----------
+              // Remember Me + Forgot Password
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -309,7 +217,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           setState(() {
                             rememberMe = value ?? false;
                           });
-                          // If unchecked, clear saved email immediately
                           if (!rememberMe) {
                             _saveCredentials();
                           }
@@ -345,42 +252,39 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-              // ---------- END NEW ----------
-
               const SizedBox(height: 40),
               SizedBox(
-  width: double.infinity,
-  height: 58,
-  child: ElevatedButton(
-    onPressed: isLoading ? null : _login,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: Colors.white,
-      foregroundColor: const Color(0xFF173B69),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(50),
-      ),
-    ),
-    child: isLoading
-        ? const SizedBox(
-            height: 20,
-            width: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: Color(0xFF173B69),
-            ),
-          )
-        : const Text(
-            "Login",
-            style: TextStyle(
-              color: Color(0xFF173B69),
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Roboto',
-            ),
-          ),
-  ),
-),
-        
+                width: double.infinity,
+                height: 58,
+                child: ElevatedButton(
+                  onPressed: isLoading ? null : _login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF173B69),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF173B69),
+                          ),
+                        )
+                      : const Text(
+                          "Login",
+                          style: TextStyle(
+                            color: Color(0xFF173B69),
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Roboto',
+                          ),
+                        ),
+                ),
+              ),
             ],
           ),
         ),
