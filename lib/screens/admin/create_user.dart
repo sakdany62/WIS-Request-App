@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../app_fonts.dart';
 
 class CreateUserScreen extends StatefulWidget {
   const CreateUserScreen({super.key});
@@ -124,10 +125,21 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create New User'),
+        title: Text(
+          'Create New User',
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -136,6 +148,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ===== Email =====
               const Text(
                 'Email',
                 style: TextStyle(
@@ -149,15 +162,31 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 controller: _emailController,
                 decoration: InputDecoration(
                   hintText: 'Enter email',
+                  hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
                 keyboardType: TextInputType.emailAddress,
+                style: TextStyle(fontSize: AppFonts.md),
                 validator: (value) {
                   if (value?.isEmpty ?? true) return 'Email is required';
                   if (!value!.contains('@')) return 'Invalid email';
@@ -166,6 +195,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
               ),
               const SizedBox(height: 16),
 
+              // ===== Password =====
               const Text(
                 'Password',
                 style: TextStyle(
@@ -178,16 +208,32 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
               TextFormField(
                 controller: _passwordController,
                 decoration: InputDecoration(
-                  hintText: 'Enter password',
+                  hintText: 'Enter password (min 6 characters)',
+                  hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
                 obscureText: true,
+                style: TextStyle(fontSize: AppFonts.md),
                 validator: (value) {
                   if (value?.isEmpty ?? true) return 'Password is required';
                   if (value!.length < 6) return 'Min 6 characters';
@@ -196,6 +242,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
               ),
               const SizedBox(height: 16),
 
+              // ===== Full Name =====
               const Text(
                 'Full Name',
                 style: TextStyle(
@@ -209,18 +256,35 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 controller: _fullNameController,
                 decoration: InputDecoration(
                   hintText: 'Enter full name',
+                  hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
+                style: TextStyle(fontSize: AppFonts.md),
                 validator: (value) => value?.isEmpty ?? true ? 'Full name is required' : null,
               ),
               const SizedBox(height: 16),
 
+              // ===== Username =====
               const Text(
                 'Username',
                 style: TextStyle(
@@ -234,18 +298,35 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 controller: _usernameController,
                 decoration: InputDecoration(
                   hintText: 'Enter username',
+                  hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
+                style: TextStyle(fontSize: AppFonts.md),
                 validator: (value) => value?.isEmpty ?? true ? 'Username is required' : null,
               ),
               const SizedBox(height: 16),
 
+              // ===== Phone =====
               const Text(
                 'Phone',
                 style: TextStyle(
@@ -259,18 +340,35 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 controller: _phoneController,
                 decoration: InputDecoration(
                   hintText: 'Enter phone number',
+                  hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
                 keyboardType: TextInputType.phone,
+                style: TextStyle(fontSize: AppFonts.md),
               ),
               const SizedBox(height: 16),
 
+              // ===== Role Dropdown =====
               const Text(
                 'Role',
                 style: TextStyle(
@@ -280,40 +378,59 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedRole,
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: '1', child: Text('Admin')),
-                      DropdownMenuItem(value: '2', child: Text('Staff')),
-                      DropdownMenuItem(value: '3', child: Text('Manager')),
-                      DropdownMenuItem(value: '4', child: Text('Director')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedRole = value;
-                          // Reset department when Admin or Director is selected
-                          if (value == '1' || value == '4') {
-                            _selectedDepartmentId = '';
-                          }
-                        });
-                      }
-                    },
+              DropdownButtonFormField<String>(
+                value: _selectedRole,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
+                items: const [
+                  DropdownMenuItem(value: '1', child: Text('👑 Admin')),
+                  DropdownMenuItem(value: '2', child: Text(' Staff')),
+                  DropdownMenuItem(value: '3', child: Text(' Manager')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedRole = value;
+                      // Reset department when Admin or Director is selected
+                      if (value == '1' || value == '4') {
+                        _selectedDepartmentId = '';
+                      }
+                    });
+                  }
+                },
+                style: TextStyle(
+                  fontSize: AppFonts.md,
+                  fontWeight: FontWeight.w500,
+                ),
+                dropdownColor: Colors.white,
+                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                isExpanded: true,
+                menuMaxHeight: 250,
               ),
               const SizedBox(height: 16),
 
+              // ===== Department Dropdown =====
               // Department field - only shown when not Admin or Director
               if (_showDepartment()) ...[
                 const Text(
@@ -325,52 +442,77 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade400),
-                    borderRadius: BorderRadius.circular(10),
+                DropdownButtonFormField<String>(
+                  value: _selectedDepartmentId.isEmpty ? null : _selectedDepartmentId,
+                  hint: Text(
+                    'Select Department',
+                    style: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade500),
                   ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedDepartmentId.isEmpty ? null : _selectedDepartmentId,
-                      hint: const Text(
-                        'Select Department',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: '',
-                          child: Text('No Department'),
-                        ),
-                        ..._departments.map((dept) {
-                          return DropdownMenuItem(
-                            value: dept['id'],
-                            child: Text(dept['name']!),
-                          );
-                        }),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedDepartmentId = value ?? '';
-                        });
-                      },
-                      validator: (value) {
-                        // Only validate if department is shown (not Admin or Director)
-                        if (_showDepartment() && (value == null || value.isEmpty)) {
-                          return 'Please select a department';
-                        }
-                        return null;
-                      },
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                     ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: '',
+                      child: Text('No Department'),
+                    ),
+                    ..._departments.map((dept) {
+                      return DropdownMenuItem(
+                        value: dept['id'],
+                        child: Text(
+                          dept['name']!,
+                          style: TextStyle(
+                            fontSize: AppFonts.md,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedDepartmentId = value ?? '';
+                    });
+                  },
+                  validator: (value) {
+                    if (_showDepartment() && (value == null || value.isEmpty)) {
+                      return 'Please select a department';
+                    }
+                    return null;
+                  },
+                  style: TextStyle(
+                    fontSize: AppFonts.md,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  dropdownColor: Colors.white,
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                  isExpanded: true,
+                  menuMaxHeight: 300,
                 ),
                 const SizedBox(height: 16),
               ],
 
+              // ===== Status Dropdown =====
               const Text(
                 'Status',
                 style: TextStyle(
@@ -380,34 +522,54 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 ),
               ),
               const SizedBox(height: 6),
-              Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButtonFormField<String>(
-                    value: _selectedStatus,
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'Active', child: Text('Active')),
-                      DropdownMenuItem(value: 'Inactive', child: Text('Inactive')),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedStatus = value;
-                        });
-                      }
-                    },
+              DropdownButtonFormField<String>(
+                value: _selectedStatus,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
                   ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                  ),
+                  errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                  ),
+                  focusedErrorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
+                items: const [
+                  DropdownMenuItem(value: 'Active', child: Text(' Active')),
+                  DropdownMenuItem(value: 'Inactive', child: Text(' Inactive')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedStatus = value;
+                    });
+                  }
+                },
+                style: TextStyle(
+                  fontSize: AppFonts.md,
+                  fontWeight: FontWeight.w500,
+                ),
+                dropdownColor: Colors.white,
+                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                isExpanded: true,
+                menuMaxHeight: 200,
               ),
               const SizedBox(height: 30),
 
+              // ===== Create Button =====
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -429,9 +591,12 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
+                      : Text(
                           'Create User',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: AppFonts.md,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                 ),
               ),

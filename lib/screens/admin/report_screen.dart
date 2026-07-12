@@ -22,9 +22,17 @@ class _ReportScreenState extends State<ReportScreen> {
   List<Map<String, dynamic>> _reportData = [];
   List<Map<String, dynamic>> _allReportData = [];
   Map<String, dynamic> _summary = {};
-  String _filterStatus = 'all';
+  String _filterDepartment = 'all';
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // ============ List of Departments ============
+  final List<Map<String, String>> _departments = [
+    {'id': 'dept_it', 'name': 'IT Department'},
+    {'id': 'dept_education', 'name': 'Education Department'},
+    {'id': 'dept_administration', 'name': 'Administration Department'},
+    {'id': 'dept_service', 'name': 'Service Department'},
+  ];
 
   // ⏰ Format time to Cambodia time (UTC+7) with AM/PM
   String _formatToCambodiaTime(dynamic timestamp) {
@@ -44,7 +52,6 @@ class _ReportScreenState extends State<ReportScreen> {
         return 'N/A';
       }
       
-      // Convert to Cambodia time (UTC+7) if it's UTC
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
@@ -52,7 +59,6 @@ class _ReportScreenState extends State<ReportScreen> {
         cambodiaTime = parsedDateTime;
       }
       
-      // Format: dd/MM/yyyy hh:mm AM/PM
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
       
     } catch (e) {
@@ -103,22 +109,34 @@ class _ReportScreenState extends State<ReportScreen> {
           .where('createdAt', isLessThan: endTimestamp)
           .orderBy('createdAt', descending: true);
 
-      if (_filterStatus != 'all') {
-        if (_filterStatus == 'auto_approved') {
-          query = query.where('autoApproved', isEqualTo: true);
-        } else {
-          query = query.where('status', isEqualTo: _filterStatus);
-        }
-      }
-
       final querySnapshot = await query.get();
+
+      print('📊 Total leave requests found: ${querySnapshot.docs.length}');
 
       final data = querySnapshot.docs.map((doc) {
         final d = doc.data() as Map<String, dynamic>;
+        
+        String department = d['department'] ?? '';
+        String departmentId = d['departmentId'] ?? '';
+        
+        if (departmentId.isEmpty && d['deptId'] != null) {
+          departmentId = d['deptId'].toString();
+        }
+        
+        if (department.isEmpty && departmentId.isNotEmpty) {
+          final dept = _departments.firstWhere(
+            (d) => d['id'] == departmentId,
+            orElse: () => {},
+          );
+          department = dept['name'] ?? '';
+        }
+        
         return {
           'id': doc.id,
           'userName': d['userName'] ?? 'Unknown',
           'userEmail': d['userEmail'] ?? '',
+          'department': department,
+          'departmentId': departmentId,
           'startDate': d['startDate'] ?? '',
           'endDate': d['endDate'] ?? '',
           'totalDays': d['totalDays'] ?? 0,
@@ -132,10 +150,32 @@ class _ReportScreenState extends State<ReportScreen> {
         };
       }).toList();
 
+      print('📊 Total data processed: ${data.length}');
+
+      List<Map<String, dynamic>> filteredData = data;
+      if (_filterDepartment != 'all') {
+        filteredData = data.where((d) {
+          final deptId = d['departmentId'] ?? '';
+          final deptName = d['department'] ?? '';
+          
+          final selectedDept = _departments.firstWhere(
+            (dept) => dept['id'] == _filterDepartment,
+            orElse: () => {},
+          );
+          final selectedDeptName = selectedDept['name'] ?? '';
+          
+          return deptId == _filterDepartment || 
+                 deptName == selectedDeptName ||
+                 deptName.contains(selectedDeptName.replaceAll(' Department', ''));
+        }).toList();
+        
+        print('📊 Filtered by department: ${filteredData.length}');
+      }
+
       setState(() {
         _allReportData = data;
-        _reportData = data;
-        _summary = _calculateSummary(data);
+        _reportData = filteredData;
+        _summary = _calculateSummary(filteredData);
         _isLoading = false;
       });
     } catch (e) {
@@ -186,6 +226,7 @@ class _ReportScreenState extends State<ReportScreen> {
         'No.',
         'Staff Name',
         'Email',
+        'Department',
         'Start Date',
         'End Date',
         'Total Days',
@@ -212,13 +253,13 @@ class _ReportScreenState extends State<ReportScreen> {
 
       for (int i = 0; i < _reportData.length; i++) {
         final r = _reportData[i];
-        // Format createdAt to Cambodia time with AM/PM for Excel
         final String cambodiaTime = _formatToCambodiaTime(r['createdAt']);
         
         sheet.appendRow([
           (i + 1),
           r['userName'],
           r['userEmail'],
+          r['department'] ?? 'N/A',
           r['startDate'],
           r['endDate'],
           r['totalDays'],
@@ -232,7 +273,7 @@ class _ReportScreenState extends State<ReportScreen> {
         ]);
       }
 
-      final colWidths = [6, 20, 25, 15, 15, 12, 25, 14, 10, 12, 25, 18, 25];
+      final colWidths = [6, 20, 25, 20, 15, 15, 12, 25, 14, 10, 12, 25, 18, 25];
       for (int i = 0; i < colWidths.length; i++) {
         sheet.setColWidth(i, colWidths[i].toDouble());
       }
@@ -309,7 +350,6 @@ class _ReportScreenState extends State<ReportScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ---------- Custom header ----------
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
@@ -344,20 +384,17 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
             ),
 
-            // ---------- Body ----------
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : SingleChildScrollView(
                       child: Column(
                         children: [
-                          // Filter Section
                           Container(
                             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
                             color: Colors.grey[100],
                             child: Column(
                               children: [
-                                // Row 1: Report Type & Date
                                 Row(
                                   children: [
                                     Expanded(
@@ -365,12 +402,30 @@ class _ReportScreenState extends State<ReportScreen> {
                                         value: _selectedReportType,
                                         decoration: InputDecoration(
                                           labelText: 'Report Type',
+                                          labelStyle: TextStyle(fontSize: AppFonts.md),
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(10),
+                                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                                          ),
+                                          errorBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                                          ),
+                                          focusedErrorBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: const BorderSide(color: Colors.red, width: 2.0),
                                           ),
                                           filled: true,
                                           fillColor: Colors.white,
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                         ),
                                         items: const [
                                           DropdownMenuItem(value: 'daily', child: Text(' Daily')),
@@ -385,6 +440,13 @@ class _ReportScreenState extends State<ReportScreen> {
                                             _loadReport();
                                           }
                                         },
+                                        style: TextStyle(
+                                          fontSize: AppFonts.md,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        dropdownColor: Colors.white,
+                                        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                                        isExpanded: true,
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -401,54 +463,84 @@ class _ReportScreenState extends State<ReportScreen> {
                                           backgroundColor: const Color(0xFF173B69),
                                           foregroundColor: Colors.white,
                                           padding: const EdgeInsets.symmetric(horizontal: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-
-                                // Row 2: Status Filter
                                 Row(
                                   children: [
                                     Expanded(
                                       child: DropdownButtonFormField<String>(
-                                        value: _filterStatus,
+                                        value: _filterDepartment,
                                         decoration: InputDecoration(
-                                          labelText: 'Status Filter',
+                                          labelText: 'Department Filter',
+                                          labelStyle: TextStyle(fontSize: AppFonts.md),
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(10),
+                                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                                          ),
+                                          errorBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                                          ),
+                                          focusedErrorBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            borderSide: const BorderSide(color: Colors.red, width: 2.0),
                                           ),
                                           filled: true,
                                           fillColor: Colors.white,
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                                         ),
-                                        items: const [
-                                          DropdownMenuItem(value: 'all', child: Text('All')),
-                                          DropdownMenuItem(value: 'pending', child: Text(' Pending')),
-                                          DropdownMenuItem(value: 'approved', child: Text(' Approved')),
-                                          DropdownMenuItem(value: 'auto_approved', child: Text(' Auto Approved')),
-                                          DropdownMenuItem(value: 'rejected', child: Text(' Rejected')),
+                                        items: [
+                                          const DropdownMenuItem(
+                                            value: 'all',
+                                            child: Text('All Departments'),
+                                          ),
+                                          ..._departments.map((dept) {
+                                            return DropdownMenuItem(
+                                              value: dept['id'],
+                                              child: Text(dept['name']!),
+                                            );
+                                          }),
                                         ],
                                         onChanged: (value) {
                                           if (value != null) {
                                             setState(() {
-                                              _filterStatus = value;
+                                              _filterDepartment = value;
                                             });
                                             _loadReport();
                                           }
                                         },
+                                        style: TextStyle(
+                                          fontSize: AppFonts.md,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        dropdownColor: Colors.white,
+                                        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                                        isExpanded: true,
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    // Clear Filters Button (next to status filter)
                                     SizedBox(
                                       height: 50,
-                                      child: _filterStatus != 'all'
+                                      child: _filterDepartment != 'all'
                                           ? ElevatedButton(
                                               onPressed: () {
                                                 setState(() {
-                                                  _filterStatus = 'all';
+                                                  _filterDepartment = 'all';
                                                 });
                                                 _loadReport();
                                               },
@@ -474,7 +566,6 @@ class _ReportScreenState extends State<ReportScreen> {
                             ),
                           ),
 
-                          // Summary Cards (moved up - directly after filter)
                           Container(
                             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                             child: SizedBox(
@@ -510,7 +601,6 @@ class _ReportScreenState extends State<ReportScreen> {
                             ),
                           ),
 
-                          // Total Days Card
                           Container(
                             margin: const EdgeInsets.symmetric(horizontal: 12),
                             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
@@ -553,7 +643,6 @@ class _ReportScreenState extends State<ReportScreen> {
 
                           const SizedBox(height: 8),
 
-                          // List of Reports
                           _reportData.isEmpty
                               ? Padding(
                                   padding: const EdgeInsets.all(40),
@@ -565,13 +654,25 @@ class _ReportScreenState extends State<ReportScreen> {
                                         color: Colors.grey,
                                       ),
                                       const SizedBox(height: 16),
-                                      const Text(
-                                        'No data found',
-                                        style: TextStyle(
+                                      Text(
+                                        _filterDepartment == 'all' 
+                                            ? 'No data found' 
+                                            : 'No data found for this department',
+                                        style: const TextStyle(
                                           color: Colors.grey,
                                           fontSize: AppFonts.md,
                                         ),
                                       ),
+                                      if (_filterDepartment != 'all')
+                                        TextButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _filterDepartment = 'all';
+                                            });
+                                            _loadReport();
+                                          },
+                                          child: const Text('View all departments'),
+                                        ),
                                     ],
                                   ),
                                 )
@@ -648,7 +749,15 @@ class _ReportCard extends StatelessWidget {
     }
   }
 
-  // ⏰ Format time to Cambodia time (UTC+7) with AM/PM
+  Color get _departmentColor {
+    final dept = data['department'] ?? '';
+    if (dept.contains('IT')) return Colors.blue;
+    if (dept.contains('Education')) return Colors.green;
+    if (dept.contains('Administration')) return Colors.purple;
+    if (dept.contains('Service')) return Colors.orange;
+    return Colors.grey;
+  }
+
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
     
@@ -666,7 +775,6 @@ class _ReportCard extends StatelessWidget {
         return 'N/A';
       }
       
-      // Convert to Cambodia time (UTC+7) if it's UTC
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
@@ -674,7 +782,6 @@ class _ReportCard extends StatelessWidget {
         cambodiaTime = parsedDateTime;
       }
       
-      // Format: dd/MM/yyyy hh:mm AM/PM
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
       
     } catch (e) {
@@ -685,8 +792,9 @@ class _ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Format createdAt to Cambodia time with AM/PM
     final String cambodiaTime = _formatToCambodiaTime(data['createdAt']);
+    final String department = data['department'] ?? '';
+    final bool hasDepartment = department.isNotEmpty;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
@@ -710,6 +818,37 @@ class _ReportCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (hasDepartment)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    margin: const EdgeInsets.only(right: 6),
+                    decoration: BoxDecoration(
+                      color: _departmentColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _departmentColor.withOpacity(0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.business,
+                          size: 12,
+                          color: _departmentColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          department,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: _departmentColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -728,12 +867,18 @@ class _ReportCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 3),
-            Text(
-              data['userEmail'],
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    data['userEmail'],
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 6),
             Row(
@@ -810,7 +955,6 @@ class _ReportCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                // Show Cambodia time with AM/PM
                 Text(
                   cambodiaTime,
                   style: TextStyle(

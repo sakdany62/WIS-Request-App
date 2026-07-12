@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../app_fonts.dart';
@@ -63,15 +64,10 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              final authProvider = Provider.of<AuthProvider>(context, listen: false);
-              authProvider.signOut();
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/login',
-                (route) => false,
-              );
+              // បិទ app ដោយមិន Logout
+              SystemNavigator.pop();
             },
-            child: const Text('Logout & Exit'),
+            child: const Text('Exit'),
           ),
         ],
       ),

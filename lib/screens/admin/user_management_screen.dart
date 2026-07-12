@@ -28,7 +28,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     {'id': 'dept_education', 'name': 'Education Department'},
     {'id': 'dept_administration', 'name': 'Administration Department'},
     {'id': 'dept_service', 'name': 'Service Department'},
-   
   ];
 
   @override
@@ -110,21 +109,66 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // ===== Full Name =====
                 TextFormField(
                   controller: nameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Full Name',
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   ),
                   validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
                   style: TextStyle(fontSize: AppFonts.md),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+
+                // ===== Email =====
                 TextFormField(
                   controller: emailController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Email',
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
@@ -134,41 +178,117 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   },
                   style: TextStyle(fontSize: AppFonts.md),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+
+                // ===== Phone =====
                 TextFormField(
                   controller: phoneController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Phone',
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   ),
                   style: TextStyle(fontSize: AppFonts.md),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+
+                // ===== Role Dropdown =====
                 DropdownButtonFormField<String>(
                   value: selectedRole,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Role',
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   ),
                   items: const [
                     DropdownMenuItem(value: '1', child: Text('👑 Admin')),
                     DropdownMenuItem(value: '2', child: Text(' Staff')),
                     DropdownMenuItem(value: '3', child: Text(' Manager')),
-                    DropdownMenuItem(value: '4', child: Text(' Director')),
                   ],
                   onChanged: (value) {
                     if (value != null) selectedRole = value;
                   },
-                  style: TextStyle(fontSize: AppFonts.md),
+                  style: TextStyle(
+                    fontSize: AppFonts.md,
+                    fontWeight: FontWeight.w500, // ដិតតិចៗ
+                  ),
+                  dropdownColor: Colors.white,
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+
+                // ===== Department Dropdown =====
                 DropdownButtonFormField<String>(
                   value: selectedDepartmentId.isEmpty ? null : selectedDepartmentId,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Department',
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   ),
-                  hint: const Text('Select Department'),
+                  hint: Text(
+                    'Select Department',
+                    style: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade500),
+                  ),
                   items: [
                     const DropdownMenuItem(
                       value: '',
@@ -186,14 +306,42 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       selectedDepartmentId = value;
                     }
                   },
-                  style: TextStyle(fontSize: AppFonts.md),
+                  style: TextStyle(
+                    fontSize: AppFonts.md,
+                    fontWeight: FontWeight.w500, // ដិតតិចៗ
+                  ),
+                  dropdownColor: Colors.white,
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
+
+                // ===== Status Dropdown =====
                 DropdownButtonFormField<String>(
                   value: selectedStatus,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Status',
-                    border: OutlineInputBorder(),
+                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   ),
                   items: const [
                     DropdownMenuItem(value: 'Active', child: Text(' Active')),
@@ -202,7 +350,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   onChanged: (value) {
                     if (value != null) selectedStatus = value;
                   },
-                  style: TextStyle(fontSize: AppFonts.md),
+                  style: TextStyle(
+                    fontSize: AppFonts.md,
+                    fontWeight: FontWeight.w500, // ដិតតិចៗ
+                  ),
+                  dropdownColor: Colors.white,
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                 ),
               ],
             ),
@@ -432,7 +585,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           isExpanded: true,
                           style: TextStyle(
                             fontSize: AppFonts.md,
-                            color: Colors.black, // ✅ selected text color
+                            color: Colors.black,
                           ),
                           items: [
                             const DropdownMenuItem(

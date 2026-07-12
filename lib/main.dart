@@ -7,6 +7,7 @@ import 'screens/login_screen.dart';
 import 'screens/staff/dashboard.dart';
 import 'screens/admin/admin_dashboard.dart';
 import 'screens/manager/manager_dashboard.dart';
+import 'screens/director/director_dashboard.dart';
 import 'screens/forgot_password.dart';
 import 'screens/admin/create_user.dart';
 import 'providers/auth_provider.dart';
@@ -28,7 +29,6 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        // ThemeProvider ត្រូវបានដកចេញ
       ],
       child: const MyApp(),
     ),
@@ -87,7 +87,6 @@ class MyApp extends StatelessWidget {
           secondary: Color(0xFF2A5F8F),
         ),
       ),
-      // ដក darkTheme និង themeMode ចេញ
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),
@@ -95,6 +94,7 @@ class MyApp extends StatelessWidget {
         '/dashboard': (context) => const Dashboard(),
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/manager-dashboard': (context) => const ManagerDashboard(),
+        '/director-dashboard': (context) => const DirectorDashboard(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/create-user': (context) => const CreateUserScreen(),
       },

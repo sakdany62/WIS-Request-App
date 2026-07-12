@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../app_fonts.dart';
@@ -39,7 +40,6 @@ class _DashboardState extends State<Dashboard> {
       canPop: false,
       onPopInvoked: (bool didPop) async {
         if (didPop) return;
-        // ប្រសិនបើចុច Back ហើយនៅទំព័រ root
         _showExitDialog(context);
       },
       child: Scaffold(
@@ -64,17 +64,10 @@ class _DashboardState extends State<Dashboard> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // Logout
-              final authProvider = Provider.of<AuthProvider>(context, listen: false);
-              authProvider.signOut();
-              // ចូលទៅ Login
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/login',
-                (route) => false,
-              );
+              // បិទ app ដោយមិន Logout
+              SystemNavigator.pop();
             },
-            child: const Text('Logout & Exit'),
+            child: const Text('Exit'),
           ),
         ],
       ),

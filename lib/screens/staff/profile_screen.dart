@@ -634,31 +634,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           _InfoRow(label: 'Employee ID', value: _getValue('employeeId', 'userId')),
-          const Divider(),
+          _buildDivider(),
           _InfoRow(label: 'User ID', value: _getValue('userId')),
-          const Divider(),
+          _buildDivider(),
           _InfoRow(label: 'Username', value: _getValue('username')),
-          const Divider(),
+          _buildDivider(),
           _InfoRow(label: 'Full Name', value: _getValue('fullName')),
-          const Divider(),
+          _buildDivider(),
           _InfoRow(label: 'Email', value: _getValue('email')),
-          const Divider(),
+          _buildDivider(),
           _InfoRow(label: 'Phone', value: _getValue('phone')),
-          const Divider(),
+          _buildDivider(),
           _InfoRow(label: 'Department', value: _getValue('department')),
-          const Divider(),
+          _buildDivider(),
           _InfoRow(label: 'Position', value: _getValue('position')),
-          const Divider(),
+          _buildDivider(),
           _InfoRow(label: 'Role', value: _getRoleName(userData?['roleId']?.toString())),
-          const Divider(),
+          _buildDivider(),
           _InfoRow(label: 'Status', value: _getValue('status')),
-          const Divider(),
+          _buildDivider(),
           _InfoRow(
             label: 'Member Since', 
             value: _formatDate(userData?['createdAt']),
           ),
         ],
       ),
+    );
+  }
+
+  // ============================================================
+  // CUSTOM DIVIDER WITH LIGHTER COLOR AND THINNER LINE
+  // ============================================================
+  Widget _buildDivider() {
+    return Divider(
+      height: 1,
+      thickness: 0.5,          // ស្តើងជាងមុន
+      color: Colors.grey.shade300,  // ពណ៌ស្រាលជាងមុន
+      indent: 0,
+      endIndent: 0,
     );
   }
 }
@@ -672,7 +685,7 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10), // បន្ថែមចន្លោះបន្តិច
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -681,8 +694,9 @@ class _InfoRow extends StatelessWidget {
             child: Text(
               label, 
               style: TextStyle(
-                color: Colors.grey,
+                color: Colors.grey.shade600,  // ពណ៌ស្រាលជាងមុន
                 fontSize: AppFonts.md,
+                fontWeight: FontWeight.w400,   // មិនដិត
               ),
             ),
           ),
@@ -691,8 +705,9 @@ class _InfoRow extends StatelessWidget {
             child: Text(
               value, 
               style: TextStyle(
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w500,   // ដិតបន្តិច
                 fontSize: AppFonts.md,
+                color: Colors.grey.shade800,   // ពណ៌ងងឹតបន្តិច
               ),
               softWrap: true,
             ),
