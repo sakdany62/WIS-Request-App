@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_system/app_fonts.dart';
 import '../../services/request_service.dart';
+import '../../utils/responsive.dart'; // ✅ Import Responsive
 
 class TodayRequest {
   final String requestId;
@@ -98,7 +99,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   bool _isLoading = true;
   String _filterStatus = 'all';
   
-  // ⏰ Report Type & Date (Same as Admin Report)
   String _selectedReportType = 'daily';
   DateTime _selectedDate = DateTime.now();
   
@@ -111,9 +111,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     _checkManagerDepartment();
   }
 
-  // ============================================================
-  // ⏰ Format submit time to Cambodia time (UTC+7)
-  // ============================================================
   String _formatSubmitTime(dynamic submitTime) {
     if (submitTime == null) return 'N/A';
     
@@ -196,7 +193,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
-  // ⏰ Format time to Cambodia time (UTC+7) with AM/PM - Same as Admin Report
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
     
@@ -214,7 +210,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         return 'N/A';
       }
       
-      // Convert to Cambodia time (UTC+7) if it's UTC
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
@@ -222,7 +217,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         cambodiaTime = parsedDateTime;
       }
       
-      // Format: dd/MM/yyyy hh:mm AM/PM
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
       
     } catch (e) {
@@ -295,7 +289,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     _loadAllRequests();
   }
 
-  // ==================== LOAD ALL REQUESTS ====================
   Future<void> _loadAllRequests() async {
     setState(() {
       _isLoading = true;
@@ -526,10 +519,15 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     required String label,
     required String value,
     required Color color,
+    required bool isMobile,
+    required double fontSize,
   }) {
     return Container(
-      width: 70,
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      width: isMobile ? 60 : 70,
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 4 : 6,
+        horizontal: isMobile ? 2 : 4,
+      ),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
@@ -541,7 +539,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           Text(
             value,
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: isMobile ? fontSize : fontSize + 2,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -549,7 +547,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: isMobile ? 10 : 12,
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
@@ -561,6 +559,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final double iconSize = Responsive.iconSize(context, 20);
+
     final filtered = _filteredRequests;
     final summary = _calculateSummary(filtered);
     final String departmentDisplay = _isManager && _managerDepartment.isNotEmpty
@@ -574,7 +578,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           'Permission List',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: AppFonts.md,
+            fontSize: isMobile ? 16 : 18,
           ),
         ),
         backgroundColor: const Color(0xFF173B69),
@@ -582,12 +586,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, size: iconSize),
             onPressed: _refresh,
             tooltip: 'Refresh',
           ),
           IconButton(
-            icon: const Icon(Icons.file_download),
+            icon: Icon(Icons.file_download, size: iconSize),
             onPressed: _exportToExcel,
             tooltip: 'Export to Excel',
           ),
@@ -598,13 +602,15 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // Filter Section (Same as Admin Report)
+                  // Filter Section
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                    padding: EdgeInsets.symmetric(
+                      vertical: spacing * 2,
+                      horizontal: spacing,
+                    ),
                     color: Colors.grey[100],
                     child: Column(
                       children: [
-                        // Row 1: Report Type & Date (Same as Admin Report)
                         Row(
                           children: [
                             Expanded(
@@ -612,12 +618,16 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                 value: _selectedReportType,
                                 decoration: InputDecoration(
                                   labelText: 'Report Type',
+                                  labelStyle: TextStyle(fontSize: fontSize),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   filled: true,
                                   fillColor: Colors.white,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: spacing,
+                                    vertical: isMobile ? 6 : 8,
+                                  ),
                                 ),
                                 items: const [
                                   DropdownMenuItem(value: 'daily', child: Text(' Daily')),
@@ -632,30 +642,29 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                     _loadAllRequests();
                                   }
                                 },
+                                style: TextStyle(fontSize: fontSize),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            SizedBox(width: spacing),
                             SizedBox(
-                              height: 50,
+                              height: isMobile ? 44 : 50,
                               child: ElevatedButton.icon(
                                 onPressed: _selectDate,
-                                icon: const Icon(Icons.calendar_today, size: 18),
+                                icon: Icon(Icons.calendar_today, size: iconSize - 2),
                                 label: Text(
                                   _getDateLabel(),
-                                  style: const TextStyle(fontSize: 13),
+                                  style: TextStyle(fontSize: isMobile ? 11 : 13),
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF173B69),
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  padding: EdgeInsets.symmetric(horizontal: spacing),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-
-                        // Row 2: Status Filter
+                        SizedBox(height: spacing),
                         Row(
                           children: [
                             Expanded(
@@ -663,12 +672,16 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                 value: _filterStatus,
                                 decoration: InputDecoration(
                                   labelText: 'Status Filter',
+                                  labelStyle: TextStyle(fontSize: fontSize),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   filled: true,
                                   fillColor: Colors.white,
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: spacing,
+                                    vertical: isMobile ? 6 : 8,
+                                  ),
                                 ),
                                 items: const [
                                   DropdownMenuItem(value: 'all', child: Text('All')),
@@ -685,42 +698,45 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                     _applyFilters();
                                   }
                                 },
+                                style: TextStyle(fontSize: fontSize),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            // Clear Filters Button (next to status filter)
-                            SizedBox(
-                              height: 50,
-                              child: _filterStatus != 'all'
-                                  ? ElevatedButton(
-                                      onPressed: _clearFilter,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red.shade50,
-                                        foregroundColor: Colors.red.shade700,
-                                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(10),
-                                          side: BorderSide(color: Colors.red.shade200),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Clear',
-                                        style: TextStyle(fontSize: 13),
-                                      ),
-                                    )
-                                  : null,
-                            ),
+                            if (_filterStatus != 'all') ...[
+                              SizedBox(width: spacing),
+                              SizedBox(
+                                height: isMobile ? 44 : 50,
+                                child: ElevatedButton(
+                                  onPressed: _clearFilter,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red.shade50,
+                                    foregroundColor: Colors.red.shade700,
+                                    padding: EdgeInsets.symmetric(horizontal: spacing),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      side: BorderSide(color: Colors.red.shade200),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Clear',
+                                    style: TextStyle(
+                                      fontSize: isMobile ? 11 : 13,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
-
-                        // Row 3: Department Display (if manager)
                         if (departmentDisplay.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(top: 8),
+                            padding: EdgeInsets.only(top: spacing),
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: spacing * 1.5,
+                                    vertical: spacing,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.green.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(10),
@@ -728,12 +744,16 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                   ),
                                   child: Row(
                                     children: [
-                                      Icon(Icons.business, size: 18, color: Colors.green),
-                                      const SizedBox(width: 8),
+                                      Icon(
+                                        Icons.business,
+                                        size: iconSize - 2,
+                                        color: Colors.green,
+                                      ),
+                                      SizedBox(width: spacing / 2),
                                       Text(
                                         ' $departmentDisplay',
                                         style: TextStyle(
-                                          fontSize: AppFonts.md,
+                                          fontSize: isMobile ? fontSize * 0.85 : fontSize,
                                           fontWeight: FontWeight.w500,
                                           color: Colors.green,
                                         ),
@@ -748,11 +768,14 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                     ),
                   ),
 
-                  // Summary Cards (Same as Admin Report)
+                  // Summary Cards
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    padding: EdgeInsets.symmetric(
+                      vertical: spacing,
+                      horizontal: spacing * 1.5,
+                    ),
                     child: SizedBox(
-                      height: 70,
+                      height: isMobile ? 60 : 70,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         children: [
@@ -760,34 +783,45 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                             label: 'Total',
                             value: summary['total'].toString(),
                             color: const Color(0xFF173B69),
+                            isMobile: isMobile,
+                            fontSize: fontSize,
                           ),
-                          const SizedBox(width: 6),
+                          SizedBox(width: spacing / 2),
                           _buildSummaryCard(
                             label: 'Pending',
                             value: summary['pending'].toString(),
                             color: Colors.orange,
+                            isMobile: isMobile,
+                            fontSize: fontSize,
                           ),
-                          const SizedBox(width: 6),
+                          SizedBox(width: spacing / 2),
                           _buildSummaryCard(
                             label: 'Approved',
                             value: summary['approved'].toString(),
                             color: Colors.green,
+                            isMobile: isMobile,
+                            fontSize: fontSize,
                           ),
-                          const SizedBox(width: 6),
+                          SizedBox(width: spacing / 2),
                           _buildSummaryCard(
                             label: 'Rejected',
                             value: summary['rejected'].toString(),
                             color: Colors.red,
+                            isMobile: isMobile,
+                            fontSize: fontSize,
                           ),
                         ],
                       ),
                     ),
                   ),
 
-                  // Total Days Card (Same as Admin Report)
+                  // Total Days Card
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 12),
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    margin: EdgeInsets.symmetric(horizontal: spacing * 1.5),
+                    padding: EdgeInsets.symmetric(
+                      vertical: spacing,
+                      horizontal: spacing * 1.5,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.purple.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
@@ -796,27 +830,34 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.calendar_today, color: Colors.purple, size: 18),
-                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.calendar_today,
+                          color: Colors.purple,
+                          size: iconSize - 2,
+                        ),
+                        SizedBox(width: spacing / 2),
                         Text(
                           'Total Days: ${summary['totalDays']}',
-                          style: const TextStyle(
-                            fontSize: 13,
+                          style: TextStyle(
+                            fontSize: isMobile ? fontSize * 0.85 : fontSize,
                             fontWeight: FontWeight.bold,
                             color: Colors.purple,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: spacing),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: spacing / 2,
+                            vertical: spacing / 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.purple.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
                             '${summary['autoApproved']} Auto',
-                            style: const TextStyle(
-                              fontSize: 13,
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize * 0.85 : fontSize,
                               color: Colors.purple,
                             ),
                           ),
@@ -825,25 +866,25 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 8),
+                  SizedBox(height: spacing),
 
                   // List of Requests
                   filtered.isEmpty
                       ? Padding(
-                          padding: const EdgeInsets.all(40),
+                          padding: EdgeInsets.all(spacing * 5),
                           child: Column(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.inbox,
-                                size: 64,
+                                size: iconSize * 3,
                                 color: Colors.grey,
                               ),
-                              const SizedBox(height: 16),
+                              SizedBox(height: spacing * 2),
                               Text(
                                 ' No requests found',
                                 style: TextStyle(
                                   color: Colors.grey,
-                                  fontSize: AppFonts.md,
+                                  fontSize: fontSize,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -852,14 +893,17 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                   'Department: $_managerDepartment',
                                   style: TextStyle(
                                     color: Colors.grey,
-                                    fontSize: AppFonts.md,
+                                    fontSize: fontSize * 0.85,
                                   ),
                                 ),
-                              const SizedBox(height: 16),
+                              SizedBox(height: spacing * 2),
                               ElevatedButton.icon(
                                 onPressed: _refresh,
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Refresh'),
+                                icon: Icon(Icons.refresh, size: iconSize),
+                                label: Text(
+                                  'Refresh',
+                                  style: TextStyle(fontSize: fontSize),
+                                ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF173B69),
                                   foregroundColor: Colors.white,
@@ -871,11 +915,20 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                       : ListView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: spacing * 1.5,
+                            vertical: spacing / 1.5,
+                          ),
                           itemCount: filtered.length,
                           itemBuilder: (context, index) {
                             final r = filtered[index];
-                            return _RequestCard(request: r);
+                            return _RequestCard(
+                              request: r,
+                              isMobile: isMobile,
+                              fontSize: fontSize,
+                              spacing: spacing,
+                              iconSize: iconSize,
+                            );
                           },
                         ),
                 ],
@@ -887,8 +940,18 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
 class _RequestCard extends StatelessWidget {
   final TodayRequest request;
+  final bool isMobile;
+  final double fontSize;
+  final double spacing;
+  final double iconSize;
 
-  const _RequestCard({required this.request});
+  const _RequestCard({
+    required this.request,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
+    required this.iconSize,
+  });
 
   Color get _statusColor {
     switch (request.status) {
@@ -998,7 +1061,6 @@ class _RequestCard extends StatelessWidget {
     }
   }
 
-  // ⏰ Format time to Cambodia time (UTC+7) with AM/PM - Same as Admin Report
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
     
@@ -1016,7 +1078,6 @@ class _RequestCard extends StatelessWidget {
         return 'N/A';
       }
       
-      // Convert to Cambodia time (UTC+7) if it's UTC
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
@@ -1024,7 +1085,6 @@ class _RequestCard extends StatelessWidget {
         cambodiaTime = parsedDateTime;
       }
       
-      // Format: dd/MM/yyyy hh:mm AM/PM
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
       
     } catch (e) {
@@ -1039,28 +1099,28 @@ class _RequestCard extends StatelessWidget {
     final createdAtDisplay = _formatToCambodiaTime(request.createdAt);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: EdgeInsets.only(bottom: spacing / 2),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: EdgeInsets.all(isMobile ? 8 : 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 CircleAvatar(
-                  radius: 16,
+                  radius: isMobile ? 14 : 16,
                   backgroundColor: _statusColor.withOpacity(0.2),
                   child: Icon(
                     _statusIcon,
                     color: _statusColor,
-                    size: 16,
+                    size: isMobile ? 14 : 16,
                   ),
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: spacing),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1068,22 +1128,27 @@ class _RequestCard extends StatelessWidget {
                       Text(
                         request.staffName,
                         style: TextStyle(
-                          fontSize: AppFonts.md,
+                          fontSize: isMobile ? fontSize * 0.85 : fontSize,
                           fontWeight: FontWeight.bold,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         request.userEmail,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: isMobile ? fontSize * 0.7 : 12,
                           color: Colors.grey[600],
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacing / 2,
+                    vertical: spacing / 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
@@ -1093,36 +1158,47 @@ class _RequestCard extends StatelessWidget {
                     style: TextStyle(
                       color: _statusColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: 11,
+                      fontSize: isMobile ? fontSize * 0.6 : 11,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: spacing / 2),
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text(
-                  '${request.startDate} → ${request.endDate}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[700],
+                Icon(
+                  Icons.calendar_today,
+                  size: isMobile ? 10 : 12,
+                  color: Colors.grey[600],
+                ),
+                SizedBox(width: spacing / 3),
+                Expanded(
+                  child: Text(
+                    '${request.startDate} → ${request.endDate}',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.7 : 12,
+                      color: Colors.grey[700],
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 3),
+            SizedBox(height: spacing / 4),
             Row(
               children: [
-                Icon(Icons.note, size: 12, color: Colors.grey[600]),
-                const SizedBox(width: 4),
+                Icon(
+                  Icons.note,
+                  size: isMobile ? 10 : 12,
+                  color: Colors.grey[600],
+                ),
+                SizedBox(width: spacing / 3),
                 Expanded(
                   child: Text(
                     request.reason,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: isMobile ? fontSize * 0.7 : 12,
                       color: Colors.grey[700],
                     ),
                     maxLines: 2,
@@ -1130,15 +1206,18 @@ class _RequestCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacing / 2,
+                    vertical: spacing / 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     '${request.totalDays} days',
-                    style: const TextStyle(
-                      fontSize: 12,
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.65 : 12,
                       fontWeight: FontWeight.bold,
                       color: Colors.blue,
                     ),
@@ -1146,11 +1225,16 @@ class _RequestCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 3),
-            Row(
+            SizedBox(height: spacing / 4),
+            Wrap(
+              spacing: spacing / 2,
+              runSpacing: spacing / 4,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacing / 2,
+                    vertical: spacing / 4,
+                  ),
                   decoration: BoxDecoration(
                     color: request.autoApproved
                         ? Colors.purple.withOpacity(0.1)
@@ -1160,25 +1244,22 @@ class _RequestCard extends StatelessWidget {
                   child: Text(
                     request.autoApproved ? ' Auto' : ' Manual',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: isMobile ? fontSize * 0.6 : 11,
                       color: request.autoApproved ? Colors.purple : Colors.orange,
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
                 Text(
                   '#${request.requestNumber}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: isMobile ? fontSize * 0.6 : 11,
                     color: Colors.grey[500],
                   ),
                 ),
-                const SizedBox(width: 6),
-                // Show Cambodia time with AM/PM
                 Text(
                   createdAtDisplay,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: isMobile ? fontSize * 0.6 : 11,
                     color: Colors.blue[700],
                     fontWeight: FontWeight.w500,
                   ),
@@ -1187,22 +1268,22 @@ class _RequestCard extends StatelessWidget {
             ),
             if (request.status == 'rejected' && request.rejectionReason != null)
               Padding(
-                padding: const EdgeInsets.only(top: 3),
+                padding: EdgeInsets.only(top: spacing / 2),
                 child: Text(
                   '⚠️ ${request.rejectionReason}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: isMobile ? fontSize * 0.7 : 12,
                     color: Colors.red[700],
                   ),
                 ),
               ),
             if (request.approvedByName != null && request.approvedByName!.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 2),
+                padding: EdgeInsets.only(top: spacing / 4),
                 child: Text(
                   ' Approved by: ${request.approvedByName}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: isMobile ? fontSize * 0.7 : 12,
                     color: Colors.green[700],
                   ),
                 ),

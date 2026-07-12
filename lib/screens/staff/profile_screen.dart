@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:permission_system/app_fonts.dart';
+import '../../utils/responsive.dart'; // ✅ Import Responsive
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -75,9 +76,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // ============================================================
-  // PICK AND UPLOAD PROFILE IMAGE
-  // ============================================================
   Future<void> _pickAndUploadImage() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -85,25 +83,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
-    // Show options: Camera or Gallery
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
     final choice = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
           'Choose Image Source',
-          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library, color: Color(0xFF173B69)),
-              title: Text('Gallery', style: TextStyle(fontSize: AppFonts.md)),
+              title: Text(
+                'Gallery',
+                style: TextStyle(fontSize: fontSize),
+              ),
               onTap: () => Navigator.pop(context, 'gallery'),
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt, color: Color(0xFF173B69)),
-              title: Text('Camera', style: TextStyle(fontSize: AppFonts.md)),
+              title: Text(
+                'Camera',
+                style: TextStyle(fontSize: fontSize),
+              ),
               onTap: () => Navigator.pop(context, 'camera'),
             ),
           ],
@@ -111,7 +121,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(fontSize: AppFonts.md)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize),
+            ),
           ),
         ],
       ),
@@ -120,7 +133,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (choice == null) return;
 
     try {
-      // Pick image
       final XFile? image = await _imagePicker.pickImage(
         source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery,
         maxWidth: 500,
@@ -134,10 +146,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         isUploading = true;
       });
 
-      // Upload to Firebase Storage
       final String imageUrl = await _uploadImageToStorage(image, user.uid);
-      
-      // Update Firestore with the new image URL
       await _updateProfileImageUrl(imageUrl);
 
       setState(() {
@@ -155,21 +164,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // ============================================================
-  // UPLOAD IMAGE TO FIREBASE STORAGE - FIXED FOR WEB
-  // ============================================================
   Future<String> _uploadImageToStorage(XFile image, String userId) async {
     try {
-      // Read image as bytes (works on both Mobile and Web)
       final bytes = await image.readAsBytes();
       
-      // Create a reference to the file
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('profile_images')
           .child('$userId.jpg');
 
-      // Upload bytes directly (Works on all platforms)
       final uploadTask = storageRef.putData(
         bytes,
         SettableMetadata(
@@ -178,10 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
       
-      // Wait for upload to complete
       final snapshot = await uploadTask.whenComplete(() => {});
-      
-      // Get download URL
       final downloadUrl = await snapshot.ref.getDownloadURL();
       
       print('✅ Image uploaded successfully: $downloadUrl');
@@ -192,15 +192,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // ============================================================
-  // UPDATE FIRESTORE WITH IMAGE URL
-  // ============================================================
   Future<void> _updateProfileImageUrl(String imageUrl) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     try {
-      // Find the user document
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('userId', isEqualTo: user.uid)
@@ -210,7 +206,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (querySnapshot.docs.isNotEmpty) {
         final docRef = querySnapshot.docs.first.reference;
         
-        // Update the document with the new image URL
         await docRef.update({
           'profileImageUrl': imageUrl,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -218,7 +213,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         
         print('✅ Firestore updated with profile image URL');
         
-        // Update local userData
         setState(() {
           userData?['profileImageUrl'] = imageUrl;
         });
@@ -231,35 +225,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // ============================================================
-  // DELETE PROFILE IMAGE
-  // ============================================================
   Future<void> _deleteProfileImage() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // Confirm deletion
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
           'Delete Profile Image',
-          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Text(
           'Are you sure you want to delete your profile image?',
-          style: TextStyle(fontSize: AppFonts.md),
+          style: TextStyle(fontSize: fontSize),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(fontSize: AppFonts.md)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
               'Delete',
-              style: TextStyle(fontSize: AppFonts.md, color: Colors.red),
+              style: TextStyle(fontSize: fontSize, color: Colors.red),
             ),
           ),
         ],
@@ -273,7 +273,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         isUploading = true;
       });
 
-      // Delete from Firebase Storage
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('profile_images')
@@ -286,7 +285,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         print('⚠️ No image to delete or error: $e');
       }
 
-      // Update Firestore - remove the image URL
       await _updateProfileImageUrl('');
 
       setState(() {
@@ -304,13 +302,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // ============================================================
-  // SHOW SNACKBAR
-  // ============================================================
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: TextStyle(fontSize: AppFonts.md)),
+        content: Text(
+          message,
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
         backgroundColor: color,
         duration: const Duration(seconds: 3),
       ),
@@ -325,23 +323,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showLogoutDialog(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
           'Confirm Logout',
-          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Text(
           'Are you sure you want to logout?',
-          style: TextStyle(fontSize: AppFonts.md),
+          style: TextStyle(fontSize: fontSize),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
-              style: TextStyle(fontSize: AppFonts.md),
+              style: TextStyle(fontSize: fontSize),
             ),
           ),
           TextButton(
@@ -351,7 +356,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             },
             child: Text(
               'Confirm',
-              style: TextStyle(fontSize: AppFonts.md, color: Colors.red),
+              style: TextStyle(fontSize: fontSize, color: Colors.red),
             ),
           ),
         ],
@@ -361,6 +366,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final EdgeInsets padding = Responsive.padding(context);
+    final double iconSize = Responsive.iconSize(context, 24);
+
     final user = FirebaseAuth.instance.currentUser;
     
     return Scaffold(
@@ -369,7 +381,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: Text(
           'Profile',
           style: TextStyle(
-            fontSize: AppFonts.md,
+            fontSize: isMobile ? 16 : 18,
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
@@ -378,7 +390,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: Icon(Icons.logout, size: iconSize),
             onPressed: () => _showLogoutDialog(context),
           ),
         ],
@@ -388,6 +400,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildBody(User? user) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -398,13 +415,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
+            SizedBox(height: spacing * 2),
             Text(
               errorMessage!,
-              style: TextStyle(color: Colors.red, fontSize: AppFonts.md),
+              style: TextStyle(color: Colors.red, fontSize: fontSize),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: spacing * 2),
             ElevatedButton(
               onPressed: () {
                 setState(() {
@@ -415,7 +432,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
               child: Text(
                 'Retry',
-                style: TextStyle(fontSize: AppFonts.md),
+                style: TextStyle(fontSize: fontSize),
               ),
             ),
           ],
@@ -427,7 +444,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return Center(
         child: Text(
           'No user data available',
-          style: TextStyle(fontSize: AppFonts.md),
+          style: TextStyle(fontSize: fontSize),
         ),
       );
     }
@@ -435,29 +452,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          const SizedBox(height: 20),
+          SizedBox(height: spacing * 2.5),
           _buildProfileHeader(user),
-          const SizedBox(height: 30),
+          SizedBox(height: spacing * 3),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: EdgeInsets.symmetric(horizontal: spacing * 2.5),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Personal Information',
-                  style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: isMobile ? fontSize : fontSize + 2,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: spacing * 1.5),
                 _buildInfoCard(),
               ],
             ),
           ),
+          SizedBox(height: isMobile ? 60 : 80),
         ],
       ),
     );
   }
 
   Widget _buildProfileHeader(User? user) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final double iconSize = Responsive.iconSize(context, 24);
+    final double avatarSize = isMobile ? 100 : 120;
+    final double avatarIconSize = isMobile ? 50 : 60;
+    final double cameraIconSize = isMobile ? 18 : 22;
+    final double cameraPadding = isMobile ? 8 : 10;
+
     return Center(
       child: Column(
         children: [
@@ -466,8 +497,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               // Profile Image Container
               Container(
-                width: 120,
-                height: 120,
+                width: avatarSize,
+                height: avatarSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: const Color(0xFF173B69),
@@ -483,7 +514,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       : null,
                 ),
                 child: (profileImageUrl == null || profileImageUrl!.isEmpty)
-                    ? const Icon(Icons.person, size: 60, color: Colors.white)
+                    ? Icon(
+                        Icons.person,
+                        size: avatarIconSize,
+                        color: Colors.white,
+                      )
                     : null,
               ),
               
@@ -494,25 +529,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: GestureDetector(
                   onTap: isUploading ? null : _pickAndUploadImage,
                   child: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: EdgeInsets.all(cameraPadding),
                     decoration: BoxDecoration(
                       color: const Color(0xFF173B69),
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
                     ),
                     child: isUploading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
+                        ? SizedBox(
+                            width: iconSize - 4,
+                            height: iconSize - 4,
+                            child: const CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(
+                        : Icon(
                             Icons.camera_alt,
                             color: Colors.white,
-                            size: 22,
+                            size: cameraIconSize,
                           ),
                   ),
                 ),
@@ -520,7 +555,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           
-          const SizedBox(height: 12),
+          SizedBox(height: spacing * 1.5),
           
           // Image Actions (Delete if image exists)
           if (profileImageUrl != null && profileImageUrl!.isNotEmpty)
@@ -529,43 +564,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 TextButton.icon(
                   onPressed: isUploading ? null : _deleteProfileImage,
-                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                  icon: Icon(
+                    Icons.delete_outline,
+                    color: Colors.red,
+                    size: iconSize - 6,
+                  ),
                   label: Text(
                     'Remove Image',
                     style: TextStyle(
                       color: Colors.red,
-                      fontSize: AppFonts.md,
+                      fontSize: isMobile ? fontSize * 0.85 : fontSize,
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spacing * 2,
+                      vertical: spacing,
+                    ),
                   ),
                 ),
               ],
             ),
           
-          const SizedBox(height: 8),
+          SizedBox(height: spacing),
           
           // User Name
           Text(
             userData?['fullName'] ?? userData?['username'] ?? 'Staff User',
-            style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: isMobile ? fontSize + 2 : fontSize + 4,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: spacing / 2),
           Text(
             userData?['email'] ?? user?.email ?? 'staff@westland.com',
-            style: TextStyle(fontSize: AppFonts.md, color: Colors.grey),
+            style: TextStyle(
+              fontSize: isMobile ? fontSize * 0.85 : fontSize,
+              color: Colors.grey,
+            ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: EdgeInsets.symmetric(
+              horizontal: spacing * 1.5,
+              vertical: spacing / 2,
+            ),
             decoration: BoxDecoration(
               color: const Color(0xFF173B69).withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               _getRoleName(userData?['roleId']?.toString()),
-              style: TextStyle(fontSize: AppFonts.md, color: const Color(0xFF173B69)),
+              style: TextStyle(
+                fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                color: const Color(0xFF173B69),
+              ),
             ),
           ),
         ],
@@ -617,9 +671,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInfoCard() {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(spacing * 2),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -633,43 +692,92 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Column(
         children: [
-          _InfoRow(label: 'Employee ID', value: _getValue('employeeId', 'userId')),
-          _buildDivider(),
-          _InfoRow(label: 'User ID', value: _getValue('userId')),
-          _buildDivider(),
-          _InfoRow(label: 'Username', value: _getValue('username')),
-          _buildDivider(),
-          _InfoRow(label: 'Full Name', value: _getValue('fullName')),
-          _buildDivider(),
-          _InfoRow(label: 'Email', value: _getValue('email')),
-          _buildDivider(),
-          _InfoRow(label: 'Phone', value: _getValue('phone')),
-          _buildDivider(),
-          _InfoRow(label: 'Department', value: _getValue('department')),
-          _buildDivider(),
-          _InfoRow(label: 'Position', value: _getValue('position')),
-          _buildDivider(),
-          _InfoRow(label: 'Role', value: _getRoleName(userData?['roleId']?.toString())),
-          _buildDivider(),
-          _InfoRow(label: 'Status', value: _getValue('status')),
+          _InfoRow(
+            label: 'Employee ID',
+            value: _getValue('employeeId', 'userId'),
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
           _buildDivider(),
           _InfoRow(
-            label: 'Member Since', 
+            label: 'User ID',
+            value: _getValue('userId'),
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
+          _buildDivider(),
+          _InfoRow(
+            label: 'Username',
+            value: _getValue('username'),
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
+          _buildDivider(),
+          _InfoRow(
+            label: 'Full Name',
+            value: _getValue('fullName'),
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
+          _buildDivider(),
+          _InfoRow(
+            label: 'Email',
+            value: _getValue('email'),
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
+          _buildDivider(),
+          _InfoRow(
+            label: 'Phone',
+            value: _getValue('phone'),
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
+          _buildDivider(),
+          _InfoRow(
+            label: 'Department',
+            value: _getValue('department'),
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
+          _buildDivider(),
+          _InfoRow(
+            label: 'Position',
+            value: _getValue('position'),
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
+          _buildDivider(),
+          _InfoRow(
+            label: 'Role',
+            value: _getRoleName(userData?['roleId']?.toString()),
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
+          _buildDivider(),
+          _InfoRow(
+            label: 'Status',
+            value: _getValue('status'),
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
+          _buildDivider(),
+          _InfoRow(
+            label: 'Member Since',
             value: _formatDate(userData?['createdAt']),
+            isMobile: isMobile,
+            fontSize: fontSize,
           ),
         ],
       ),
     );
   }
 
-  // ============================================================
-  // CUSTOM DIVIDER WITH LIGHTER COLOR AND THINNER LINE
-  // ============================================================
   Widget _buildDivider() {
     return Divider(
       height: 1,
-      thickness: 0.5,          // ស្តើងជាងមុន
-      color: Colors.grey.shade300,  // ពណ៌ស្រាលជាងមុន
+      thickness: 0.5,
+      color: Colors.grey.shade300,
       indent: 0,
       endIndent: 0,
     );
@@ -679,35 +787,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
 class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
+  final bool isMobile;
+  final double fontSize;
 
-  const _InfoRow({required this.label, required this.value});
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    required this.isMobile,
+    required this.fontSize,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10), // បន្ថែមចន្លោះបន្តិច
+      padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 4, 
+            flex: 4,
             child: Text(
-              label, 
+              label,
               style: TextStyle(
-                color: Colors.grey.shade600,  // ពណ៌ស្រាលជាងមុន
-                fontSize: AppFonts.md,
-                fontWeight: FontWeight.w400,   // មិនដិត
+                color: Colors.grey.shade600,
+                fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),
           Expanded(
-            flex: 6, 
+            flex: 6,
             child: Text(
-              value, 
+              value,
               style: TextStyle(
-                fontWeight: FontWeight.w500,   // ដិតបន្តិច
-                fontSize: AppFonts.md,
-                color: Colors.grey.shade800,   // ពណ៌ងងឹតបន្តិច
+                fontWeight: FontWeight.w500,
+                fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                color: Colors.grey.shade800,
               ),
               softWrap: true,
             ),

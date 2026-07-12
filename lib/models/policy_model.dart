@@ -23,6 +23,10 @@ class PolicyModel {
   final String secondRequestMessage;
   final String thirdRequestMessage;
 
+  // ✅ បន្ថែម field ថ្មី
+  final bool allowCustomReason;
+  final int? maxCustomReasonLength; // កំណត់ប្រវែងអតិបរមា
+
   // Notification Settings
   final bool enableNotifications;
   final String notificationTitle;
@@ -53,6 +57,8 @@ class PolicyModel {
     this.firstRequestMessage = "You have 1 day of leave remaining!",
     this.secondRequestMessage = "You have no more leave days remaining!",
     this.thirdRequestMessage = "Your request is pending Admin approval",
+    this.allowCustomReason = false, // ✅ Default false
+    this.maxCustomReasonLength = 255, // ✅ Default 255 characters
     this.enableNotifications = true,
     this.notificationTitle = "Leave Request Notification",
     this.notificationBody = "Your leave request has been processed",
@@ -84,6 +90,11 @@ class PolicyModel {
       firstRequestMessage: data['firstRequestMessage'] ?? "You have 1 day of leave remaining!",
       secondRequestMessage: data['secondRequestMessage'] ?? "You have no more leave days remaining!",
       thirdRequestMessage: data['thirdRequestMessage'] ?? "Your request is pending Admin approval",
+      
+      // ✅ អាន allowCustomReason ពី Firestore
+      allowCustomReason: data['allowCustomReason'] ?? false,
+      maxCustomReasonLength: data['maxCustomReasonLength'] ?? 255,
+      
       enableNotifications: data['enableNotifications'] ?? true,
       notificationTitle: data['notificationTitle'] ?? "Leave Request Notification",
       notificationBody: data['notificationBody'] ?? "Your leave request has been processed",
@@ -115,6 +126,11 @@ class PolicyModel {
       'firstRequestMessage': firstRequestMessage,
       'secondRequestMessage': secondRequestMessage,
       'thirdRequestMessage': thirdRequestMessage,
+      
+      // ✅ រក្សាទុក allowCustomReason ទៅ Firestore
+      'allowCustomReason': allowCustomReason,
+      'maxCustomReasonLength': maxCustomReasonLength,
+      
       'enableNotifications': enableNotifications,
       'notificationTitle': notificationTitle,
       'notificationBody': notificationBody,
@@ -125,6 +141,72 @@ class PolicyModel {
       'notifyAdminOnNewRequest': notifyAdminOnNewRequest,
     };
   }
+
+  // ============================================================
+  // ✅ បន្ថែម method សម្រាប់ពិនិត្យ Custom Reason
+  // ============================================================
+  
+  /// ពិនិត្យថាតើ reason ត្រូវបានអនុញ្ញាតឬទេ
+  bool isReasonAllowed(String reason) {
+    // ប្រសិនបើ reason ស្ថិតក្នុងបញ្ជី allowedReasons
+    if (allowedReasons.contains(reason)) {
+      return true;
+    }
+    
+    // ប្រសិនបើ reason ជា "Other" (តម្លៃថេរ)
+    if (reason == 'Other' && allowedReasons.contains('Other')) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /// ពិនិត្យថាតើ custom reason ត្រឹមត្រូវឬទេ
+  bool isValidCustomReason(String customReason) {
+    // ត្រូវតែបើក allowCustomReason
+    if (!allowCustomReason) {
+      return false;
+    }
+    
+    // ត្រូវតែមាន "Other" ក្នុងបញ្ជី
+    if (!allowedReasons.contains('Other')) {
+      return false;
+    }
+    
+    // Custom reason មិនអាចទទេ
+    if (customReason.trim().isEmpty) {
+      return false;
+    }
+    
+    // Custom reason មិនអាចខ្លីពេក (យ៉ាងតិច 3 តួអក្សរ)
+    if (customReason.trim().length < 3) {
+      return false;
+    }
+    
+    // Custom reason មិនអាចវែងពេក
+    if (customReason.trim().length > (maxCustomReasonLength ?? 255)) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  /// ទទួលបាន reason ចុងក្រោយ (សម្រាប់រក្សាទុក)
+  String getFinalReason(String selectedReason, String customReason) {
+    if (selectedReason == 'Other' && customReason.trim().isNotEmpty) {
+      return customReason.trim();
+    }
+    return selectedReason;
+  }
+
+  /// ពិនិត្យថាតើ reason គឺជា custom reason
+  bool isCustomReason(String selectedReason) {
+    return selectedReason == 'Other' && allowedReasons.contains('Other');
+  }
+
+  // ============================================================
+  // Method ដើម (មិនផ្លាស់ប្តូរ)
+  // ============================================================
 
   bool shouldAutoApprove(int requestNumber) {
     return autoApprove && 
@@ -153,7 +235,6 @@ class PolicyModel {
     return !shouldAutoApprove(requestNumber);
   }
 
-  // Check Notification Settings
   bool shouldSendNotification(String eventType) {
     if (!enableNotifications) return false;
     

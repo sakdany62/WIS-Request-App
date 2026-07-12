@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/request_service.dart';
 import '../../services/telegram_service.dart';
+import '../../utils/responsive.dart'; // ✅ Import Responsive
 import '../staff/notifications_screen.dart';
 import '../staff/profile_screen.dart';
 import '../../app_fonts.dart';
@@ -171,13 +172,9 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     }
   }
 
-  // ============================================================
-  // APPROVE REQUEST WITH TELEGRAM NOTIFICATION
-  // ============================================================
   Future<void> _approveRequest(
       String requestId, String userName, int totalDays) async {
     try {
-      // Get request details before approval
       final requestDoc = await FirebaseFirestore.instance
           .collection('leave_requests')
           .doc(requestId)
@@ -189,7 +186,6 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       final startDate = requestData['startDate'] ?? 'N/A';
       final endDate = requestData['endDate'] ?? 'N/A';
 
-      // Approve the request
       await _requestService.approveRequestAsManager(
         requestId,
         managerId,
@@ -197,7 +193,6 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         managerDepartment,
       );
 
-      // ===== SEND TELEGRAM NOTIFICATION =====
       final approvalMessage = '''
 ✅ REQUEST APPROVED
 
@@ -213,12 +208,10 @@ Time: ${TelegramService.formatTimeOnlyAMPM()}
 Status: APPROVED 
       ''';
       
-      // Send to Manager, Admin, and Group
       await TelegramService.sendToAll(approvalMessage);
       
       print(' Telegram notifications sent for approval');
 
-      // Refresh statistics after approval
       await _loadStatistics();
 
       if (mounted) {
@@ -262,37 +255,45 @@ Status: APPROVED
     }
   }
 
-  // ============================================================
-  // REJECT REQUEST WITH TELEGRAM NOTIFICATION
-  // ============================================================
   Future<void> _showRejectDialog(
       String requestId, String userName, int totalDays) async {
     final reasonController = TextEditingController();
+    
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
 
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
           'Reject Request',
-          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Please provide a reason for rejection:',
-              style: TextStyle(fontSize: AppFonts.md),
+              style: TextStyle(fontSize: fontSize),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: reasonController,
               decoration: InputDecoration(
                 hintText: 'Reason...',
-                hintStyle: TextStyle(fontSize: AppFonts.md),
+                hintStyle: TextStyle(fontSize: fontSize),
                 border: const OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: isMobile ? 10 : 14,
+                ),
               ),
-              maxLines: 3,
-              style: TextStyle(fontSize: AppFonts.md),
+              maxLines: isMobile ? 2 : 3,
+              style: TextStyle(fontSize: fontSize),
             ),
           ],
         ),
@@ -301,14 +302,13 @@ Status: APPROVED
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
-              style: TextStyle(fontSize: AppFonts.md),
+              style: TextStyle(fontSize: fontSize),
             ),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
               try {
-                // Get request details before rejection
                 final requestDoc = await FirebaseFirestore.instance
                     .collection('leave_requests')
                     .doc(requestId)
@@ -323,7 +323,6 @@ Status: APPROVED
                     ? reasonController.text
                     : 'No reason provided';
 
-                // Reject the request
                 await _requestService.rejectRequestAsManager(
                   requestId,
                   managerId,
@@ -332,7 +331,6 @@ Status: APPROVED
                   reason: rejectionReason,
                 );
 
-                // ===== SEND TELEGRAM NOTIFICATION =====
                 final rejectionMessage = '''
 ❌ REQUEST REJECTED
 
@@ -349,12 +347,10 @@ Rejection Reason: $rejectionReason
 Status: REJECTED 
                 ''';
                 
-                // Send to Manager, Admin, and Group
                 await TelegramService.sendToAll(rejectionMessage);
                 
                 print(' Telegram notifications sent for rejection');
 
-                // Refresh statistics after rejection
                 await _loadStatistics();
 
                 if (mounted) {
@@ -387,7 +383,7 @@ Status: REJECTED
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: Text(
               'Reject',
-              style: TextStyle(fontSize: AppFonts.md),
+              style: TextStyle(fontSize: fontSize),
             ),
           ),
         ],
@@ -397,6 +393,12 @@ Status: REJECTED
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final double iconSize = Responsive.iconSize(context, 24);
+
     if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -407,27 +409,27 @@ Status: REJECTED
       return Scaffold(
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(spacing * 2.5),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
+                SizedBox(height: spacing * 2),
                 Text(
                   'Error',
                   style: TextStyle(
-                    fontSize: AppFonts.md,
+                    fontSize: fontSize + 2,
                     fontWeight: FontWeight.bold,
                     color: Colors.red[700],
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: spacing),
                 Text(
                   errorMessage!,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: AppFonts.md),
+                  style: TextStyle(fontSize: fontSize),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: spacing * 2.5),
                 ElevatedButton(
                   onPressed: () {
                     setState(() {
@@ -438,7 +440,7 @@ Status: REJECTED
                   },
                   child: Text(
                     'Retry',
-                    style: TextStyle(fontSize: AppFonts.md),
+                    style: TextStyle(fontSize: fontSize),
                   ),
                 ),
               ],
@@ -457,10 +459,13 @@ Status: REJECTED
       body: SafeArea(
         child: Column(
           children: [
-            // ---------- Fixed header with background ----------
+            // Header
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              padding: EdgeInsets.symmetric(
+                vertical: isMobile ? 12 : 16,
+                horizontal: spacing,
+              ),
               decoration: const BoxDecoration(
                 color: Color(0xFF173B69),
                 borderRadius: BorderRadius.only(
@@ -473,9 +478,13 @@ Status: REJECTED
                 isLoading: isLoading,
                 userId: managerId,
                 useWhiteTheme: true,
+                isMobile: isMobile,
+                fontSize: fontSize,
+                spacing: spacing,
+                iconSize: iconSize,
               ),
             ),
-            // ---------- Scrollable content ----------
+            // Scrollable content
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
@@ -485,7 +494,7 @@ Status: REJECTED
                 },
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.all(spacing * 2),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -493,8 +502,10 @@ Status: REJECTED
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: spacing * 1.5,
+                              vertical: spacing / 1.5,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.blue.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
@@ -502,13 +513,16 @@ Status: REJECTED
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.business,
-                                    size: 16, color: Colors.blue[700]),
-                                const SizedBox(width: 8),
+                                Icon(
+                                  Icons.business,
+                                  size: iconSize - 8,
+                                  color: Colors.blue[700],
+                                ),
+                                SizedBox(width: spacing / 2),
                                 Text(
                                   departmentDisplay,
                                   style: TextStyle(
-                                    fontSize: AppFonts.md,
+                                    fontSize: isMobile ? fontSize * 0.85 : fontSize,
                                     color: Colors.blue[700],
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -518,8 +532,10 @@ Status: REJECTED
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: spacing * 1.5,
+                              vertical: spacing / 1.5,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.green.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
@@ -527,13 +543,16 @@ Status: REJECTED
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.people,
-                                    size: 16, color: Colors.green[700]),
-                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.people,
+                                  size: iconSize - 8,
+                                  color: Colors.green[700],
+                                ),
+                                SizedBox(width: spacing / 3),
                                 Text(
                                   '$_staffCount Staff',
                                   style: TextStyle(
-                                    fontSize: AppFonts.md,
+                                    fontSize: isMobile ? fontSize * 0.85 : fontSize,
                                     color: Colors.green[700],
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -543,7 +562,7 @@ Status: REJECTED
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: spacing * 2),
                       
                       // Statistics Cards
                       Row(
@@ -552,26 +571,34 @@ Status: REJECTED
                             label: 'Total',
                             value: '$_totalRequests',
                             color: const Color(0xFF173B69),
+                            isMobile: isMobile,
+                            fontSize: fontSize,
                           ),
                           _buildStatCard(
                             label: 'Pending',
                             value: '$_pendingRequests',
                             color: Colors.orange,
+                            isMobile: isMobile,
+                            fontSize: fontSize,
                           ),
                           _buildStatCard(
                             label: 'Approved',
                             value: '$_approvedRequests',
                             color: Colors.green,
+                            isMobile: isMobile,
+                            fontSize: fontSize,
                           ),
                           _buildStatCard(
                             label: 'Rejected',
                             value: '$_rejectedRequests',
                             color: Colors.red,
+                            isMobile: isMobile,
+                            fontSize: fontSize,
                           ),
                         ],
                       ),
                       
-                      const SizedBox(height: 8),
+                      SizedBox(height: spacing),
                       
                       // Auto Approved and Total Days
                       Row(
@@ -580,11 +607,15 @@ Status: REJECTED
                             label: 'Auto Approved',
                             value: '$_autoApprovedRequests',
                             color: Colors.purple,
+                            isMobile: isMobile,
+                            fontSize: fontSize,
                           ),
                           _buildStatCard(
                             label: 'Total Days',
                             value: '$_totalDays',
                             color: Colors.teal,
+                            isMobile: isMobile,
+                            fontSize: fontSize,
                           ),
                           const Expanded(
                             child: SizedBox(),
@@ -592,7 +623,7 @@ Status: REJECTED
                         ],
                       ),
                       
-                      const SizedBox(height: 24),
+                      SizedBox(height: spacing * 3),
                       
                       // Pending Approvals Title
                       Row(
@@ -601,14 +632,16 @@ Status: REJECTED
                           Text(
                             'Pending Approvals',
                             style: TextStyle(
-                              fontSize: AppFonts.md,
+                              fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           if (managerDepartment.isNotEmpty)
                             Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: spacing,
+                                vertical: spacing / 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.green.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
@@ -616,7 +649,7 @@ Status: REJECTED
                               child: Text(
                                 managerDepartment,
                                 style: TextStyle(
-                                  fontSize: AppFonts.md,
+                                  fontSize: isMobile ? fontSize * 0.8 : fontSize,
                                   color: Colors.green[700],
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -624,7 +657,7 @@ Status: REJECTED
                             ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: spacing * 1.5),
                       
                       // Pending Requests List
                       StreamBuilder<QuerySnapshot>(
@@ -637,19 +670,19 @@ Status: REJECTED
                                 children: [
                                   const Icon(Icons.error_outline,
                                       size: 48, color: Colors.red),
-                                  const SizedBox(height: 8),
+                                  SizedBox(height: spacing),
                                   Text(
                                     'Error: ${snapshot.error}',
-                                    style: TextStyle(fontSize: AppFonts.md),
+                                    style: TextStyle(fontSize: fontSize),
                                   ),
-                                  const SizedBox(height: 8),
+                                  SizedBox(height: spacing),
                                   ElevatedButton(
                                     onPressed: () {
                                       setState(() {});
                                     },
                                     child: Text(
                                       'Retry',
-                                      style: TextStyle(fontSize: AppFonts.md),
+                                      style: TextStyle(fontSize: fontSize),
                                     ),
                                   ),
                                 ],
@@ -664,22 +697,27 @@ Status: REJECTED
                           final requests = snapshot.data?.docs ?? [];
 
                           if (requests.isEmpty) {
-                            return const Center(
+                            return Center(
                               child: Padding(
-                                padding: EdgeInsets.all(40),
+                                padding: EdgeInsets.all(spacing * 5),
                                 child: Column(
                                   children: [
                                     Icon(Icons.inbox, size: 48, color: Colors.grey),
-                                    SizedBox(height: 8),
+                                    SizedBox(height: spacing),
                                     Text(
                                       'No pending requests',
                                       style: TextStyle(
-                                          fontSize: AppFonts.md, color: Colors.grey),
+                                        fontSize: fontSize,
+                                        color: Colors.grey,
+                                      ),
                                     ),
                                     Text(
                                       'All requests in your department have been processed',
                                       style: TextStyle(
-                                          fontSize: AppFonts.md, color: Colors.grey),
+                                        fontSize: fontSize * 0.85,
+                                        color: Colors.grey,
+                                      ),
+                                      textAlign: TextAlign.center,
                                     ),
                                   ],
                                 ),
@@ -704,6 +742,9 @@ Status: REJECTED
                                 permissionType: data['permissionType'] ?? 'Leave',
                                 startDate: data['startDate'] ?? 'N/A',
                                 endDate: data['endDate'] ?? 'N/A',
+                                isMobile: isMobile,
+                                fontSize: fontSize,
+                                spacing: spacing,
                                 onApprove: () => _approveRequest(
                                   doc.id,
                                   data['userName'] ?? 'Unknown',
@@ -719,7 +760,7 @@ Status: REJECTED
                           );
                         },
                       ),
-                      const SizedBox(height: 20),
+                      SizedBox(height: isMobile ? 60 : 80),
                     ],
                   ),
                 ),
@@ -735,11 +776,16 @@ Status: REJECTED
     required String label,
     required String value,
     required Color color,
+    required bool isMobile,
+    required double fontSize,
   }) {
     return Expanded(
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        margin: EdgeInsets.symmetric(horizontal: 2),
+        padding: EdgeInsets.symmetric(
+          vertical: isMobile ? 6 : 8,
+          horizontal: 2,
+        ),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
@@ -750,7 +796,7 @@ Status: REJECTED
             Text(
               value,
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize : fontSize + 2,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -758,7 +804,7 @@ Status: REJECTED
             Text(
               label,
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize * 0.7 : fontSize,
                 color: Colors.grey[600],
               ),
             ),
@@ -790,12 +836,20 @@ class _ManagerUserHeader extends StatelessWidget {
   final bool isLoading;
   final String userId;
   final bool useWhiteTheme;
+  final bool isMobile;
+  final double fontSize;
+  final double spacing;
+  final double iconSize;
 
   const _ManagerUserHeader({
     required this.managerName,
     required this.isLoading,
     required this.userId,
     this.useWhiteTheme = false,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
+    required this.iconSize,
   });
 
   @override
@@ -814,23 +868,27 @@ class _ManagerUserHeader extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const ProfileScreen()),
           ),
           child: CircleAvatar(
-            radius: 40,
+            radius: isMobile ? 30 : 40,
             backgroundColor: avatarBg,
-            child: Icon(Icons.manage_accounts, size: 40, color: avatarIcon),
+            child: Icon(
+              Icons.manage_accounts,
+              size: isMobile ? 30 : 40,
+              color: avatarIcon,
+            ),
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: spacing * 1.5),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isLoading)
-                const SizedBox(
-                  height: 20,
-                  width: 20,
+                SizedBox(
+                  height: 16,
+                  width: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: useWhiteTheme ? Colors.white : const Color(0xFF173B69),
                   ),
                 )
               else
@@ -838,16 +896,17 @@ class _ManagerUserHeader extends StatelessWidget {
                   managerName,
                   style: TextStyle(
                     color: textColor,
-                    fontSize: AppFonts.md,
+                    fontSize: isMobile ? fontSize : fontSize + 2,
                     fontWeight: FontWeight.bold,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              const SizedBox(height: 4),
+              SizedBox(height: spacing / 4),
               Text(
                 'Manager',
                 style: TextStyle(
                   color: subTextColor,
-                  fontSize: AppFonts.md,
+                  fontSize: isMobile ? fontSize * 0.85 : fontSize,
                 ),
               ),
             ],
@@ -856,6 +915,8 @@ class _ManagerUserHeader extends StatelessWidget {
         _NotificationIconWithBadge(
           userId: userId,
           iconColor: iconColor,
+          isMobile: isMobile,
+          iconSize: iconSize,
         ),
       ],
     );
@@ -866,10 +927,14 @@ class _ManagerUserHeader extends StatelessWidget {
 class _NotificationIconWithBadge extends StatelessWidget {
   final String userId;
   final Color iconColor;
+  final bool isMobile;
+  final double iconSize;
 
   const _NotificationIconWithBadge({
     required this.userId,
     this.iconColor = const Color(0xFF173B69),
+    required this.isMobile,
+    required this.iconSize,
   });
 
   @override
@@ -899,28 +964,30 @@ class _NotificationIconWithBadge extends StatelessWidget {
               icon: Icon(
                 Icons.notifications_none,
                 color: iconColor,
-                size: 28,
+                size: isMobile ? iconSize - 4 : iconSize,
               ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
             ),
             if (unreadCount > 0)
               Positioned(
-                top: 4,
-                right: 4,
+                top: 2,
+                right: 2,
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(3),
                   decoration: const BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
                   ),
-                  constraints: const BoxConstraints(
-                    minWidth: 20,
-                    minHeight: 20,
+                  constraints: BoxConstraints(
+                    minWidth: isMobile ? 14 : 18,
+                    minHeight: isMobile ? 14 : 18,
                   ),
                   child: Text(
                     unreadCount > 99 ? '99+' : '$unreadCount',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: isMobile ? 8 : 10,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -946,6 +1013,9 @@ class _PendingCard extends StatelessWidget {
   final String permissionType;
   final String startDate;
   final String endDate;
+  final bool isMobile;
+  final double fontSize;
+  final double spacing;
   final VoidCallback onApprove;
   final VoidCallback onReject;
 
@@ -960,6 +1030,9 @@ class _PendingCard extends StatelessWidget {
     required this.permissionType,
     required this.startDate,
     required this.endDate,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
     required this.onApprove,
     required this.onReject,
   });
@@ -968,8 +1041,8 @@ class _PendingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: spacing * 1.5),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -988,8 +1061,11 @@ class _PendingCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 60,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                width: isMobile ? 50 : 60,
+                padding: EdgeInsets.symmetric(
+                  horizontal: spacing / 2,
+                  vertical: spacing,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF173B69).withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -1000,21 +1076,21 @@ class _PendingCard extends StatelessWidget {
                       month,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: AppFonts.md,
+                        fontSize: isMobile ? fontSize * 0.85 : fontSize,
                         color: const Color(0xFF173B69),
                       ),
                     ),
                     Text(
                       date,
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: isMobile ? fontSize * 0.85 : fontSize,
                         color: const Color(0xFF173B69),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: spacing * 1.5),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1022,14 +1098,17 @@ class _PendingCard extends StatelessWidget {
                     Text(
                       employeeName,
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: isMobile ? fontSize : fontSize + 2,
                         fontWeight: FontWeight.bold,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: spacing / 2),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: spacing / 2,
+                        vertical: spacing / 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.blue.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
@@ -1037,28 +1116,30 @@ class _PendingCard extends StatelessWidget {
                       child: Text(
                         ' $department',
                         style: TextStyle(
-                          fontSize: AppFonts.md,
+                          fontSize: isMobile ? fontSize * 0.75 : fontSize,
                           color: Colors.blue[700],
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: spacing / 2),
                     Text(
                       reason,
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: isMobile ? fontSize * 0.85 : fontSize,
                         color: Colors.grey,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: spacing / 2),
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: spacing / 2,
+                            vertical: spacing / 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.orange.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
@@ -1066,16 +1147,18 @@ class _PendingCard extends StatelessWidget {
                           child: Text(
                             '$totalDays day${totalDays > 1 ? 's' : ''}',
                             style: TextStyle(
-                              fontSize: AppFonts.md,
+                              fontSize: isMobile ? fontSize * 0.75 : fontSize,
                               color: Colors.orange,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: spacing / 2),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: spacing / 2,
+                            vertical: spacing / 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.purple.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
@@ -1083,7 +1166,7 @@ class _PendingCard extends StatelessWidget {
                           child: Text(
                             permissionType,
                             style: TextStyle(
-                              fontSize: AppFonts.md,
+                              fontSize: isMobile ? fontSize * 0.75 : fontSize,
                               color: Colors.purple,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1096,15 +1179,15 @@ class _PendingCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: spacing),
           const Divider(),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing / 2),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               SizedBox(
-                width: 80,
-                height: 36,
+                width: isMobile ? 60 : 80,
+                height: isMobile ? 32 : 36,
                 child: OutlinedButton(
                   onPressed: onReject,
                   style: OutlinedButton.styleFrom(
@@ -1117,14 +1200,16 @@ class _PendingCard extends StatelessWidget {
                   ),
                   child: Text(
                     'Reject',
-                    style: TextStyle(fontSize: AppFonts.md),
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.75 : fontSize,
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: spacing),
               SizedBox(
-                width: 80,
-                height: 36,
+                width: isMobile ? 60 : 80,
+                height: isMobile ? 32 : 36,
                 child: ElevatedButton(
                   onPressed: onApprove,
                   style: ElevatedButton.styleFrom(
@@ -1137,7 +1222,9 @@ class _PendingCard extends StatelessWidget {
                   ),
                   child: Text(
                     'Approve',
-                    style: TextStyle(fontSize: AppFonts.md),
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.75 : fontSize,
+                    ),
                   ),
                 ),
               ),

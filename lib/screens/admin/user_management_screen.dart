@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_system/app_fonts.dart';
 import '../../services/user_service.dart';
 import '../../models/user_model.dart';
-
+import '../../utils/responsive.dart'; // ✅ Import Responsive
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -22,7 +22,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   List<UserModel> _users = [];
   String _filterDepartment = 'all';
 
-  // ✅ Department names now in English
   final List<Map<String, String>> _departments = [
     {'id': 'dept_it', 'name': 'IT Department'},
     {'id': 'dept_education', 'name': 'Education Department'},
@@ -96,12 +95,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     String selectedStatus = user.status;
     String selectedDepartmentId = user.departmentId ?? '';
 
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final double buttonHeight = Responsive.buttonHeight(context);
+
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
           'Edit User: ${user.username}',
-          style: TextStyle(fontSize: AppFonts.md, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         content: SingleChildScrollView(
           child: Form(
@@ -114,7 +122,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   controller: nameController,
                   decoration: InputDecoration(
                     labelText: 'Full Name',
-                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    labelStyle: TextStyle(fontSize: fontSize),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -127,27 +135,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: spacing * 1.5,
+                      vertical: isMobile ? 12 : 14,
                     ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   ),
                   validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                  style: TextStyle(fontSize: AppFonts.md),
+                  style: TextStyle(fontSize: fontSize),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: spacing * 1.5),
 
                 // ===== Email =====
                 TextFormField(
                   controller: emailController,
                   decoration: InputDecoration(
                     labelText: 'Email',
-                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    labelStyle: TextStyle(fontSize: fontSize),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -160,15 +163,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: spacing * 1.5,
+                      vertical: isMobile ? 12 : 14,
                     ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
@@ -176,16 +174,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     if (!value!.contains('@')) return 'Invalid email';
                     return null;
                   },
-                  style: TextStyle(fontSize: AppFonts.md),
+                  style: TextStyle(fontSize: fontSize),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: spacing * 1.5),
 
                 // ===== Phone =====
                 TextFormField(
                   controller: phoneController,
                   decoration: InputDecoration(
                     labelText: 'Phone',
-                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    labelStyle: TextStyle(fontSize: fontSize),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -198,26 +196,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: spacing * 1.5,
+                      vertical: isMobile ? 12 : 14,
                     ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   ),
-                  style: TextStyle(fontSize: AppFonts.md),
+                  style: TextStyle(fontSize: fontSize),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: spacing * 1.5),
 
                 // ===== Role Dropdown =====
                 DropdownButtonFormField<String>(
                   value: selectedRole,
                   decoration: InputDecoration(
                     labelText: 'Role',
-                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    labelStyle: TextStyle(fontSize: fontSize),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -230,15 +223,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: spacing * 1.5,
+                      vertical: isMobile ? 6 : 8,
                     ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   ),
                   items: const [
                     DropdownMenuItem(value: '1', child: Text('👑 Admin')),
@@ -249,20 +237,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     if (value != null) selectedRole = value;
                   },
                   style: TextStyle(
-                    fontSize: AppFonts.md,
-                    fontWeight: FontWeight.w500, // ដិតតិចៗ
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w500,
                   ),
                   dropdownColor: Colors.white,
                   icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: spacing * 1.5),
 
                 // ===== Department Dropdown =====
                 DropdownButtonFormField<String>(
                   value: selectedDepartmentId.isEmpty ? null : selectedDepartmentId,
                   decoration: InputDecoration(
                     labelText: 'Department',
-                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    labelStyle: TextStyle(fontSize: fontSize),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -275,19 +263,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: spacing * 1.5,
+                      vertical: isMobile ? 6 : 8,
                     ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   ),
                   hint: Text(
                     'Select Department',
-                    style: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
                   ),
                   items: [
                     const DropdownMenuItem(
@@ -307,20 +290,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     }
                   },
                   style: TextStyle(
-                    fontSize: AppFonts.md,
-                    fontWeight: FontWeight.w500, // ដិតតិចៗ
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w500,
                   ),
                   dropdownColor: Colors.white,
                   icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                 ),
-                const SizedBox(height: 14),
+                SizedBox(height: spacing * 1.5),
 
                 // ===== Status Dropdown =====
                 DropdownButtonFormField<String>(
                   value: selectedStatus,
                   decoration: InputDecoration(
                     labelText: 'Status',
-                    labelStyle: TextStyle(fontSize: AppFonts.md),
+                    labelStyle: TextStyle(fontSize: fontSize),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -333,15 +316,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: spacing * 1.5,
+                      vertical: isMobile ? 6 : 8,
                     ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   ),
                   items: const [
                     DropdownMenuItem(value: 'Active', child: Text(' Active')),
@@ -351,8 +329,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     if (value != null) selectedStatus = value;
                   },
                   style: TextStyle(
-                    fontSize: AppFonts.md,
-                    fontWeight: FontWeight.w500, // ដិតតិចៗ
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w500,
                   ),
                   dropdownColor: Colors.white,
                   icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
@@ -364,7 +342,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -425,8 +406,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF173B69),
+              minimumSize: Size(double.infinity, buttonHeight),
             ),
-            child: const Text('Save'),
+            child: Text(
+              'Save',
+              style: TextStyle(fontSize: fontSize),
+            ),
           ),
         ],
       ),
@@ -434,23 +419,36 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _showDeleteDialog(UserModel user) async {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete User'),
+        title: Text(
+          'Delete User',
+          style: TextStyle(fontSize: isMobile ? fontSize : fontSize + 2),
+        ),
         content: Text(
           'Are you sure you want to delete ${user.fullName}?',
-          style: TextStyle(fontSize: AppFonts.md),
+          style: TextStyle(fontSize: fontSize),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(
+              'Delete',
+              style: TextStyle(fontSize: fontSize),
+            ),
           ),
         ],
       ),
@@ -494,6 +492,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final double iconSize = Responsive.iconSize(context, 24);
+
     final filteredUsers = _filteredUsers;
 
     return Scaffold(
@@ -501,7 +505,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         title: Text(
           'User Management',
           style: TextStyle(
-            fontSize: AppFonts.md,
+            fontSize: isMobile ? 16 : 18,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -509,29 +513,32 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Colors.white, size: iconSize),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: Icon(Icons.add, size: iconSize),
             onPressed: () {
               Navigator.pushNamed(context, '/create-user');
             },
             tooltip: 'Add User',
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, size: iconSize),
             onPressed: _loadUsers,
             tooltip: 'Refresh',
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(110),
+          preferredSize: Size.fromHeight(isMobile ? 110 : 120),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: spacing * 2,
+              vertical: spacing,
+            ),
             child: Column(
               children: [
                 TextField(
@@ -540,23 +547,23 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       _searchQuery = value;
                     });
                   },
-                  style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
+                  style: TextStyle(fontSize: fontSize, color: Colors.black),
                   decoration: InputDecoration(
                     hintText: '🔍 Search users...',
-                    hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey),
+                    hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.9),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 0,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: spacing,
+                      vertical: isMobile ? 4 : 0,
                     ),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, size: 18, color: Colors.black54),
+                            icon: Icon(Icons.clear, size: iconSize - 6, color: Colors.black54),
                             onPressed: () {
                               setState(() {
                                 _searchQuery = '';
@@ -566,25 +573,29 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         : null,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: spacing),
                 Row(
                   children: [
-                    const Icon(Icons.filter_list, color: Colors.white70, size: 20),
-                    const SizedBox(width: 8),
+                    Icon(Icons.filter_list, color: Colors.white70, size: iconSize - 4),
+                    SizedBox(width: spacing),
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: EdgeInsets.symmetric(horizontal: spacing),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.9),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: DropdownButton<String>(
                           value: _filterDepartment,
-                          icon: const Icon(Icons.arrow_drop_down, color: Colors.black54),
+                          icon: Icon(
+                            Icons.arrow_drop_down,
+                            color: Colors.black54,
+                            size: iconSize,
+                          ),
                           underline: const SizedBox(),
                           isExpanded: true,
                           style: TextStyle(
-                            fontSize: AppFonts.md,
+                            fontSize: fontSize,
                             color: Colors.black,
                           ),
                           items: [
@@ -637,7 +648,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(12),
+                  padding: EdgeInsets.all(spacing * 1.5),
                   itemCount: filteredUsers.length,
                   itemBuilder: (context, index) {
                     final user = filteredUsers[index];
@@ -645,6 +656,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       user: user,
                       onEdit: () => _showEditDialog(user),
                       onDelete: () => _showDeleteDialog(user),
+                      isMobile: isMobile,
+                      fontSize: fontSize,
+                      spacing: spacing,
                     );
                   },
                 ),
@@ -657,35 +671,41 @@ class _UserCard extends StatelessWidget {
   final UserModel user;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final bool isMobile;
+  final double fontSize;
+  final double spacing;
 
   const _UserCard({
     required this.user,
     required this.onEdit,
     required this.onDelete,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: EdgeInsets.only(bottom: spacing),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isMobile ? 10 : 12),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 30,
+              radius: isMobile ? 22 : 30,
               backgroundColor: user.roleColor.withOpacity(0.2),
               child: Icon(
                 Icons.person,
                 color: user.roleColor,
-                size: 30,
+                size: isMobile ? 22 : 30,
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: spacing * 1.5),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -693,24 +713,29 @@ class _UserCard extends StatelessWidget {
                   Text(
                     user.fullName,
                     style: TextStyle(
-                      fontSize: AppFonts.md,
+                      fontSize: isMobile ? fontSize : fontSize + 2,
                       fontWeight: FontWeight.bold,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                   Text(
                     user.email,
                     style: TextStyle(
-                      fontSize: AppFonts.md,
+                      fontSize: isMobile ? fontSize * 0.85 : fontSize,
                       color: Colors.grey[600],
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: spacing / 2),
                   Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
+                    spacing: spacing / 2,
+                    runSpacing: spacing / 2,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: spacing / 2,
+                          vertical: spacing / 4,
+                        ),
                         decoration: BoxDecoration(
                           color: user.roleColor.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
@@ -718,7 +743,7 @@ class _UserCard extends StatelessWidget {
                         child: Text(
                           user.roleName,
                           style: TextStyle(
-                            fontSize: AppFonts.md,
+                            fontSize: isMobile ? fontSize * 0.8 : fontSize,
                             color: user.roleColor,
                             fontWeight: FontWeight.w500,
                           ),
@@ -726,7 +751,10 @@ class _UserCard extends StatelessWidget {
                       ),
                       if (user.department != null && user.department!.isNotEmpty)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: spacing / 2,
+                            vertical: spacing / 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.blue.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8),
@@ -734,14 +762,17 @@ class _UserCard extends StatelessWidget {
                           child: Text(
                             ' ${user.department}',
                             style: TextStyle(
-                              fontSize: AppFonts.md,
+                              fontSize: isMobile ? fontSize * 0.8 : fontSize,
                               color: Colors.blue[700],
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: spacing / 2,
+                          vertical: spacing / 4,
+                        ),
                         decoration: BoxDecoration(
                           color: user.isActive
                               ? Colors.green.withOpacity(0.1)
@@ -751,7 +782,7 @@ class _UserCard extends StatelessWidget {
                         child: Text(
                           user.status,
                           style: TextStyle(
-                            fontSize: AppFonts.md,
+                            fontSize: isMobile ? fontSize * 0.8 : fontSize,
                             color: user.isActive ? Colors.green : Colors.red,
                             fontWeight: FontWeight.w500,
                           ),
@@ -762,17 +793,22 @@ class _UserCard extends StatelessWidget {
                 ],
               ),
             ),
+            // ✅ Action Buttons
             Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  icon: Icon(Icons.edit, color: Colors.blue, size: isMobile ? 18 : 20),
                   onPressed: onEdit,
-                  iconSize: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
+                SizedBox(height: spacing / 2),
                 IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
+                  icon: Icon(Icons.delete, color: Colors.red, size: isMobile ? 18 : 20),
                   onPressed: onDelete,
-                  iconSize: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),

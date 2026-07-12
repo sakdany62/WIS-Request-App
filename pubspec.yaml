@@ -74,7 +74,7 @@ flutter_launcher_icons:
   windows:
     generate: true
     image_path: "assets/icon/app_icon.png"
-    icon_size: 5
+    icon_size: 10
   macos:
     generate: true
     image_path: "assets/icon/app_icon.png"

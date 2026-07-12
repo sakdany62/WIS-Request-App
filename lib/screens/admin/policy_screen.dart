@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../services/policy_service.dart';
 import '../../models/policy_model.dart';
+import '../../utils/responsive.dart';
 
 class PolicyScreen extends StatefulWidget {
   const PolicyScreen({super.key});
@@ -70,14 +71,12 @@ class _PolicyScreenState extends State<PolicyScreen> {
       _autoApprove = _currentPolicy!.autoApprove;
       _isActive = _currentPolicy!.isActive;
       
-      // Auto Approve Settings
       _autoApproveFirstCountController.text = _currentPolicy!.autoApproveFirstCount.toString();
       _autoApproveSecondCountController.text = _currentPolicy!.autoApproveSecondCount.toString();
       _firstRequestMessageController.text = _currentPolicy!.firstRequestMessage;
       _secondRequestMessageController.text = _currentPolicy!.secondRequestMessage;
       _thirdRequestMessageController.text = _currentPolicy!.thirdRequestMessage;
       
-      // Notification Settings
       _enableNotifications = _currentPolicy!.enableNotifications;
       _notificationTitleController.text = _currentPolicy!.notificationTitle;
       _notificationBodyController.text = _currentPolicy!.notificationBody;
@@ -162,21 +161,36 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
   void _showAddReasonDialog() {
     final controller = TextEditingController();
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Add Allowed Reason'),
+        title: Text(
+          'Add Allowed Reason',
+          style: TextStyle(fontSize: isMobile ? fontSize : fontSize + 2),
+        ),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(
+          style: TextStyle(fontSize: fontSize),
+          decoration: InputDecoration(
             hintText: 'Enter reason',
-            border: OutlineInputBorder(),
+            hintStyle: TextStyle(fontSize: fontSize),
+            border: const OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: isMobile ? 10 : 14,
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -187,7 +201,14 @@ class _PolicyScreenState extends State<PolicyScreen> {
               }
               Navigator.pop(context);
             },
-            child: const Text('Add'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF173B69),
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Add',
+              style: TextStyle(fontSize: fontSize),
+            ),
           ),
         ],
       ),
@@ -200,11 +221,42 @@ class _PolicyScreenState extends State<PolicyScreen> {
     });
   }
 
+  // ✅ Helper method to build bordered card
+  Widget _buildBorderedCard({
+    required Widget child,
+    double? elevation,
+  }) {
+    return Card(
+      elevation: elevation ?? 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Colors.grey.shade300,
+          width: 1.0,
+        ),
+      ),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final EdgeInsets padding = Responsive.padding(context);
+    final double buttonHeight = Responsive.buttonHeight(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Leave Policies'),
+        title: Text(
+          'Leave Policies',
+          style: TextStyle(
+            fontSize: isMobile ? 16 : 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
         leading: IconButton(
@@ -215,10 +267,10 @@ class _PolicyScreenState extends State<PolicyScreen> {
         ),
         actions: [
           if (_isSaving)
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
+            SizedBox(
+              width: isMobile ? 20 : 24,
+              height: isMobile ? 20 : 24,
+              child: const CircularProgressIndicator(
                 color: Colors.white,
                 strokeWidth: 2,
               ),
@@ -228,47 +280,64 @@ class _PolicyScreenState extends State<PolicyScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: padding,
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // General Settings Card
-                    Card(
+                    // ✅ General Settings Card with Border
+                    _buildBorderedCard(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(spacing * 2),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'General Settings',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                                 fontWeight: FontWeight.bold,
+                                color: const Color(0xFF173B69),
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const Divider(height: 20),
+                            SizedBox(height: spacing),
                             TextFormField(
                               controller: _nameController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: fontSize),
+                              decoration: InputDecoration(
                                 labelText: 'Policy Name',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: fontSize),
+                                border: const OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: spacing,
+                                  vertical: isMobile ? 10 : 14,
+                                ),
                               ),
                               validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: spacing * 1.5),
                             TextFormField(
                               controller: _descriptionController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: fontSize),
+                              decoration: InputDecoration(
                                 labelText: 'Description',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: fontSize),
+                                border: const OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: spacing,
+                                  vertical: isMobile ? 10 : 14,
+                                ),
                               ),
-                              maxLines: 3,
+                              maxLines: isMobile ? 2 : 3,
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: spacing * 1.5),
                             SwitchListTile(
-                              title: const Text('Active Policy'),
+                              title: Text(
+                                'Active Policy',
+                                style: TextStyle(fontSize: fontSize),
+                              ),
                               value: _isActive,
                               onChanged: (value) {
                                 setState(() {
@@ -276,44 +345,59 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                 });
                               },
                               activeColor: Colors.green,
+                              contentPadding: EdgeInsets.zero,
                             ),
                           ],
                         ),
                       ),
                     ),
                     
-                    const SizedBox(height: 16),
+                    SizedBox(height: spacing * 2),
                     
-                    // Leave Limits Card
-                    Card(
+                    // ✅ Leave Limits Card with Border
+                    _buildBorderedCard(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(spacing * 2),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Leave Limits',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                                 fontWeight: FontWeight.bold,
+                                color: const Color(0xFF173B69),
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const Divider(height: 20),
+                            SizedBox(height: spacing),
                             TextFormField(
                               controller: _maxDaysPerRequestController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: fontSize),
+                              decoration: InputDecoration(
                                 labelText: 'Max Days Per Request',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: fontSize),
+                                border: const OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: spacing,
+                                  vertical: isMobile ? 10 : 14,
+                                ),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: spacing * 1.5),
                             TextFormField(
                               controller: _maxDaysPerYearController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: fontSize),
+                              decoration: InputDecoration(
                                 labelText: 'Max Days Per Year',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: fontSize),
+                                border: const OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: spacing,
+                                  vertical: isMobile ? 10 : 14,
+                                ),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
@@ -323,38 +407,52 @@ class _PolicyScreenState extends State<PolicyScreen> {
                       ),
                     ),
                     
-                    const SizedBox(height: 16),
+                    SizedBox(height: spacing * 2),
                     
-                    // Advance Notice Card
-                    Card(
+                    // ✅ Advance Notice Card with Border
+                    _buildBorderedCard(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(spacing * 2),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Advance Notice',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                                 fontWeight: FontWeight.bold,
+                                color: const Color(0xFF173B69),
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const Divider(height: 20),
+                            SizedBox(height: spacing),
                             TextFormField(
                               controller: _minDaysAdvanceController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: fontSize),
+                              decoration: InputDecoration(
                                 labelText: 'Minimum Days in Advance',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: fontSize),
+                                border: const OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: spacing,
+                                  vertical: isMobile ? 10 : 14,
+                                ),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
                             ),
-                            const SizedBox(height: 12),
+                            SizedBox(height: spacing * 1.5),
                             TextFormField(
                               controller: _maxDaysAdvanceController,
-                              decoration: const InputDecoration(
+                              style: TextStyle(fontSize: fontSize),
+                              decoration: InputDecoration(
                                 labelText: 'Maximum Days in Advance',
-                                border: OutlineInputBorder(),
+                                labelStyle: TextStyle(fontSize: fontSize),
+                                border: const OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: spacing,
+                                  vertical: isMobile ? 10 : 14,
+                                ),
                               ),
                               keyboardType: TextInputType.number,
                               validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
@@ -364,44 +462,61 @@ class _PolicyScreenState extends State<PolicyScreen> {
                       ),
                     ),
                     
-                    const SizedBox(height: 16),
+                    SizedBox(height: spacing * 2),
                     
-                    // Allowed Reasons Card
-                    Card(
+                    // ✅ Allowed Reasons Card with Border
+                    _buildBorderedCard(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(spacing * 2),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Allowed Reasons',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                                 fontWeight: FontWeight.bold,
+                                color: const Color(0xFF173B69),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const Divider(height: 20),
+                            SizedBox(height: spacing),
                             Wrap(
-                              spacing: 8,
+                              spacing: spacing,
+                              runSpacing: spacing / 2,
                               children: _allowedReasons.map((reason) {
                                 return Chip(
-                                  label: Text(reason),
+                                  label: Text(
+                                    reason,
+                                    style: TextStyle(fontSize: fontSize * 0.9),
+                                  ),
                                   onDeleted: () => _removeReason(reason),
+                                  deleteIcon: Icon(
+                                    Icons.close,
+                                    size: isMobile ? 16 : 18,
+                                  ),
+                                  visualDensity: isMobile ? VisualDensity.compact : VisualDensity.standard,
                                 );
                               }).toList(),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: spacing),
                             ElevatedButton.icon(
                               onPressed: _showAddReasonDialog,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add Reason'),
+                              icon: Icon(Icons.add, size: isMobile ? 18 : 20),
+                              label: Text(
+                                'Add Reason',
+                                style: TextStyle(fontSize: fontSize),
+                              ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF173B69),
-                                foregroundColor: Colors.white, 
+                                foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: spacing * 2,
+                                  vertical: isMobile ? 8 : 10,
+                                ),
                               ),
                             ),
                           ],
@@ -409,84 +524,115 @@ class _PolicyScreenState extends State<PolicyScreen> {
                       ),
                     ),
                     
-                    const SizedBox(height: 16),
+                    SizedBox(height: spacing * 2),
                     
-                    // Auto Approve Settings Card
-                    Card(
+                    // ✅ Auto Approve Settings Card with Border
+                    _buildBorderedCard(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(spacing * 2),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Auto Approve Settings',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                                 fontWeight: FontWeight.bold,
+                                color: const Color(0xFF173B69),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const Divider(height: 20),
+                            SizedBox(height: spacing),
                             SwitchListTile(
-                              title: const Text('Enable Auto Approve'),
-                              subtitle: const Text('Automatically approve requests based on count'),
+                              title: Text(
+                                'Enable Auto Approve',
+                                style: TextStyle(fontSize: fontSize),
+                              ),
+                              subtitle: Text(
+                                'Automatically approve requests based on count',
+                                style: TextStyle(fontSize: fontSize * 0.85),
+                              ),
                               value: _autoApprove,
                               onChanged: (value) {
                                 setState(() {
                                   _autoApprove = value;
                                 });
                               },
+                              contentPadding: EdgeInsets.zero,
                             ),
                             if (_autoApprove) ...[
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _autoApproveFirstCountController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'First Auto Approve Count',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                    ),
+                              SizedBox(height: spacing),
+                              TextFormField(
+                                controller: _autoApproveFirstCountController,
+                                style: TextStyle(fontSize: fontSize),
+                                decoration: InputDecoration(
+                                  labelText: 'First Auto Approve Count',
+                                  labelStyle: TextStyle(fontSize: fontSize),
+                                  border: const OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: spacing,
+                                    vertical: isMobile ? 10 : 14,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: TextFormField(
-                                      controller: _autoApproveSecondCountController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Second Auto Approve Count',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                    ),
-                                  ),
-                                ],
+                                ),
+                                keyboardType: TextInputType.number,
                               ),
-                              const SizedBox(height: 12),
+                              SizedBox(height: spacing),
+                              TextFormField(
+                                controller: _autoApproveSecondCountController,
+                                style: TextStyle(fontSize: fontSize),
+                                decoration: InputDecoration(
+                                  labelText: 'Second Auto Approve Count',
+                                  labelStyle: TextStyle(fontSize: fontSize),
+                                  border: const OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: spacing,
+                                    vertical: isMobile ? 10 : 14,
+                                  ),
+                                ),
+                                keyboardType: TextInputType.number,
+                              ),
+                              SizedBox(height: spacing * 1.5),
                               TextFormField(
                                 controller: _firstRequestMessageController,
-                                decoration: const InputDecoration(
+                                style: TextStyle(fontSize: fontSize),
+                                decoration: InputDecoration(
                                   labelText: 'First Request Message',
-                                  border: OutlineInputBorder(),
+                                  labelStyle: TextStyle(fontSize: fontSize),
+                                  border: const OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: spacing,
+                                    vertical: isMobile ? 10 : 14,
+                                  ),
                                 ),
                                 maxLines: 2,
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: spacing),
                               TextFormField(
                                 controller: _secondRequestMessageController,
-                                decoration: const InputDecoration(
+                                style: TextStyle(fontSize: fontSize),
+                                decoration: InputDecoration(
                                   labelText: 'Second Request Message',
-                                  border: OutlineInputBorder(),
+                                  labelStyle: TextStyle(fontSize: fontSize),
+                                  border: const OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: spacing,
+                                    vertical: isMobile ? 10 : 14,
+                                  ),
                                 ),
                                 maxLines: 2,
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: spacing),
                               TextFormField(
                                 controller: _thirdRequestMessageController,
-                                decoration: const InputDecoration(
+                                style: TextStyle(fontSize: fontSize),
+                                decoration: InputDecoration(
                                   labelText: 'Third Request Message',
-                                  border: OutlineInputBorder(),
+                                  labelStyle: TextStyle(fontSize: fontSize),
+                                  border: const OutlineInputBorder(),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: spacing,
+                                    vertical: isMobile ? 10 : 14,
+                                  ),
                                 ),
                                 maxLines: 2,
                               ),
@@ -496,57 +642,74 @@ class _PolicyScreenState extends State<PolicyScreen> {
                       ),
                     ),
                     
-                    const SizedBox(height: 16),
+                    SizedBox(height: spacing * 2),
                     
-                    // Additional Settings Card
-                    Card(
+                    // ✅ Additional Settings Card with Border
+                    _buildBorderedCard(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(spacing * 2),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Additional Settings',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                                 fontWeight: FontWeight.bold,
+                                color: const Color(0xFF173B69),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const Divider(height: 20),
+                            SizedBox(height: spacing),
                             SwitchListTile(
-                              title: const Text('Require Document'),
-                              subtitle: const Text('Staff must attach document for leave request'),
+                              title: Text(
+                                'Require Document',
+                                style: TextStyle(fontSize: fontSize),
+                              ),
+                              subtitle: Text(
+                                'Staff must attach document for leave request',
+                                style: TextStyle(fontSize: fontSize * 0.85),
+                              ),
                               value: _requireDocument,
                               onChanged: (value) {
                                 setState(() {
                                   _requireDocument = value;
                                 });
                               },
+                              contentPadding: EdgeInsets.zero,
                             ),
                           ],
                         ),
                       ),
                     ),
                     
-                    // Notification Settings Card
-                    const SizedBox(height: 16),
-                    Card(
+                    // ✅ Notification Settings Card with Border
+                    SizedBox(height: spacing * 2),
+                    _buildBorderedCard(
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(spacing * 2),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Notification Settings',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                                 fontWeight: FontWeight.bold,
+                                color: const Color(0xFF173B69),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const Divider(height: 20),
+                            SizedBox(height: spacing),
                             SwitchListTile(
-                              title: const Text('Enable Notifications'),
-                              subtitle: const Text('Turn on/off all notifications for this policy'),
+                              title: Text(
+                                'Enable Notifications',
+                                style: TextStyle(fontSize: fontSize),
+                              ),
+                              subtitle: Text(
+                                'Turn on/off all notifications for this policy',
+                                style: TextStyle(fontSize: fontSize * 0.85),
+                              ),
                               value: _enableNotifications,
                               onChanged: (value) {
                                 setState(() {
@@ -554,47 +717,67 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                 });
                               },
                               activeColor: Colors.blue,
+                              contentPadding: EdgeInsets.zero,
                             ),
                             
                             const Divider(),
                             
                             if (_enableNotifications) ...[
-                              const SizedBox(height: 8),
+                              SizedBox(height: spacing),
                               TextFormField(
                                 controller: _notificationTitleController,
-                                decoration: const InputDecoration(
+                                style: TextStyle(fontSize: fontSize),
+                                decoration: InputDecoration(
                                   labelText: 'Notification Title',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.title),
+                                  labelStyle: TextStyle(fontSize: fontSize),
+                                  border: const OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.title, size: isMobile ? 20 : 24),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: spacing,
+                                    vertical: isMobile ? 10 : 14,
+                                  ),
                                 ),
                                 validator: (value) => 
                                     value?.isEmpty ?? true ? 'Title is required' : null,
                               ),
-                              const SizedBox(height: 12),
+                              SizedBox(height: spacing * 1.5),
                               TextFormField(
                                 controller: _notificationBodyController,
-                                decoration: const InputDecoration(
+                                style: TextStyle(fontSize: fontSize),
+                                decoration: InputDecoration(
                                   labelText: 'Notification Body',
-                                  border: OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.message),
+                                  labelStyle: TextStyle(fontSize: fontSize),
+                                  border: const OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.message, size: isMobile ? 20 : 24),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: spacing,
+                                    vertical: isMobile ? 10 : 14,
+                                  ),
                                 ),
                                 maxLines: 2,
                                 validator: (value) => 
                                     value?.isEmpty ?? true ? 'Body is required' : null,
                               ),
-                              const SizedBox(height: 16),
+                              SizedBox(height: spacing * 2),
                               
-                              const Text(
+                              Text(
                                 'When to send notifications:',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: fontSize,
                                   fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade700,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: spacing / 2),
                               SwitchListTile(
-                                title: const Text('On Request Submit'),
-                                subtitle: const Text('Notify when a request is submitted'),
+                                title: Text(
+                                  'On Request Submit',
+                                  style: TextStyle(fontSize: fontSize * 0.9),
+                                ),
+                                subtitle: Text(
+                                  'Notify when a request is submitted',
+                                  style: TextStyle(fontSize: fontSize * 0.8),
+                                ),
                                 value: _notifyOnRequestSubmit,
                                 onChanged: (value) {
                                   setState(() {
@@ -602,10 +785,17 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                   });
                                 },
                                 activeColor: Colors.blue,
+                                contentPadding: EdgeInsets.zero,
                               ),
                               SwitchListTile(
-                                title: const Text('On Status Change'),
-                                subtitle: const Text('Notify when request status changes'),
+                                title: Text(
+                                  'On Status Change',
+                                  style: TextStyle(fontSize: fontSize * 0.9),
+                                ),
+                                subtitle: Text(
+                                  'Notify when request status changes',
+                                  style: TextStyle(fontSize: fontSize * 0.8),
+                                ),
                                 value: _notifyOnStatusChange,
                                 onChanged: (value) {
                                   setState(() {
@@ -613,10 +803,17 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                   });
                                 },
                                 activeColor: Colors.blue,
+                                contentPadding: EdgeInsets.zero,
                               ),
                               SwitchListTile(
-                                title: const Text('On Approval'),
-                                subtitle: const Text('Notify when request is approved'),
+                                title: Text(
+                                  'On Approval',
+                                  style: TextStyle(fontSize: fontSize * 0.9),
+                                ),
+                                subtitle: Text(
+                                  'Notify when request is approved',
+                                  style: TextStyle(fontSize: fontSize * 0.8),
+                                ),
                                 value: _notifyOnApproval,
                                 onChanged: (value) {
                                   setState(() {
@@ -624,10 +821,17 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                   });
                                 },
                                 activeColor: Colors.green,
+                                contentPadding: EdgeInsets.zero,
                               ),
                               SwitchListTile(
-                                title: const Text('On Rejection'),
-                                subtitle: const Text('Notify when request is rejected'),
+                                title: Text(
+                                  'On Rejection',
+                                  style: TextStyle(fontSize: fontSize * 0.9),
+                                ),
+                                subtitle: Text(
+                                  'Notify when request is rejected',
+                                  style: TextStyle(fontSize: fontSize * 0.8),
+                                ),
                                 value: _notifyOnRejection,
                                 onChanged: (value) {
                                   setState(() {
@@ -635,10 +839,17 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                   });
                                 },
                                 activeColor: Colors.red,
+                                contentPadding: EdgeInsets.zero,
                               ),
                               SwitchListTile(
-                                title: const Text('Notify Admin on New Request'),
-                                subtitle: const Text('Send notification to admin when new request is submitted'),
+                                title: Text(
+                                  'Notify Admin on New Request',
+                                  style: TextStyle(fontSize: fontSize * 0.9),
+                                ),
+                                subtitle: Text(
+                                  'Send notification to admin when new request is submitted',
+                                  style: TextStyle(fontSize: fontSize * 0.8),
+                                ),
                                 value: _notifyAdminOnNewRequest,
                                 onChanged: (value) {
                                   setState(() {
@@ -646,6 +857,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                   });
                                 },
                                 activeColor: Colors.orange,
+                                contentPadding: EdgeInsets.zero,
                               ),
                             ],
                           ],
@@ -653,39 +865,42 @@ class _PolicyScreenState extends State<PolicyScreen> {
                       ),
                     ),
                     
-                    const SizedBox(height: 24),
+                    SizedBox(height: spacing * 3),
                     
+                    // Save Button
                     SizedBox(
                       width: double.infinity,
-                      height: 50,
+                      height: buttonHeight,
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _savePolicy,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2C5F8A), 
-                          foregroundColor: Colors.white, 
+                          backgroundColor: const Color(0xFF2C5F8A),
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
                           elevation: 2,
                         ),
                         child: _isSaving
-                            ? const SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator(
+                            ? SizedBox(
+                                height: isMobile ? 20 : 24,
+                                width: isMobile ? 20 : 24,
+                                child: const CircularProgressIndicator(
                                   strokeWidth: 2,
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text(
+                            : Text(
                                 'Save Policy',
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: isMobile ? fontSize : fontSize + 2,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                       ),
-                    )
+                    ),
+                    
+                    SizedBox(height: isMobile ? 60 : 80),
                   ],
                 ),
               ),

@@ -1,8 +1,10 @@
+// lib/screens/manager/manager_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../app_fonts.dart';
+import '../../utils/responsive.dart'; // ✅ Import Responsive
 import 'manager_home_screen.dart';
 import 'all_permission_today.dart' as permission;
 import '../staff/settings_screen.dart';
@@ -28,7 +30,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
   void initState() {
     super.initState();
     _pages = [
-      ManagerHomeScreen(),
+      const ManagerHomeScreen(),
       const permission.ListStaffScreen(),
       const SettingsScreen(),
     ];
@@ -36,6 +38,12 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double spacing = Responsive.spacing(context);
+    final double iconSize = Responsive.iconSize(context, 24);
+    final double fontSize = Responsive.fontSize(context, 12);
+
     return PopScope(
       canPop: false,
       onPopInvoked: (bool didPop) async {
@@ -45,63 +53,118 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
       child: Scaffold(
         extendBody: true,
         body: _pages[_currentIndex],
-        bottomNavigationBar: _buildModernBottomNavBar(),
+        bottomNavigationBar: _buildModernBottomNavBar(
+          isMobile: isMobile,
+          spacing: spacing,
+          iconSize: iconSize,
+          fontSize: fontSize,
+        ),
       ),
     );
   }
 
   void _showExitDialog(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Exit App'),
-        content: const Text('Do you want to exit the app?'),
+        title: Text(
+          'Exit App',
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Do you want to exit the app?',
+          style: TextStyle(fontSize: fontSize),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              // បិទ app ដោយមិន Logout
               SystemNavigator.pop();
             },
-            child: const Text('Exit'),
+            child: Text(
+              'Exit',
+              style: TextStyle(fontSize: fontSize, color: Colors.red),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildModernBottomNavBar() {
+  Widget _buildModernBottomNavBar({
+    required bool isMobile,
+    required double spacing,
+    required double iconSize,
+    required double fontSize,
+  }) {
     return Container(
-      margin: const EdgeInsets.all(20),
+      margin: EdgeInsets.all(isMobile ? 12 : 20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.25),
-            blurRadius: 20,
+            blurRadius: isMobile ? 15 : 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
         child: Container(
           decoration: BoxDecoration(
             gradient: _gradient,
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: EdgeInsets.symmetric(
+                horizontal: spacing,
+                vertical: isMobile ? 4 : 8,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-                  _buildNavItem(1, Icons.assignment_outlined, Icons.assignment, 'Request Today'),
-                  _buildNavItem(2, Icons.settings_outlined, Icons.settings, 'Settings'),
+                  _buildNavItem(
+                    0,
+                    Icons.home_outlined,
+                    Icons.home,
+                    'Home',
+                    isMobile,
+                    iconSize,
+                    fontSize,
+                  ),
+                  _buildNavItem(
+                    1,
+                    Icons.assignment_outlined,
+                    Icons.assignment,
+                    isMobile ? 'Requests' : 'Request Today',
+                    isMobile,
+                    iconSize,
+                    fontSize,
+                  ),
+                  _buildNavItem(
+                    2,
+                    Icons.settings_outlined,
+                    Icons.settings,
+                    'Settings',
+                    isMobile,
+                    iconSize,
+                    fontSize,
+                  ),
                 ],
               ),
             ),
@@ -116,6 +179,9 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     IconData outlinedIcon,
     IconData filledIcon,
     String label,
+    bool isMobile,
+    double iconSize,
+    double fontSize,
   ) {
     final isSelected = _currentIndex == index;
 
@@ -127,10 +193,10 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
           }
         },
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8),
           decoration: BoxDecoration(
             color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(isMobile ? 20 : 25),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -138,13 +204,13 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
               Icon(
                 isSelected ? filledIcon : outlinedIcon,
                 color: Colors.white,
-                size: isSelected ? 26 : 22,
+                size: isSelected ? iconSize + 4 : iconSize,
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: isMobile ? 2 : 4),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: AppFonts.md,
+                  fontSize: isMobile ? fontSize * 0.9 : fontSize,
                   color: isSelected ? Colors.white : Colors.white70,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                 ),

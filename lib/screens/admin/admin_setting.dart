@@ -1,7 +1,9 @@
+// lib/screens/admin/admin_settings_screen.dart
 import 'package:flutter/material.dart';
 import 'user_management_screen.dart';
 import 'policy_screen.dart';
 import '../../app_fonts.dart';
+import '../../utils/responsive.dart'; // ✅ Import Responsive
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -15,6 +17,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final EdgeInsets padding = Responsive.padding(context);
+    final double iconSize = Responsive.iconSize(context, 28);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       body: SafeArea(
@@ -23,7 +32,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             // ---------- Custom header with icon under title ----------
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+              padding: EdgeInsets.symmetric(
+                vertical: isMobile ? 14 : 20,
+                horizontal: spacing,
+              ),
               decoration: const BoxDecoration(
                 color: Color(0xFF173B69),
                 borderRadius: BorderRadius.only(
@@ -34,18 +46,19 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(height: 8),
+                  SizedBox(height: isMobile ? 4 : 8),
                   Icon(
                     Icons.settings,
                     color: Colors.white.withOpacity(0.9),
-                    size: 40,
+                    size: isMobile ? 32 : 40,
                   ),
-                  const Text(
+                  const SizedBox(height: 8),
+                  Text(
                     "Settings",
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: AppFonts.md,
+                      fontSize: isMobile ? fontSize + 4 : fontSize + 6,
                     ),
                   ),
                 ],
@@ -55,7 +68,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
             // ---------- Settings content (scrollable) ----------
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: padding,
                 child: Column(
                   children: [
                     // User Management Card
@@ -64,6 +77,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       title: 'User Management',
                       subtitle: 'Create, edit, and manage user accounts',
                       iconColor: Colors.blue,
+                      isMobile: isMobile,
+                      fontSize: fontSize,
+                      spacing: spacing,
+                      iconSize: iconSize,
                       onTap: () {
                         Navigator.push(
                           context,
@@ -74,7 +91,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       },
                     ),
 
-                    const SizedBox(height: 16),
+                    SizedBox(height: spacing * 2),
 
                     // Policy Management Card
                     _buildSettingsCard(
@@ -82,6 +99,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       title: 'Policy Management',
                       subtitle: 'Manage leave policies and rules',
                       iconColor: Colors.orange,
+                      isMobile: isMobile,
+                      fontSize: fontSize,
+                      spacing: spacing,
+                      iconSize: iconSize,
                       onTap: () {
                         Navigator.push(
                           context,
@@ -92,8 +113,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                       },
                     ),
 
-                    const SizedBox(height: 40),
-
+                    SizedBox(height: isMobile ? 60 : 80),
                   ],
                 ),
               ),
@@ -104,40 +124,50 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     );
   }
 
-
   Widget _buildSettingsCard({
     required IconData icon,
     required String title,
     required String subtitle,
     required Color iconColor,
     required VoidCallback onTap,
+    required bool isMobile,
+    required double fontSize,
+    required double spacing,
+    required double iconSize,
   }) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Colors.grey.shade200,
+          width: 1,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(isMobile ? 12 : 16),
           child: Row(
             children: [
+              // Icon Container
               Container(
-                width: 56,
-                height: 56,
+                width: isMobile ? 48 : 56,
+                height: isMobile ? 48 : 56,
                 decoration: BoxDecoration(
                   color: iconColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
                 ),
                 child: Icon(
                   icon,
                   color: iconColor,
-                  size: 28,
+                  size: isMobile ? iconSize - 4 : iconSize,
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: isMobile ? 12 : 16),
+              
+              // Title & Subtitle
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,24 +175,28 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: isMobile ? fontSize : fontSize + 2,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: isMobile ? 2 : 4),
                     Text(
                       subtitle,
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: isMobile ? fontSize * 0.8 : fontSize,
                         color: Colors.grey[600],
                       ),
+                      maxLines: isMobile ? 2 : 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
+              
+              // Arrow Icon
               Icon(
                 Icons.arrow_forward_ios,
-                size: 16,
+                size: isMobile ? 14 : 16,
                 color: Colors.grey[400],
               ),
             ],

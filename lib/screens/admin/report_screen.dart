@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:open_file/open_file.dart';
 import '../../app_fonts.dart';
+import '../../utils/responsive.dart'; // ✅ Import Responsive
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -26,7 +27,6 @@ class _ReportScreenState extends State<ReportScreen> {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ============ List of Departments ============
   final List<Map<String, String>> _departments = [
     {'id': 'dept_it', 'name': 'IT Department'},
     {'id': 'dept_education', 'name': 'Education Department'},
@@ -34,7 +34,6 @@ class _ReportScreenState extends State<ReportScreen> {
     {'id': 'dept_service', 'name': 'Service Department'},
   ];
 
-  // ⏰ Format time to Cambodia time (UTC+7) with AM/PM
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
     
@@ -111,8 +110,6 @@ class _ReportScreenState extends State<ReportScreen> {
 
       final querySnapshot = await query.get();
 
-      print('📊 Total leave requests found: ${querySnapshot.docs.length}');
-
       final data = querySnapshot.docs.map((doc) {
         final d = doc.data() as Map<String, dynamic>;
         
@@ -150,8 +147,6 @@ class _ReportScreenState extends State<ReportScreen> {
         };
       }).toList();
 
-      print('📊 Total data processed: ${data.length}');
-
       List<Map<String, dynamic>> filteredData = data;
       if (_filterDepartment != 'all') {
         filteredData = data.where((d) {
@@ -168,8 +163,6 @@ class _ReportScreenState extends State<ReportScreen> {
                  deptName == selectedDeptName ||
                  deptName.contains(selectedDeptName.replaceAll(' Department', ''));
         }).toList();
-        
-        print('📊 Filtered by department: ${filteredData.length}');
       }
 
       setState(() {
@@ -223,20 +216,9 @@ class _ReportScreenState extends State<ReportScreen> {
       excel.Sheet sheet = excelFile['Report'];
 
       final headers = [
-        'No.',
-        'Staff Name',
-        'Email',
-        'Department',
-        'Start Date',
-        'End Date',
-        'Total Days',
-        'Reason',
-        'Status',
-        'Type',
-        'Request #',
-        'Created At (Cambodia Time)',
-        'Approved By',
-        'Rejection Reason',
+        'No.', 'Staff Name', 'Email', 'Department', 'Start Date', 'End Date',
+        'Total Days', 'Reason', 'Status', 'Type', 'Request #',
+        'Created At (Cambodia Time)', 'Approved By', 'Rejection Reason',
       ];
 
       sheet.appendRow(headers);
@@ -345,14 +327,26 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final EdgeInsets padding = Responsive.padding(context);
+    final double iconSize = Responsive.iconSize(context, 20);
+    final double buttonHeight = Responsive.buttonHeight(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       body: SafeArea(
         child: Column(
           children: [
+            // ✅ Header - ប្រើ Responsive
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+              padding: EdgeInsets.symmetric(
+                vertical: isMobile ? 14 : 20,
+                horizontal: spacing,
+              ),
               decoration: const BoxDecoration(
                 color: Color(0xFF173B69),
                 borderRadius: BorderRadius.only(
@@ -362,23 +356,28 @@ class _ReportScreenState extends State<ReportScreen> {
               ),
               child: Row(
                 children: [
-                  const SizedBox(width: 48),
-                  const Expanded(
+                  SizedBox(width: isMobile ? 36 : 48),
+                  Expanded(
                     child: Center(
                       child: Text(
                         "Reports",
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
-                          fontSize: AppFonts.md,
+                          fontSize: isMobile ? 16 : 18,
                         ),
                       ),
                     ),
                   ),
                   IconButton(
                     onPressed: _exportToExcel,
-                    icon: const Icon(Icons.file_download, color: Colors.white),
+                    icon: Icon(
+                      Icons.file_download,
+                      color: Colors.white,
+                      size: iconSize + 4,
+                    ),
                     tooltip: 'Export to Excel',
+                    padding: EdgeInsets.all(spacing),
                   ),
                 ],
               ),
@@ -390,19 +389,24 @@ class _ReportScreenState extends State<ReportScreen> {
                   : SingleChildScrollView(
                       child: Column(
                         children: [
+                          // ✅ Filter Section - ប្រើ Responsive
                           Container(
-                            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                            padding: EdgeInsets.symmetric(
+                              vertical: spacing * 2,
+                              horizontal: spacing,
+                            ),
                             color: Colors.grey[100],
                             child: Column(
                               children: [
                                 Row(
                                   children: [
                                     Expanded(
+                                      flex: isMobile ? 2 : 3,
                                       child: DropdownButtonFormField<String>(
                                         value: _selectedReportType,
                                         decoration: InputDecoration(
                                           labelText: 'Report Type',
-                                          labelStyle: TextStyle(fontSize: AppFonts.md),
+                                          labelStyle: TextStyle(fontSize: fontSize),
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(10),
                                             borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -415,17 +419,12 @@ class _ReportScreenState extends State<ReportScreen> {
                                             borderRadius: BorderRadius.circular(10),
                                             borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                                           ),
-                                          errorBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: const BorderSide(color: Colors.red, width: 1.5),
-                                          ),
-                                          focusedErrorBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: const BorderSide(color: Colors.red, width: 2.0),
-                                          ),
                                           filled: true,
                                           fillColor: Colors.white,
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: spacing,
+                                            vertical: isMobile ? 6 : 8,
+                                          ),
                                         ),
                                         items: const [
                                           DropdownMenuItem(value: 'daily', child: Text(' Daily')),
@@ -441,7 +440,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                           }
                                         },
                                         style: TextStyle(
-                                          fontSize: AppFonts.md,
+                                          fontSize: fontSize,
                                           fontWeight: FontWeight.w500,
                                         ),
                                         dropdownColor: Colors.white,
@@ -449,20 +448,20 @@ class _ReportScreenState extends State<ReportScreen> {
                                         isExpanded: true,
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
+                                    SizedBox(width: spacing),
                                     SizedBox(
-                                      height: 50,
+                                      height: buttonHeight,
                                       child: ElevatedButton.icon(
                                         onPressed: _selectDate,
-                                        icon: const Icon(Icons.calendar_today, size: 18),
+                                        icon: Icon(Icons.calendar_today, size: iconSize - 4),
                                         label: Text(
                                           _getDateLabel(),
-                                          style: const TextStyle(fontSize: 13),
+                                          style: TextStyle(fontSize: isMobile ? 11 : 13),
                                         ),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: const Color(0xFF173B69),
                                           foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                          padding: EdgeInsets.symmetric(horizontal: spacing),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(10),
                                           ),
@@ -471,15 +470,16 @@ class _ReportScreenState extends State<ReportScreen> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
+                                SizedBox(height: spacing),
                                 Row(
                                   children: [
                                     Expanded(
+                                      flex: isMobile ? 2 : 3,
                                       child: DropdownButtonFormField<String>(
                                         value: _filterDepartment,
                                         decoration: InputDecoration(
-                                          labelText: 'Department Filter',
-                                          labelStyle: TextStyle(fontSize: AppFonts.md),
+                                          labelText: 'Department',
+                                          labelStyle: TextStyle(fontSize: fontSize),
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(10),
                                             borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -492,17 +492,12 @@ class _ReportScreenState extends State<ReportScreen> {
                                             borderRadius: BorderRadius.circular(10),
                                             borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                                           ),
-                                          errorBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: const BorderSide(color: Colors.red, width: 1.5),
-                                          ),
-                                          focusedErrorBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: const BorderSide(color: Colors.red, width: 2.0),
-                                          ),
                                           filled: true,
                                           fillColor: Colors.white,
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: spacing,
+                                            vertical: isMobile ? 6 : 8,
+                                          ),
                                         ),
                                         items: [
                                           const DropdownMenuItem(
@@ -525,7 +520,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                           }
                                         },
                                         style: TextStyle(
-                                          fontSize: AppFonts.md,
+                                          fontSize: fontSize,
                                           fontWeight: FontWeight.w500,
                                         ),
                                         dropdownColor: Colors.white,
@@ -533,43 +528,47 @@ class _ReportScreenState extends State<ReportScreen> {
                                         isExpanded: true,
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    SizedBox(
-                                      height: 50,
-                                      child: _filterDepartment != 'all'
-                                          ? ElevatedButton(
-                                              onPressed: () {
-                                                setState(() {
-                                                  _filterDepartment = 'all';
-                                                });
-                                                _loadReport();
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.red.shade50,
-                                                foregroundColor: Colors.red.shade700,
-                                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius: BorderRadius.circular(10),
-                                                  side: BorderSide(color: Colors.red.shade200),
-                                                ),
-                                              ),
-                                              child: const Text(
-                                                'Clear',
-                                                style: TextStyle(fontSize: 13),
-                                              ),
-                                            )
-                                          : null,
-                                    ),
+                                    if (_filterDepartment != 'all') ...[
+                                      SizedBox(width: spacing),
+                                      SizedBox(
+                                        height: buttonHeight,
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _filterDepartment = 'all';
+                                            });
+                                            _loadReport();
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.red.shade50,
+                                            foregroundColor: Colors.red.shade700,
+                                            padding: EdgeInsets.symmetric(horizontal: spacing),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(10),
+                                              side: BorderSide(color: Colors.red.shade200),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'Clear',
+                                            style: TextStyle(fontSize: isMobile ? 11 : 13),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ],
                             ),
                           ),
 
+                          // ✅ Summary Cards - ប្រើ Responsive
                           Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                            padding: EdgeInsets.symmetric(
+                              vertical: spacing,
+                              horizontal: spacing,
+                            ),
                             child: SizedBox(
-                              height: 70,
+                              height: isMobile ? 60 : 70,
                               child: ListView(
                                 scrollDirection: Axis.horizontal,
                                 children: [
@@ -577,33 +576,41 @@ class _ReportScreenState extends State<ReportScreen> {
                                     label: 'Total',
                                     value: _summary['total']?.toString() ?? '0',
                                     color: const Color(0xFF173B69),
+                                    isMobile: isMobile,
                                   ),
-                                  const SizedBox(width: 6),
+                                  SizedBox(width: spacing / 2),
                                   _buildSummaryCard(
                                     label: 'Pending',
                                     value: _summary['pending']?.toString() ?? '0',
                                     color: Colors.orange,
+                                    isMobile: isMobile,
                                   ),
-                                  const SizedBox(width: 6),
+                                  SizedBox(width: spacing / 2),
                                   _buildSummaryCard(
                                     label: 'Approved',
                                     value: _summary['approved']?.toString() ?? '0',
                                     color: Colors.green,
+                                    isMobile: isMobile,
                                   ),
-                                  const SizedBox(width: 6),
+                                  SizedBox(width: spacing / 2),
                                   _buildSummaryCard(
                                     label: 'Rejected',
                                     value: _summary['rejected']?.toString() ?? '0',
                                     color: Colors.red,
+                                    isMobile: isMobile,
                                   ),
                                 ],
                               ),
                             ),
                           ),
 
+                          // ✅ Total Days Summary
                           Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 12),
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                            margin: EdgeInsets.symmetric(horizontal: spacing),
+                            padding: EdgeInsets.symmetric(
+                              vertical: spacing,
+                              horizontal: spacing,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.purple.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(10),
@@ -612,27 +619,34 @@ class _ReportScreenState extends State<ReportScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.calendar_today, color: Colors.purple, size: 18),
-                                const SizedBox(width: 6),
+                                Icon(
+                                  Icons.calendar_today,
+                                  color: Colors.purple,
+                                  size: iconSize - 2,
+                                ),
+                                SizedBox(width: spacing / 2),
                                 Text(
                                   'Total Days: ${_summary['totalDays'] ?? 0}',
-                                  style: const TextStyle(
-                                    fontSize: 13,
+                                  style: TextStyle(
+                                    fontSize: fontSize,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.purple,
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                SizedBox(width: spacing),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: spacing / 2,
+                                    vertical: spacing / 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.purple.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
                                     '${_summary['autoApproved'] ?? 0} Auto',
-                                    style: const TextStyle(
-                                      fontSize: 13,
+                                    style: TextStyle(
+                                      fontSize: fontSize * 0.9,
                                       color: Colors.purple,
                                     ),
                                   ),
@@ -641,26 +655,27 @@ class _ReportScreenState extends State<ReportScreen> {
                             ),
                           ),
 
-                          const SizedBox(height: 8),
+                          SizedBox(height: spacing),
 
+                          // ✅ Report List
                           _reportData.isEmpty
                               ? Padding(
-                                  padding: const EdgeInsets.all(40),
+                                  padding: EdgeInsets.all(spacing * 5),
                                   child: Column(
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.inbox,
-                                        size: 64,
+                                        size: iconSize * 3,
                                         color: Colors.grey,
                                       ),
-                                      const SizedBox(height: 16),
+                                      SizedBox(height: spacing * 2),
                                       Text(
                                         _filterDepartment == 'all' 
                                             ? 'No data found' 
                                             : 'No data found for this department',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Colors.grey,
-                                          fontSize: AppFonts.md,
+                                          fontSize: fontSize,
                                         ),
                                       ),
                                       if (_filterDepartment != 'all')
@@ -671,7 +686,10 @@ class _ReportScreenState extends State<ReportScreen> {
                                             });
                                             _loadReport();
                                           },
-                                          child: const Text('View all departments'),
+                                          child: Text(
+                                            'View all departments',
+                                            style: TextStyle(fontSize: fontSize),
+                                          ),
                                         ),
                                     ],
                                   ),
@@ -679,13 +697,23 @@ class _ReportScreenState extends State<ReportScreen> {
                               : ListView.builder(
                                   shrinkWrap: true,
                                   physics: const NeverScrollableScrollPhysics(),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: spacing,
+                                    vertical: spacing / 2,
+                                  ),
                                   itemCount: _reportData.length,
                                   itemBuilder: (context, index) {
                                     final r = _reportData[index];
-                                    return _ReportCard(data: r);
+                                    return _ReportCard(
+                                      data: r,
+                                      isMobile: isMobile,
+                                      fontSize: fontSize,
+                                      spacing: spacing,
+                                    );
                                   },
                                 ),
+                          
+                          SizedBox(height: isMobile ? 80 : 100),
                         ],
                       ),
                     ),
@@ -696,14 +724,19 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  // ✅ Summary Card with Responsive
   Widget _buildSummaryCard({
     required String label,
     required String value,
     required Color color,
+    required bool isMobile,
   }) {
     return Container(
-      width: 70,
-      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+      width: isMobile ? 60 : 70,
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 4 : 6,
+        horizontal: isMobile ? 2 : 4,
+      ),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
@@ -715,7 +748,7 @@ class _ReportScreenState extends State<ReportScreen> {
           Text(
             value,
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: isMobile ? 14 : 16,
               fontWeight: FontWeight.bold,
               color: color,
             ),
@@ -723,7 +756,7 @@ class _ReportScreenState extends State<ReportScreen> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: isMobile ? 10 : 12,
               color: Colors.grey[600],
             ),
             textAlign: TextAlign.center,
@@ -737,8 +770,16 @@ class _ReportScreenState extends State<ReportScreen> {
 // ==================== Report Card ====================
 class _ReportCard extends StatelessWidget {
   final Map<String, dynamic> data;
+  final bool isMobile;
+  final double fontSize;
+  final double spacing;
 
-  const _ReportCard({required this.data});
+  const _ReportCard({
+    required this.data,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
+  });
 
   Color get _statusColor {
     switch (data['status']) {
@@ -795,33 +836,36 @@ class _ReportCard extends StatelessWidget {
     final String cambodiaTime = _formatToCambodiaTime(data['createdAt']);
     final String department = data['department'] ?? '';
     final bool hasDepartment = department.isNotEmpty;
+    final double cardFontSize = isMobile ? fontSize * 0.85 : fontSize;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 6),
+      margin: EdgeInsets.only(bottom: spacing / 2),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: EdgeInsets.all(isMobile ? 8 : 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Row 1: Name + Department + Status
             Row(
               children: [
                 Expanded(
                   child: Text(
                     data['userName'],
-                    style: const TextStyle(
-                      fontSize: AppFonts.md,
+                    style: TextStyle(
+                      fontSize: cardFontSize,
                       fontWeight: FontWeight.bold,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (hasDepartment)
+                if (hasDepartment && !isMobile)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    margin: const EdgeInsets.only(right: 6),
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    margin: EdgeInsets.only(right: 4),
                     decoration: BoxDecoration(
                       color: _departmentColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
@@ -834,14 +878,14 @@ class _ReportCard extends StatelessWidget {
                       children: [
                         Icon(
                           Icons.business,
-                          size: 12,
+                          size: 10,
                           color: _departmentColor,
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 2),
                         Text(
                           department,
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: cardFontSize * 0.8,
                             color: _departmentColor,
                             fontWeight: FontWeight.w500,
                           ),
@@ -850,7 +894,10 @@ class _ReportCard extends StatelessWidget {
                     ),
                   ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 4 : 8,
+                    vertical: isMobile ? 2 : 3,
+                  ),
                   decoration: BoxDecoration(
                     color: _statusColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
@@ -860,50 +907,62 @@ class _ReportCard extends StatelessWidget {
                     style: TextStyle(
                       color: _statusColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: 11,
+                      fontSize: cardFontSize * 0.85,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 3),
+            SizedBox(height: spacing / 4),
+
+            // Row 2: Email
+            Text(
+              data['userEmail'],
+              style: TextStyle(
+                fontSize: cardFontSize * 0.85,
+                color: Colors.grey[600],
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(height: spacing / 2),
+
+            // Row 3: Date Range
             Row(
               children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: isMobile ? 10 : 12,
+                  color: Colors.grey[600],
+                ),
+                SizedBox(width: spacing / 3),
                 Expanded(
                   child: Text(
-                    data['userEmail'],
+                    '${data['startDate']} → ${data['endDate']}',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
+                      fontSize: cardFontSize * 0.85,
+                      color: Colors.grey[700],
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: spacing / 4),
+
+            // Row 4: Reason + Days
             Row(
               children: [
-                Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text(
-                  '${data['startDate']} → ${data['endDate']}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[700],
-                  ),
+                Icon(
+                  Icons.note,
+                  size: isMobile ? 10 : 12,
+                  color: Colors.grey[600],
                 ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Row(
-              children: [
-                Icon(Icons.note, size: 12, color: Colors.grey[600]),
-                const SizedBox(width: 4),
+                SizedBox(width: spacing / 3),
                 Expanded(
                   child: Text(
                     data['reason'],
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: cardFontSize * 0.85,
                       color: Colors.grey[700],
                     ),
                     maxLines: 2,
@@ -911,15 +970,18 @@ class _ReportCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacing / 2,
+                    vertical: spacing / 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     '${data['totalDays']} days',
-                    style: const TextStyle(
-                      fontSize: 12,
+                    style: TextStyle(
+                      fontSize: cardFontSize * 0.85,
                       fontWeight: FontWeight.bold,
                       color: Colors.blue,
                     ),
@@ -927,11 +989,18 @@ class _ReportCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 3),
-            Row(
+            SizedBox(height: spacing / 4),
+
+            // Row 5: Type + Request # + Time
+            Wrap(
+              spacing: spacing / 2,
+              runSpacing: spacing / 4,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacing / 2,
+                    vertical: spacing / 4,
+                  ),
                   decoration: BoxDecoration(
                     color: data['autoApproved']
                         ? Colors.purple.withOpacity(0.1)
@@ -941,48 +1010,50 @@ class _ReportCard extends StatelessWidget {
                   child: Text(
                     data['autoApproved'] ? ' Auto' : ' Manual',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: cardFontSize * 0.8,
                       color: data['autoApproved'] ? Colors.purple : Colors.orange,
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
                 Text(
                   '#${data['requestNumber']}',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: cardFontSize * 0.8,
                     color: Colors.grey[500],
                   ),
                 ),
-                const SizedBox(width: 6),
                 Text(
                   cambodiaTime,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: cardFontSize * 0.8,
                     color: Colors.blue[700],
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
+
+            // Rejection Reason
             if (data['rejectionReason'] != null && data['rejectionReason'].isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 3),
+                padding: EdgeInsets.only(top: spacing / 4),
                 child: Text(
                   '⚠️ ${data['rejectionReason']}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: cardFontSize * 0.85,
                     color: Colors.red[700],
                   ),
                 ),
               ),
+
+            // Approved By
             if (data['approvedByName'] != null && data['approvedByName'].isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 2),
+                padding: EdgeInsets.only(top: spacing / 4),
                 child: Text(
                   ' Approved by: ${data['approvedByName']}',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: cardFontSize * 0.85,
                     color: Colors.green[700],
                   ),
                 ),

@@ -1,3 +1,4 @@
+// lib/screens/splash_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -62,43 +63,26 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF173B69),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: const BoxDecoration(
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // ✅ ប្រើ Image.asset ដូច Login Screen
+              SizedBox(
+                width: 200,
+                height: 200,
+                child: Image.asset(
+                  'assets/img/logo.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const SizedBox(height: 50),
+              const CircularProgressIndicator(
                 color: Colors.white,
-                shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.school,
-                size: 60,
-                color: Color(0xFF173B69),
-              ),
-            ),
-            const SizedBox(height: 30),
-            Text(
-              "WESTLAND",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: AppFonts.md,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              "INTERNATIONAL SCHOOL",
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: AppFonts.md,
-              ),
-            ),
-            const SizedBox(height: 50),
-            const CircularProgressIndicator(color: Colors.white),
-          ],
+            ],
+          ),
         ),
       ),
     );

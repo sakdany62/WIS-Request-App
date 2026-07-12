@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'package:permission_system/app_fonts.dart';
+import '../../utils/responsive.dart'; // ✅ Import Responsive
 
 // ✅ State Manager សម្រាប់គ្រប់គ្រង Refresh
 class StaffHomeScreenStateManager {
@@ -36,8 +37,8 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
   String userName = 'Staff User';
   bool isLoading = true;
   List<Map<String, dynamic>> leaveStatusList = [];
-  List<Map<String, dynamic>> allLeaveStatusList = []; // រក្សាទុកទាំងអស់
-  bool showAll = false; // សម្រាប់បង្ហាញទាំងអស់
+  List<Map<String, dynamic>> allLeaveStatusList = [];
+  bool showAll = false;
   Map<String, int> leaveStats = {
     'total': 24,
     'used': 0,
@@ -47,6 +48,8 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     'rejected': 0,
     'autoApproved': 0,
   };
+
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -58,6 +61,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     StaffHomeScreenStateManager.clearInstance();
     super.dispose();
   }
@@ -163,7 +167,6 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
       if (mounted) {
         setState(() {
           allLeaveStatusList = requests;
-          // បង្ហាញតែ 3 សិន
           if (requests.length > 3) {
             leaveStatusList = requests.sublist(0, 3);
           } else {
@@ -221,7 +224,6 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     }
   }
 
-  // មុខងារប្តូររវាងបង្ហាញ 3 និងទាំងអស់
   void _toggleShowAll() {
     setState(() {
       showAll = !showAll;
@@ -239,6 +241,13 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final double iconSize = Responsive.iconSize(context, 24);
+    final EdgeInsets padding = Responsive.padding(context);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       body: RefreshIndicator(
@@ -246,24 +255,36 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
           await _loadLeaveStatus();
           await _loadUserData();
         },
-        child: SingleChildScrollView(
+        child: CustomScrollView(
+          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              _HeaderSection(
+          slivers: [
+            SliverToBoxAdapter(
+              child: _HeaderSection(
                 userName: userName, 
                 isLoading: isLoading,
                 leaveStats: leaveStats,
+                isMobile: isMobile,
+                fontSize: fontSize,
+                spacing: spacing,
+                iconSize: iconSize,
               ),
-              const SizedBox(height: 20),
-              _LeaveStatusSection(
+            ),
+            SliverToBoxAdapter(
+              child: _LeaveStatusSection(
                 leaveStatusList: leaveStatusList,
                 allLeaveStatusList: allLeaveStatusList,
                 showAll: showAll,
                 onToggleShowAll: _toggleShowAll,
+                isMobile: isMobile,
+                fontSize: fontSize,
+                spacing: spacing,
               ),
-            ],
-          ),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(height: isMobile ? 60 : 100),
+            ),
+          ],
         ),
       ),
     );
@@ -275,11 +296,19 @@ class _HeaderSection extends StatelessWidget {
   final String userName;
   final bool isLoading;
   final Map<String, int> leaveStats;
+  final bool isMobile;
+  final double fontSize;
+  final double spacing;
+  final double iconSize;
 
   const _HeaderSection({
     required this.userName, 
     required this.isLoading,
     required this.leaveStats,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
+    required this.iconSize,
   });
 
   @override
@@ -296,7 +325,12 @@ class _HeaderSection extends StatelessWidget {
           bottomRight: Radius.circular(32),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 60, 24, 40),
+      padding: EdgeInsets.fromLTRB(
+        isMobile ? 16 : 24,
+        isMobile ? 40 : 60,
+        isMobile ? 16 : 24,
+        isMobile ? 24 : 40,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -304,54 +338,70 @@ class _HeaderSection extends StatelessWidget {
             userName: userName, 
             isLoading: isLoading,
             userId: userId,
+            isMobile: isMobile,
+            fontSize: fontSize,
+            spacing: spacing,
+            iconSize: iconSize,
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isMobile ? 16 : 20),
           Text(
             'Your Leave Balance',
             style: TextStyle(
               color: Colors.white,
-              fontSize: AppFonts.md,
+              fontSize: isMobile ? fontSize : fontSize + 2,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isMobile ? 8 : 12),
           Row(
             children: [
               _BalanceCard(
                 count: '${leaveStats['used'] ?? 0}',
                 type: 'USED',
                 total: '/${leaveStats['total'] ?? 24}',
+                isMobile: isMobile,
+                fontSize: fontSize,
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isMobile ? 6 : 12),
               _BalanceCard(
                 count: '${leaveStats['remaining'] ?? 0}',
                 type: 'REMAINING',
                 total: '/${leaveStats['total'] ?? 24}',
+                isMobile: isMobile,
+                fontSize: fontSize,
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: isMobile ? 6 : 12),
               _BalanceCard(
                 count: '${leaveStats['autoApproved'] ?? 0}',
                 type: 'AUTO-APPROVED',
                 total: '',
+                isMobile: isMobile,
+                fontSize: fontSize,
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isMobile ? 8 : 12),
           Row(
             children: [
               _BalanceCardSmall(
                 count: '${leaveStats['pending'] ?? 0}',
                 type: 'PENDING',
+                isMobile: isMobile,
+                fontSize: fontSize,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: isMobile ? 4 : 8),
               _BalanceCardSmall(
                 count: '${leaveStats['approved'] ?? 0}',
                 type: 'APPROVED',
+                isMobile: isMobile,
+                fontSize: fontSize,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: isMobile ? 4 : 8),
               _BalanceCardSmall(
                 count: '${leaveStats['rejected'] ?? 0}',
                 type: 'REJECTED',
+                isMobile: isMobile,
+                fontSize: fontSize,
               ),
             ],
           ),
@@ -365,21 +415,25 @@ class _BalanceCard extends StatelessWidget {
   final String count;
   final String type;
   final String total;
+  final bool isMobile;
+  final double fontSize;
 
   const _BalanceCard({
     required this.count,
     required this.type,
     required this.total,
+    required this.isMobile,
+    required this.fontSize,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isMobile ? 8 : 12),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
         ),
         child: Column(
           children: [
@@ -387,16 +441,16 @@ class _BalanceCard extends StatelessWidget {
               count,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize : fontSize + 2,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: isMobile ? 2 : 4),
             Text(
               type,
               style: TextStyle(
                 color: Colors.white70,
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize * 0.7 : fontSize,
               ),
             ),
             if (total.isNotEmpty)
@@ -404,7 +458,7 @@ class _BalanceCard extends StatelessWidget {
                 total,
                 style: TextStyle(
                   color: Colors.white54,
-                  fontSize: AppFonts.md,
+                  fontSize: isMobile ? fontSize * 0.6 : fontSize,
                 ),
               ),
           ],
@@ -417,20 +471,24 @@ class _BalanceCard extends StatelessWidget {
 class _BalanceCardSmall extends StatelessWidget {
   final String count;
   final String type;
+  final bool isMobile;
+  final double fontSize;
 
   const _BalanceCardSmall({
     required this.count,
     required this.type,
+    required this.isMobile,
+    required this.fontSize,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
         ),
         child: Column(
           children: [
@@ -438,7 +496,7 @@ class _BalanceCardSmall extends StatelessWidget {
               count,
               style: TextStyle(
                 color: Colors.white,
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize : fontSize + 2,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -446,7 +504,7 @@ class _BalanceCardSmall extends StatelessWidget {
               type,
               style: TextStyle(
                 color: Colors.white70,
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize * 0.6 : fontSize,
               ),
             ),
           ],
@@ -461,11 +519,19 @@ class _UserHeader extends StatelessWidget {
   final String userName;
   final bool isLoading;
   final String? userId;
+  final bool isMobile;
+  final double fontSize;
+  final double spacing;
+  final double iconSize;
 
   const _UserHeader({
     required this.userName,
     required this.isLoading,
     this.userId,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
+    required this.iconSize,
   });
 
   @override
@@ -477,22 +543,26 @@ class _UserHeader extends StatelessWidget {
             context,
             MaterialPageRoute(builder: (context) => const ProfileScreen()),
           ),
-          child: const CircleAvatar(
-            radius: 40,
+          child: CircleAvatar(
+            radius: isMobile ? 30 : 40,
             backgroundColor: Colors.white24,
-            child: Icon(Icons.person, size: 40, color: Colors.white),
+            child: Icon(
+              Icons.person,
+              size: isMobile ? 30 : 40,
+              color: Colors.white,
+            ),
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: isMobile ? 12 : 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isLoading)
-                const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
+                SizedBox(
+                  height: isMobile ? 16 : 20,
+                  width: isMobile ? 16 : 20,
+                  child: const CircularProgressIndicator(
                     color: Colors.white,
                     strokeWidth: 2,
                   ),
@@ -502,22 +572,27 @@ class _UserHeader extends StatelessWidget {
                   userName,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: AppFonts.md,
+                    fontSize: isMobile ? fontSize : fontSize + 2,
                     fontWeight: FontWeight.bold,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              const SizedBox(height: 4),
+              SizedBox(height: isMobile ? 2 : 4),
               Text(
                 'Staff',
                 style: TextStyle(
                   color: Colors.white70,
-                  fontSize: AppFonts.md,
+                  fontSize: isMobile ? fontSize * 0.8 : fontSize,
                 ),
               ),
             ],
           ),
         ),
-        _NotificationIconWithBadge(userId: userId),
+        _NotificationIconWithBadge(
+          userId: userId,
+          isMobile: isMobile,
+          iconSize: iconSize,
+        ),
       ],
     );
   }
@@ -526,8 +601,14 @@ class _UserHeader extends StatelessWidget {
 // ================= NOTIFICATION ICON WITH BADGE =================
 class _NotificationIconWithBadge extends StatelessWidget {
   final String? userId;
+  final bool isMobile;
+  final double iconSize;
 
-  const _NotificationIconWithBadge({this.userId});
+  const _NotificationIconWithBadge({
+    this.userId,
+    required this.isMobile,
+    required this.iconSize,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -537,7 +618,13 @@ class _NotificationIconWithBadge extends StatelessWidget {
           context,
           MaterialPageRoute(builder: (context) => const NotificationsScreen()),
         ),
-        icon: const Icon(Icons.notifications_none, color: Colors.white, size: 28),
+        icon: Icon(
+          Icons.notifications_none,
+          color: Colors.white,
+          size: isMobile ? iconSize : 28,
+        ),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
       );
     }
 
@@ -561,27 +648,33 @@ class _NotificationIconWithBadge extends StatelessWidget {
                 context,
                 MaterialPageRoute(builder: (context) => const NotificationsScreen()),
               ),
-              icon: const Icon(Icons.notifications_none, color: Colors.white, size: 28),
+              icon: Icon(
+                Icons.notifications_none,
+                color: Colors.white,
+                size: isMobile ? iconSize : 28,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
             ),
             if (unreadCount > 0)
               Positioned(
-                top: 4,
-                right: 4,
+                top: 2,
+                right: 2,
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: EdgeInsets.all(isMobile ? 2 : 4),
                   decoration: const BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
                   ),
-                  constraints: const BoxConstraints(
-                    minWidth: 20,
-                    minHeight: 20,
+                  constraints: BoxConstraints(
+                    minWidth: isMobile ? 14 : 18,
+                    minHeight: isMobile ? 14 : 18,
                   ),
                   child: Text(
                     unreadCount > 99 ? '99+' : '$unreadCount',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: isMobile ? 8 : 10,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -601,38 +694,48 @@ class _LeaveStatusSection extends StatelessWidget {
   final List<Map<String, dynamic>> allLeaveStatusList;
   final bool showAll;
   final VoidCallback onToggleShowAll;
+  final bool isMobile;
+  final double fontSize;
+  final double spacing;
 
   const _LeaveStatusSection({
     required this.leaveStatusList,
     required this.allLeaveStatusList,
     required this.showAll,
     required this.onToggleShowAll,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          SizedBox(height: isMobile ? 12 : 20),
           Center(
             child: Text(
               'Leave Status',
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobile ? 12 : 16),
           if (leaveStatusList.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: EdgeInsets.all(isMobile ? 20 : 32),
                 child: Text(
                   'No leave requests yet',
-                  style: TextStyle(color: Colors.grey, fontSize: AppFonts.md),
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                  ),
                 ),
               ),
             )
@@ -644,16 +747,21 @@ class _LeaveStatusSection extends StatelessWidget {
               title: request['title'],
               status: request['status'],
               statusColor: request['statusColor'],
+              isMobile: isMobile,
+              fontSize: fontSize,
+              spacing: spacing,
             )),
-          const SizedBox(height: 12),
-          // បង្ហាញ "See More" ប្រសិនបើមានច្រើនជាង 3
+          SizedBox(height: isMobile ? 8 : 12),
           if (allLeaveStatusList.length > 3)
             Center(
               child: TextButton(
                 onPressed: onToggleShowAll,
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF173B69),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 16 : 24,
+                    vertical: isMobile ? 8 : 12,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -661,20 +769,20 @@ class _LeaveStatusSection extends StatelessWidget {
                     Text(
                       showAll ? 'Show Less' : 'See More',
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: isMobile ? fontSize : fontSize + 2,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    SizedBox(width: isMobile ? 2 : 4),
                     Icon(
                       showAll ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                      size: 20,
+                      size: isMobile ? 16 : 20,
                     ),
                   ],
                 ),
               ),
             ),
-          const SizedBox(height: 20),
+          SizedBox(height: isMobile ? 12 : 20),
         ],
       ),
     );
@@ -687,6 +795,9 @@ class LeaveStatusCard extends StatelessWidget {
   final String title;
   final String status;
   final Color statusColor;
+  final bool isMobile;
+  final double fontSize;
+  final double spacing;
 
   const LeaveStatusCard({
     super.key,
@@ -695,16 +806,19 @@ class LeaveStatusCard extends StatelessWidget {
     required this.title,
     required this.status,
     required this.statusColor,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.shade200,
@@ -716,10 +830,13 @@ class LeaveStatusCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 8 : 12,
+              vertical: isMobile ? 6 : 8,
+            ),
             decoration: BoxDecoration(
               color: const Color(0xFF173B69).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
             ),
             child: Column(
               children: [
@@ -727,42 +844,46 @@ class LeaveStatusCard extends StatelessWidget {
                   month,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: AppFonts.md,
+                    fontSize: isMobile ? fontSize * 0.8 : fontSize,
                     color: const Color(0xFF173B69),
                   ),
                 ),
                 Text(
                   date,
                   style: TextStyle(
-                    fontSize: AppFonts.md,
+                    fontSize: isMobile ? fontSize * 0.8 : fontSize,
                     color: const Color(0xFF173B69),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: isMobile ? 10 : 16),
           Expanded(
             child: Text(
               title,
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize * 0.85 : fontSize,
                 fontWeight: FontWeight.w500,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 6 : 8,
+              vertical: isMobile ? 2 : 4,
+            ),
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
             ),
             child: Text(
               status,
               style: TextStyle(
                 color: statusColor,
                 fontWeight: FontWeight.bold,
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize * 0.7 : fontSize,
               ),
             ),
           ),

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../app_fonts.dart';
 import '../../services/request_service.dart';
 import '../../services/user_service.dart';
+import '../../utils/responsive.dart';
 import '../staff/notifications_screen.dart';
 import '../staff/profile_screen.dart';
 import 'user_management_screen.dart';
@@ -246,6 +247,33 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final double iconSize = Responsive.iconSize(context, 28);
+    final double gridSpacing = isMobile ? 6 : 12;
+
+    // ✅ កំណត់ crossAxisCount = 3 ជានិច្ច
+    const int crossAxisCount = 3;
+
+    // ✅ គណនាកម្ពស់ Grid - ប្រើតែ 50% នៃអេក្រង់
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double headerHeight = isMobile ? 80 : 120;
+    final double safeAreaTop = MediaQuery.of(context).padding.top;
+    
+    // ✅ គណនាកម្ពស់ដែលនៅសល់ ហើយយកតែ 50%
+    final double remainingHeight = screenHeight - safeAreaTop - headerHeight - (spacing * 2);
+    final double availableHeight = remainingHeight * 0.5; // ✅ ត្រឹម 50%
+    
+    // គណនា childAspectRatio
+    final double gridHeight = availableHeight - (spacing * 1.5);
+    final double gridWidth = screenWidth - (spacing * 3);
+    final double itemWidth = (gridWidth - (gridSpacing * (crossAxisCount - 1))) / crossAxisCount;
+    final double itemHeight = (gridHeight - (gridSpacing * (2 - 1))) / 2; // 2 rows
+    final double childAspectRatio = itemWidth / (itemHeight > 0 ? itemHeight : 1);
+
     if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -256,7 +284,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       return Scaffold(
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(spacing * 2.5),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -265,7 +293,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 Text(
                   'Error',
                   style: TextStyle(
-                    fontSize: AppFonts.md,
+                    fontSize: fontSize + 2,
                     fontWeight: FontWeight.bold,
                     color: Colors.red[700],
                   ),
@@ -274,7 +302,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 Text(
                   errorMessage!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: AppFonts.md),
+                  style: TextStyle(fontSize: fontSize),
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton(
@@ -285,7 +313,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     });
                     _checkAuthAndLoad();
                   },
-                  child: const Text('Retry'),
+                  child: Text(
+                    'Retry',
+                    style: TextStyle(fontSize: fontSize),
+                  ),
                 ),
               ],
             ),
@@ -299,10 +330,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ---------- Fixed header with background ----------
+            // Header
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+              padding: EdgeInsets.symmetric(
+                vertical: isMobile ? 8 : 16,
+                horizontal: spacing,
+              ),
               decoration: const BoxDecoration(
                 color: Color(0xFF173B69),
                 borderRadius: BorderRadius.only(
@@ -316,9 +350,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 unreadCount: _unreadCount,
                 onNotificationPressed: _refreshUnreadCount,
                 useWhiteTheme: true,
+                isMobile: isMobile,
+                fontSize: fontSize,
+                spacing: spacing,
+                iconSize: iconSize,
               ),
             ),
-            // ---------- Scrollable content ----------
+            // Grid content - បង្ហាញតែពាក់កណ្តាលអេក្រង់
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
@@ -326,32 +364,45 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   await _refreshUnreadCount();
                 },
                 child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildStatsGrid(),
-                      const SizedBox(height: 20),
-                    ],
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.all(spacing * 2),
+                  child: SizedBox(
+                    height: availableHeight,
+                    child: _buildStatsGrid(
+                      crossAxisCount: crossAxisCount,
+                      gridSpacing: gridSpacing,
+                      childAspectRatio: childAspectRatio > 0 ? childAspectRatio : 1.0,
+                      iconSize: iconSize,
+                      fontSize: fontSize,
+                      isMobile: isMobile,
+                    ),
                   ),
                 ),
               ),
             ),
+            // ✅ បន្ថែម Spacer ដើម្បីអោយមានកន្លែងទំនេរខាងក្រោម
+            const Spacer(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatsGrid() {
+  Widget _buildStatsGrid({
+    required int crossAxisCount,
+    required double gridSpacing,
+    required double childAspectRatio,
+    required double iconSize,
+    required double fontSize,
+    required bool isMobile,
+  }) {
     return GridView.count(
-      crossAxisCount: 3,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
+      crossAxisCount: crossAxisCount,
+      crossAxisSpacing: gridSpacing,
+      mainAxisSpacing: gridSpacing,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.1,
+      childAspectRatio: childAspectRatio,
       children: [
         _buildStatCard(
           icon: Icons.people,
@@ -359,41 +410,59 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           value: _stats['totalUsers']?.toString() ?? '0',
           color: const Color(0xFF173B69),
           type: 'users',
+          iconSize: iconSize,
+          fontSize: fontSize,
+          isMobile: isMobile,
         ),
         _buildStatCard(
           icon: Icons.pending_actions,
-          label: 'Pending Requests',
+          label: 'Pending',
           value: _stats['pendingRequests']?.toString() ?? '0',
           color: Colors.orange,
           type: 'pending',
+          iconSize: iconSize,
+          fontSize: fontSize,
+          isMobile: isMobile,
         ),
         _buildStatCard(
           icon: Icons.today,
-          label: "Today's Requests",
+          label: "Today's",
           value: _stats['todayRequests']?.toString() ?? '0',
           color: Colors.blue,
           type: 'today',
+          iconSize: iconSize,
+          fontSize: fontSize,
+          isMobile: isMobile,
         ),
         _buildStatCard(
           icon: Icons.assignment,
-          label: 'Total Requests',
+          label: 'Total',
           value: _stats['totalRequests']?.toString() ?? '0',
           color: Colors.green,
           type: 'total',
+          iconSize: iconSize,
+          fontSize: fontSize,
+          isMobile: isMobile,
         ),
         _buildStatCard(
           icon: Icons.check_circle,
-          label: 'Approved Today',
+          label: 'Approved',
           value: _stats['approvedToday']?.toString() ?? '0',
           color: Colors.purple,
           type: 'approved',
+          iconSize: iconSize,
+          fontSize: fontSize,
+          isMobile: isMobile,
         ),
         _buildStatCard(
           icon: Icons.cancel,
-          label: 'Rejected Today',
+          label: 'Rejected',
           value: _stats['rejectedToday']?.toString() ?? '0',
           color: Colors.red,
           type: 'rejected',
+          iconSize: iconSize,
+          fontSize: fontSize,
+          isMobile: isMobile,
         ),
       ],
     );
@@ -405,11 +474,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     required String value,
     required Color color,
     required String type,
+    required double iconSize,
+    required double fontSize,
+    required bool isMobile,
   }) {
     return GestureDetector(
       onTap: () => _navigateToDetail(type),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(isMobile ? 4 : 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -424,21 +496,25 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 6),
+            Icon(
+              icon,
+              color: color,
+              size: isMobile ? iconSize - 10 : iconSize,
+            ),
+            SizedBox(height: isMobile ? 1 : 4),
             Text(
               value,
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize - 2 : fontSize + 2,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
-            const SizedBox(height: 2),
+            SizedBox(height: isMobile ? 0 : 2),
             Text(
               label,
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize * 0.55 : fontSize,
                 color: Colors.grey[600],
               ),
               textAlign: TextAlign.center,
@@ -487,6 +563,10 @@ class _AdminUserHeader extends StatelessWidget {
   final int unreadCount;
   final VoidCallback? onNotificationPressed;
   final bool useWhiteTheme;
+  final bool isMobile;
+  final double fontSize;
+  final double spacing;
+  final double iconSize;
 
   const _AdminUserHeader({
     required this.adminName,
@@ -494,6 +574,10 @@ class _AdminUserHeader extends StatelessWidget {
     this.unreadCount = 0,
     this.onNotificationPressed,
     this.useWhiteTheme = false,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
+    required this.iconSize,
   });
 
   @override
@@ -512,23 +596,28 @@ class _AdminUserHeader extends StatelessWidget {
             MaterialPageRoute(builder: (context) => const ProfileScreen()),
           ),
           child: CircleAvatar(
-            radius: 40,
+            radius: isMobile ? 20 : 40,
             backgroundColor: avatarBg,
-            child: Icon(Icons.admin_panel_settings, size: 40, color: avatarIcon),
+            child: Icon(
+              Icons.admin_panel_settings,
+              size: isMobile ? 20 : 40,
+              color: avatarIcon,
+            ),
           ),
         ),
-        const SizedBox(width: 16),
+        SizedBox(width: isMobile ? spacing / 2 : spacing),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               if (isLoading)
-                const SizedBox(
-                  height: 20,
-                  width: 20,
+                SizedBox(
+                  height: 14,
+                  width: 14,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: useWhiteTheme ? Colors.white : const Color(0xFF173B69),
                   ),
                 )
               else
@@ -536,16 +625,17 @@ class _AdminUserHeader extends StatelessWidget {
                   adminName,
                   style: TextStyle(
                     color: textColor,
-                    fontSize: AppFonts.md,
+                    fontSize: isMobile ? fontSize - 2 : fontSize + 2,
                     fontWeight: FontWeight.bold,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              const SizedBox(height: 4),
+              SizedBox(height: spacing / 4),
               Text(
                 'Administrator',
                 style: TextStyle(
                   color: subTextColor,
-                  fontSize: AppFonts.md,
+                  fontSize: isMobile ? fontSize * 0.7 : fontSize,
                 ),
               ),
             ],
@@ -568,28 +658,30 @@ class _AdminUserHeader extends StatelessWidget {
               icon: Icon(
                 Icons.notifications_none,
                 color: iconColor,
-                size: 28,
+                size: isMobile ? iconSize - 12 : iconSize,
               ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
             ),
             if (unreadCount > 0)
               Positioned(
-                right: 6,
-                top: 6,
+                right: 0,
+                top: 0,
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(2),
                   decoration: const BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
                   ),
-                  constraints: const BoxConstraints(
-                    minWidth: 18,
-                    minHeight: 18,
+                  constraints: BoxConstraints(
+                    minWidth: isMobile ? 12 : 18,
+                    minHeight: isMobile ? 12 : 18,
                   ),
                   child: Text(
                     unreadCount > 99 ? '99+' : unreadCount.toString(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: AppFonts.md,
+                      fontSize: isMobile ? 7 : 10,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -715,12 +807,10 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     }
   }
 
-  // ⏰ Format submit time to Cambodia time (UTC+7)
   String _formatSubmitTimeLikeTelegram(dynamic submitTime) {
     if (submitTime == null) return 'N/A';
     
     try {
-      // If it's already a String with AM/PM, return as is
       if (submitTime is String) {
         String cleaned = submitTime.trim();
         if (cleaned.contains('AM') || cleaned.contains('PM')) {
@@ -728,24 +818,20 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         }
       }
       
-      // Try to parse as DateTime
       DateTime? parsedDateTime;
       bool isUTC = false;
       
       if (submitTime is String) {
         String cleaned = submitTime.trim();
         
-        // Check if it's ISO format with Z (UTC) - THIS IS THE KEY!
-        // Firestore stores submitTime as ISO string with Z
         if (cleaned.contains('T') && cleaned.endsWith('Z')) {
           try {
             parsedDateTime = DateTime.parse(cleaned);
-            isUTC = true; // This is UTC time
+            isUTC = true;
           } catch (e) {
             // Ignore
           }
         }
-        // Check if it's ISO format without Z
         else if (cleaned.contains('T')) {
           try {
             parsedDateTime = DateTime.parse(cleaned);
@@ -754,7 +840,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
             // Ignore
           }
         }
-        // Try "yyyy-MM-dd HH:mm:ss" format (already Cambodia time)
         else if (cleaned.contains(' ') && cleaned.contains('-')) {
           final parts = cleaned.split(' ');
           if (parts.length == 2) {
@@ -768,11 +853,10 @@ class _DetailListScreenState extends State<_DetailListScreen> {
               final hour = int.parse(timeParts[0]);
               final minute = int.parse(timeParts[1]);
               parsedDateTime = DateTime(year, month, day, hour, minute);
-              isUTC = false; // This is already Cambodia time
+              isUTC = false;
             }
           }
         }
-        // Try "dd/MM/yyyy HH:mm:ss" format
         else if (cleaned.contains('/') && cleaned.contains(' ')) {
           final parts = cleaned.split(' ');
           if (parts.length == 2) {
@@ -790,7 +874,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
             }
           }
         }
-        // Try "yyyy-MM-dd" format
         else if (cleaned.contains('-') && !cleaned.contains(' ')) {
           final parts = cleaned.split('-');
           if (parts.length == 3) {
@@ -804,7 +887,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
       }
       else if (submitTime is Timestamp) {
         parsedDateTime = submitTime.toDate();
-        isUTC = true; // Timestamp is always UTC
+        isUTC = true;
       }
       else if (submitTime is DateTime) {
         parsedDateTime = submitTime;
@@ -815,7 +898,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         return submitTime.toString();
       }
       
-      // Convert to Cambodia time (UTC+7) if it's UTC
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
@@ -823,7 +905,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         cambodiaTime = parsedDateTime;
       }
       
-      // Format: yyyy-MM-dd h:MMPM (Telegram style)
       final year = cambodiaTime.year;
       final month = cambodiaTime.month.toString().padLeft(2, '0');
       final day = cambodiaTime.day.toString().padLeft(2, '0');
@@ -1060,11 +1141,18 @@ class _DetailListScreenState extends State<_DetailListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           _getTitle(),
-          style: const TextStyle(fontSize: AppFonts.md),
+          style: TextStyle(
+            fontSize: isMobile ? 16 : 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: _getColor(),
         foregroundColor: Colors.white,
@@ -1087,12 +1175,15 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                       Text(
                         _error!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: AppFonts.md),
+                        style: TextStyle(fontSize: fontSize),
                       ),
                       const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: _loadData,
-                        child: const Text('Retry'),
+                        child: Text(
+                          'Retry',
+                          style: TextStyle(fontSize: fontSize),
+                        ),
                       ),
                     ],
                   ),
@@ -1107,7 +1198,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                           Text(
                             'No Data',
                             style: TextStyle(
-                              fontSize: AppFonts.md,
+                              fontSize: fontSize,
                               color: Colors.grey[600],
                             ),
                           ),
@@ -1115,91 +1206,114 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.all(spacing),
                       itemCount: _items.length,
                       itemBuilder: (context, index) {
                         final item = _items[index];
-                        return _buildItemCard(item);
+                        return _buildItemCard(item, isMobile, fontSize, spacing);
                       },
                     ),
     );
   }
 
-  Widget _buildItemCard(Map<String, dynamic> item) {
+  Widget _buildItemCard(Map<String, dynamic> item, bool isMobile, double fontSize, double spacing) {
     final String submitTimeDisplay = _formatSubmitTimeLikeTelegram(item['submitTime']);
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      margin: EdgeInsets.symmetric(horizontal: spacing / 2, vertical: spacing / 2),
       elevation: 2,
       child: ListTile(
+        contentPadding: EdgeInsets.all(isMobile ? 10 : 16),
         leading: CircleAvatar(
+          radius: isMobile ? 18 : 24,
           backgroundColor: _getStatusColor(item['status'] ?? 'pending').withOpacity(0.2),
           child: Icon(
             _getStatusIcon(item['status'] ?? 'pending'),
             color: _getStatusColor(item['status'] ?? 'pending'),
-            size: 20,
+            size: isMobile ? 16 : 20,
           ),
         ),
         title: Text(
           item['fullName'] ?? item['userName'] ?? 'Unknown User',
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: AppFonts.md,
+            fontSize: isMobile ? fontSize : fontSize + 2,
           ),
+          overflow: TextOverflow.ellipsis,
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             if (item['department'] != null && item['department'] != 'N/A')
               Row(
                 children: [
-                  Icon(Icons.business, size: 14, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Department: ${item['department']}',
-                    style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[700]),
+                  Icon(Icons.business, size: isMobile ? 12 : 14, color: Colors.grey[600]),
+                  SizedBox(width: spacing / 3),
+                  Expanded(
+                    child: Text(
+                      item['department'],
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.8 : fontSize,
+                        color: Colors.grey[700],
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
             Text(
               'Reason: ${item['reason'] ?? 'No reason'}',
-              style: const TextStyle(fontSize: AppFonts.md),
+              style: TextStyle(
+                fontSize: isMobile ? fontSize * 0.85 : fontSize,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
             Text(
               '${_formatDate(item['startDate'])} - ${_formatDate(item['endDate'])}',
-              style: TextStyle(fontSize: AppFonts.md, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: isMobile ? fontSize * 0.8 : fontSize,
+                color: Colors.grey[600],
+              ),
             ),
             Text(
               'Submitted: $submitTimeDisplay',
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize * 0.8 : fontSize,
                 color: Colors.blue[700],
                 fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ),
-        trailing: Row(
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 6 : 12,
+                vertical: isMobile ? 2 : 4,
+              ),
               decoration: BoxDecoration(
                 color: _getStatusColor(item['status'] ?? 'pending'),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 item['status']?.toString().toUpperCase() ?? 'PENDING',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: AppFonts.md,
+                  fontSize: isMobile ? fontSize * 0.7 : fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            const SizedBox(width: 4),
+            SizedBox(height: spacing / 3),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 4 : 8,
+                vertical: isMobile ? 1 : 4,
+              ),
               decoration: BoxDecoration(
                 color: _getRoleColor(item['role'] ?? 'user').withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
@@ -1212,7 +1326,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                 _getRoleName(item['role'] ?? 'user'),
                 style: TextStyle(
                   color: _getRoleColor(item['role'] ?? 'user'),
-                  fontSize: AppFonts.md,
+                  fontSize: isMobile ? fontSize * 0.65 : fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1220,6 +1334,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
           ],
         ),
         isThreeLine: true,
+        dense: isMobile,
       ),
     );
   }
