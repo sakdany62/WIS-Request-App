@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_system/app_fonts.dart';
 import '../../services/user_service.dart';
 import '../../models/user_model.dart';
-import '../../utils/responsive.dart'; // ✅ Import Responsive
+import '../../utils/responsive.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -95,7 +95,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     String selectedStatus = user.status;
     String selectedDepartmentId = user.departmentId ?? '';
 
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -122,7 +121,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   controller: nameController,
                   decoration: InputDecoration(
                     labelText: 'Full Name',
-                    labelStyle: TextStyle(fontSize: fontSize),
+                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -135,13 +134,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
+                    filled: true,
+                    fillColor: Colors.white,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 12 : 14,
                     ),
                   ),
                   validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                  style: TextStyle(fontSize: fontSize),
+                  style: TextStyle(fontSize: fontSize, color: Colors.black),
                 ),
                 SizedBox(height: spacing * 1.5),
 
@@ -150,7 +151,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   controller: emailController,
                   decoration: InputDecoration(
                     labelText: 'Email',
-                    labelStyle: TextStyle(fontSize: fontSize),
+                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -163,6 +164,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
+                    filled: true,
+                    fillColor: Colors.white,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 12 : 14,
@@ -174,7 +177,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     if (!value!.contains('@')) return 'Invalid email';
                     return null;
                   },
-                  style: TextStyle(fontSize: fontSize),
+                  style: TextStyle(fontSize: fontSize, color: Colors.black),
                 ),
                 SizedBox(height: spacing * 1.5),
 
@@ -183,7 +186,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   controller: phoneController,
                   decoration: InputDecoration(
                     labelText: 'Phone',
-                    labelStyle: TextStyle(fontSize: fontSize),
+                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -196,12 +199,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
+                    filled: true,
+                    fillColor: Colors.white,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 12 : 14,
                     ),
                   ),
-                  style: TextStyle(fontSize: fontSize),
+                  style: TextStyle(fontSize: fontSize, color: Colors.black),
                 ),
                 SizedBox(height: spacing * 1.5),
 
@@ -210,7 +215,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   value: selectedRole,
                   decoration: InputDecoration(
                     labelText: 'Role',
-                    labelStyle: TextStyle(fontSize: fontSize),
+                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -223,15 +228,26 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
+                    filled: true,
+                    fillColor: Colors.white, // ✅ Background ពណ៌ស
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 6 : 8,
                     ),
                   ),
                   items: const [
-                    DropdownMenuItem(value: '1', child: Text('👑 Admin')),
-                    DropdownMenuItem(value: '2', child: Text(' Staff')),
-                    DropdownMenuItem(value: '3', child: Text(' Manager')),
+                    DropdownMenuItem(
+                      value: '1',
+                      child: Text('👑 Admin'),
+                    ),
+                    DropdownMenuItem(
+                      value: '2',
+                      child: Text(' Staff'),
+                    ),
+                    DropdownMenuItem(
+                      value: '3',
+                      child: Text(' Manager'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) selectedRole = value;
@@ -239,9 +255,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   style: TextStyle(
                     fontSize: fontSize,
                     fontWeight: FontWeight.w500,
+                    color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
                   ),
-                  dropdownColor: Colors.white,
-                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                  dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: Color(0xFF173B69),
+                  ),
                 ),
                 SizedBox(height: spacing * 1.5),
 
@@ -250,7 +270,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   value: selectedDepartmentId.isEmpty ? null : selectedDepartmentId,
                   decoration: InputDecoration(
                     labelText: 'Department',
-                    labelStyle: TextStyle(fontSize: fontSize),
+                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -263,6 +283,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
+                    filled: true,
+                    fillColor: Colors.white, // ✅ Background ពណ៌ស
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 6 : 8,
@@ -292,9 +314,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   style: TextStyle(
                     fontSize: fontSize,
                     fontWeight: FontWeight.w500,
+                    color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
                   ),
-                  dropdownColor: Colors.white,
-                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                  dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: Color(0xFF173B69),
+                  ),
                 ),
                 SizedBox(height: spacing * 1.5),
 
@@ -303,7 +329,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   value: selectedStatus,
                   decoration: InputDecoration(
                     labelText: 'Status',
-                    labelStyle: TextStyle(fontSize: fontSize),
+                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -316,14 +342,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
+                    filled: true,
+                    fillColor: Colors.white, // ✅ Background ពណ៌ស
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 6 : 8,
                     ),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'Active', child: Text(' Active')),
-                    DropdownMenuItem(value: 'Inactive', child: Text(' Inactive')),
+                    DropdownMenuItem(
+                      value: 'Active',
+                      child: Text(' Active'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Inactive',
+                      child: Text(' Inactive'),
+                    ),
                   ],
                   onChanged: (value) {
                     if (value != null) selectedStatus = value;
@@ -331,9 +365,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   style: TextStyle(
                     fontSize: fontSize,
                     fontWeight: FontWeight.w500,
+                    color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
                   ),
-                  dropdownColor: Colors.white,
-                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                  dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: Color(0xFF173B69),
+                  ),
                 ),
               ],
             ),
@@ -344,7 +382,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
-              style: TextStyle(fontSize: fontSize),
+              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
             ),
           ),
           ElevatedButton(
@@ -410,7 +448,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
             child: Text(
               'Save',
-              style: TextStyle(fontSize: fontSize),
+              style: TextStyle(fontSize: fontSize, color: Colors.white),
             ),
           ),
         ],
@@ -419,7 +457,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _showDeleteDialog(UserModel user) async {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
 
@@ -439,7 +476,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Cancel',
-              style: TextStyle(fontSize: fontSize),
+              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
             ),
           ),
           TextButton(
@@ -492,7 +529,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -582,21 +618,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       child: Container(
                         padding: EdgeInsets.symmetric(horizontal: spacing),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white, // ✅ Background ពណ៌ស
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: DropdownButton<String>(
                           value: _filterDepartment,
                           icon: Icon(
                             Icons.arrow_drop_down,
-                            color: Colors.black54,
+                            color: Colors.grey[700],
                             size: iconSize,
                           ),
                           underline: const SizedBox(),
                           isExpanded: true,
                           style: TextStyle(
                             fontSize: fontSize,
-                            color: Colors.black,
+                            color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                            fontWeight: FontWeight.w500,
                           ),
                           items: [
                             const DropdownMenuItem(
@@ -621,6 +658,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               _filterDepartment = value!;
                             });
                           },
+                          dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
                         ),
                       ),
                     ),
@@ -793,7 +831,7 @@ class _UserCard extends StatelessWidget {
                 ],
               ),
             ),
-            // ✅ Action Buttons
+            // Action Buttons
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

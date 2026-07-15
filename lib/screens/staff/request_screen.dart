@@ -80,14 +80,12 @@ class _RequestScreenState extends State<RequestScreen> {
 
   // ⏰ មុខងារបំប្លែងពេលវេលាទៅជា AM/PM (ម៉ោងកម្ពុជា UTC+7)
   String _formatTimeWithAMPM(DateTime time) {
-    // time គឺជា Cambodia time រួចហើយ មិនចាំបាច់បំប្លែងទៀតទេ
     final cambodiaTime = time;
     
     int hour = cambodiaTime.hour;
     final int minute = cambodiaTime.minute;
     final String period = hour >= 12 ? 'PM' : 'AM';
     
-    // បំប្លែងម៉ោងទៅជា 12-hour format
     if (hour == 0) {
       hour = 12;
     } else if (hour > 12) {
@@ -186,32 +184,29 @@ class _RequestScreenState extends State<RequestScreen> {
     });
 
     try {
-      final finalReason = selectedReason == 'Other'
-          ? otherController.text.trim()
-          : selectedReason;
-
-      if (selectedReason == 'Other' && finalReason.isEmpty) {
-        _showError('Please specify a reason');
-        setState(() {
-          _isSubmitting = false;
-        });
-        return;
+      String reasonToSend = selectedReason;
+      String otherReasonToSend = '';
+      
+      if (selectedReason == 'Other') {
+        otherReasonToSend = otherController.text.trim();
+        if (otherReasonToSend.isEmpty) {
+          _showError('Please specify a reason');
+          setState(() {
+            _isSubmitting = false;
+          });
+          return;
+        }
+        reasonToSend = 'Other';
       }
 
-      // ============ TODO: Upload images to Firebase Storage ============
       String? imageUrl;
       
-      // If you have Firebase Storage setup, upload image here
-      // if (_selectedImage != null) {
-      //   imageUrl = await _uploadImageToStorage(_selectedImage!);
-      // }
-
       final result = await _requestService.submitRequestWithAutoApprove(
         startDate: formatDate(startDate),
         endDate: formatDate(endDate),
         totalDays: totalDays,
-        reason: selectedReason,
-        otherReason: otherController.text.trim(),
+        reason: reasonToSend,
+        otherReason: otherReasonToSend,
         fileUrl: null,
         imageUrl: imageUrl,
         submitTime: _submitTime,
@@ -226,7 +221,6 @@ class _RequestScreenState extends State<RequestScreen> {
         final status = result['status'];
         final message = result['message'];
 
-        // ⏰ បន្ថែមពេលវេលា Submit ក្នុងការជូនដំណឹង
         final timeDisplay = _submitTimeString.isNotEmpty 
             ? '\nSubmitted at: $_submitTimeString' 
             : '';
@@ -254,10 +248,9 @@ class _RequestScreenState extends State<RequestScreen> {
           });
         }
 
-        // ✅ Refresh Home Screen
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            StaffHomeScreenStateManager.refreshData();
+            // StaffHomeScreenStateManager.refreshData();
           }
         });
       }
@@ -290,9 +283,10 @@ class _RequestScreenState extends State<RequestScreen> {
     required String status,
   }) async {
     try {
-      final reasonText = selectedReason == 'Other'
-          ? otherController.text.trim()
-          : selectedReason;
+      String reasonText = selectedReason;
+      if (selectedReason == 'Other') {
+        reasonText = otherController.text.trim();
+      }
 
       final details = {
         'reason': reasonText,
@@ -305,7 +299,7 @@ class _RequestScreenState extends State<RequestScreen> {
       final message = TelegramService.formatPermissionRequestWithInfo(
         staffName: _staffName.isNotEmpty ? _staffName : 'Staff',
         staffPosition: _staffPosition.isNotEmpty ? _staffPosition : 'Employee',
-        permissionType: _mapReasonToType(selectedReason),
+        permissionType: selectedReason,
         details: details,
         requestId: requestId,
         status: status,
@@ -328,7 +322,7 @@ class _RequestScreenState extends State<RequestScreen> {
       'Sick': 'sick',
       'Personal issue': 'personal',
       'Vacation': 'leave',
-      'Emergency': 'other',
+      'Emergency': 'emergency',
       'Other': 'other',
     };
     return mapping[reason] ?? 'other';
@@ -469,6 +463,7 @@ class _RequestScreenState extends State<RequestScreen> {
             ),
             const Divider(height: 24),
 
+            // ============ CARD 1: SELECT DATE ============
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -488,7 +483,6 @@ class _RequestScreenState extends State<RequestScreen> {
                     ),
                     const SizedBox(height: 16),
                     
-                    const SizedBox(height: 8),
                     GestureDetector(
                       onTap: pickStartDate,
                       child: _box(formatDate(startDate)),
@@ -521,6 +515,7 @@ class _RequestScreenState extends State<RequestScreen> {
             ),
             const SizedBox(height: 20),
 
+            // ============ CARD 2: DOCUMENT REFERENCE ============
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -599,6 +594,7 @@ class _RequestScreenState extends State<RequestScreen> {
             ),
             const SizedBox(height: 20),
 
+            // ============ CARD 3: REASON FOR LEAVE ============
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -623,22 +619,49 @@ class _RequestScreenState extends State<RequestScreen> {
                     _buildRadio("Emergency"),
                     _buildRadio("Other"),
                     const SizedBox(height: 10),
-                    TextField(
-                      controller: otherController,
-                      enabled: selectedReason == "Other",
-                      style: TextStyle(fontSize: AppFonts.md),
-                      decoration: InputDecoration(
-                        hintText: "Please specify other reason",
-                        hintStyle: TextStyle(fontSize: AppFonts.md),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: selectedReason == "Other"
-                            ? Colors.white
-                            : Colors.grey.shade50,
+                    
+                    // ✅ បង្ហាញ TextField តែពេលជ្រើសរើស "Other" ប៉ុណ្ណោះ (មាន border)
+                    Visibility(
+                      visible: selectedReason == "Other",
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Please specify your reason:",
+                            style: TextStyle(
+                              fontSize: AppFonts.md,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Colors.blue.shade400,
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: TextField(
+                              controller: otherController,
+                              style: TextStyle(fontSize: AppFonts.md),
+                              decoration: InputDecoration(
+                                hintText: "Enter other reason...",
+                                hintStyle: TextStyle(fontSize: AppFonts.md),
+                                border: InputBorder.none,
+                                filled: true,
+                                fillColor: Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                              ),
+                              maxLines: 3,
+                              autofocus: false,
+                            ),
+                          ),
+                        ],
                       ),
-                      maxLines: 2,
                     ),
                   ],
                 ),
@@ -647,6 +670,7 @@ class _RequestScreenState extends State<RequestScreen> {
             
             const SizedBox(height: 30),
 
+            // ============ SUBMIT BUTTON ============
             SizedBox(
               width: double.infinity,
               height: 55,
@@ -690,6 +714,8 @@ class _RequestScreenState extends State<RequestScreen> {
     );
   }
 
+  // ============ HELPER WIDGETS ============
+  
   Widget _box(String text) {
     return Container(
       width: double.infinity,
@@ -724,6 +750,9 @@ class _RequestScreenState extends State<RequestScreen> {
       onTap: () {
         setState(() {
           selectedReason = title;
+          if (title != "Other") {
+            otherController.clear();
+          }
         });
       },
       child: Padding(
@@ -736,6 +765,9 @@ class _RequestScreenState extends State<RequestScreen> {
               onChanged: (value) {
                 setState(() {
                   selectedReason = value!;
+                  if (value != "Other") {
+                    otherController.clear();
+                  }
                 });
               },
               activeColor: const Color(0xFF1A3B68),

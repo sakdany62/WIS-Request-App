@@ -302,17 +302,12 @@ NEW PERMISSION REQUEST
 
 Staff Name: $finalStaffName
 Position: $finalStaffPosition
-Type: $typeDisplay
-Reason: $reason
 Submit Time: $submitTime
 
 Details:$detailsText
 
 Request ID: $requestId
 Status: $formattedStatus
-
-==========================
-Please check the app to approve or reject this request.
     ''';
   }
 

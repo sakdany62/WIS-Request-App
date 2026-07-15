@@ -50,7 +50,17 @@ class RequestService {
     print('📝 Department: "$userDepartment"');
     print('📝 Role: $userRoleId');
 
-    final finalReason = reason == 'Other' ? (otherReason ?? reason) : reason;
+    // 🔥 **កែប្រែនៅត្រង់នេះ**
+    // រក្សា reason ដើមសម្រាប់ validation
+    String reasonForValidation = reason;
+    String reasonForStorage = reason;
+    
+    if (reason == 'Other') {
+      // ប្រើ otherReason សម្រាប់ទុកក្នុង Firestore
+      reasonForStorage = otherReason ?? reason;
+      // ✅ ផ្ញើ 'Other' ទៅ validation ដើម្បីឱ្យវាឆ្លង
+      reasonForValidation = 'Other';
+    }
     
     final policy = await _getActivePolicy();
     final requestCountInMonth = await _getUserRequestCountInCurrentMonth(user.uid);
@@ -64,10 +74,11 @@ class RequestService {
         : 0;
     
     if (policy != null) {
+      // ✅ ផ្ញើ reasonForValidation ទៅ validation (នឹងជា 'Other' ប្រសិនបើជ្រើស Other)
       final errors = _validateRequestAgainstPolicy(
         policy: policy,
         totalDays: totalDays,
-        reason: finalReason,
+        reason: reasonForValidation,  // ← ផ្ញើ 'Other' សម្រាប់ validation
         hasDocument: fileUrl != null || imageUrl != null,
         daysUsedThisYear: daysUsedThisYear,
         daysAdvance: daysAdvance,
@@ -120,7 +131,8 @@ class RequestService {
       'startDate': startDate,
       'endDate': endDate,
       'totalDays': totalDays,
-      'reason': finalReason,
+      'reason': reasonForStorage,  // ← រក្សាទុកអត្ថបទដើម (ឧ. "sad")
+      'originalReason': reason,  // ← រក្សាទុក reason ដើម (ឧ. "Other")
       'fileUrl': fileUrl,
       'imageUrl': imageUrl,
       'status': status,
@@ -886,6 +898,7 @@ class RequestService {
       errors.add('Only $remainingDays day(s) remaining this year');
     }
     
+    // ✅ 'Other' ត្រូវបានអនុញ្ញាតជានិច្ច
     if (reason != 'Other' && !policy.allowedReasons.contains(reason)) {
       errors.add('Reason "$reason" is not allowed');
     }

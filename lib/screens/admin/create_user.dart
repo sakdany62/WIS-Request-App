@@ -186,7 +186,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
                 keyboardType: TextInputType.emailAddress,
-                style: TextStyle(fontSize: AppFonts.md),
+                style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
                 validator: (value) {
                   if (value?.isEmpty ?? true) return 'Email is required';
                   if (!value!.contains('@')) return 'Invalid email';
@@ -233,7 +233,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
                 obscureText: true,
-                style: TextStyle(fontSize: AppFonts.md),
+                style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
                 validator: (value) {
                   if (value?.isEmpty ?? true) return 'Password is required';
                   if (value!.length < 6) return 'Min 6 characters';
@@ -279,7 +279,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
-                style: TextStyle(fontSize: AppFonts.md),
+                style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
                 validator: (value) => value?.isEmpty ?? true ? 'Full name is required' : null,
               ),
               const SizedBox(height: 16),
@@ -321,7 +321,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
-                style: TextStyle(fontSize: AppFonts.md),
+                style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
                 validator: (value) => value?.isEmpty ?? true ? 'Username is required' : null,
               ),
               const SizedBox(height: 16),
@@ -364,7 +364,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 ),
                 keyboardType: TextInputType.phone,
-                style: TextStyle(fontSize: AppFonts.md),
+                style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
               ),
               const SizedBox(height: 16),
 
@@ -401,12 +401,23 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.red, width: 2.0),
                   ),
+                  filled: true,
+                  fillColor: Colors.white, // ✅ Background ពណ៌ស
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
                 items: const [
-                  DropdownMenuItem(value: '1', child: Text('👑 Admin')),
-                  DropdownMenuItem(value: '2', child: Text(' Staff')),
-                  DropdownMenuItem(value: '3', child: Text(' Manager')),
+                  DropdownMenuItem(
+                    value: '1',
+                    child: Text('👑 Admin'),
+                  ),
+                  DropdownMenuItem(
+                    value: '2',
+                    child: Text(' Staff'),
+                  ),
+                  DropdownMenuItem(
+                    value: '3',
+                    child: Text(' Manager'),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -422,9 +433,13 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 style: TextStyle(
                   fontSize: AppFonts.md,
                   fontWeight: FontWeight.w500,
+                  color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
                 ),
-                dropdownColor: Colors.white,
-                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                icon: const Icon(
+                  Icons.arrow_drop_down,
+                  color: Color(0xFF173B69),
+                ),
                 isExpanded: true,
                 menuMaxHeight: 250,
               ),
@@ -469,6 +484,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: Colors.red, width: 2.0),
                     ),
+                    filled: true,
+                    fillColor: Colors.white, // ✅ Background ពណ៌ស
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                   items: [
@@ -484,6 +501,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                           style: TextStyle(
                             fontSize: AppFonts.md,
                             fontWeight: FontWeight.w500,
+                            color: Colors.black,
                           ),
                         ),
                       );
@@ -503,9 +521,13 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   style: TextStyle(
                     fontSize: AppFonts.md,
                     fontWeight: FontWeight.w500,
+                    color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
                   ),
-                  dropdownColor: Colors.white,
-                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                  dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: Color(0xFF173B69),
+                  ),
                   isExpanded: true,
                   menuMaxHeight: 300,
                 ),
@@ -545,11 +567,19 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.red, width: 2.0),
                   ),
+                  filled: true,
+                  fillColor: Colors.white, // ✅ Background ពណ៌ស
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'Active', child: Text(' Active')),
-                  DropdownMenuItem(value: 'Inactive', child: Text(' Inactive')),
+                  DropdownMenuItem(
+                    value: 'Active',
+                    child: Text(' Active'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'Inactive',
+                    child: Text(' Inactive'),
+                  ),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -561,9 +591,13 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 style: TextStyle(
                   fontSize: AppFonts.md,
                   fontWeight: FontWeight.w500,
+                  color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
                 ),
-                dropdownColor: Colors.white,
-                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                icon: const Icon(
+                  Icons.arrow_drop_down,
+                  color: Color(0xFF173B69),
+                ),
                 isExpanded: true,
                 menuMaxHeight: 200,
               ),

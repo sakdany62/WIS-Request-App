@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:open_file/open_file.dart';
 import '../../app_fonts.dart';
-import '../../utils/responsive.dart'; // ✅ Import Responsive
+import '../../utils/responsive.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -327,7 +327,6 @@ class _ReportScreenState extends State<ReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -340,7 +339,7 @@ class _ReportScreenState extends State<ReportScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ✅ Header - ប្រើ Responsive
+            // Header
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(
@@ -406,7 +405,10 @@ class _ReportScreenState extends State<ReportScreen> {
                                         value: _selectedReportType,
                                         decoration: InputDecoration(
                                           labelText: 'Report Type',
-                                          labelStyle: TextStyle(fontSize: fontSize),
+                                          labelStyle: TextStyle(
+                                            fontSize: fontSize,
+                                            color: Colors.grey[700],
+                                          ),
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(10),
                                             borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -420,16 +422,25 @@ class _ReportScreenState extends State<ReportScreen> {
                                             borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                                           ),
                                           filled: true,
-                                          fillColor: Colors.white,
+                                          fillColor: Colors.white, // ✅ Background ពណ៌ស
                                           contentPadding: EdgeInsets.symmetric(
                                             horizontal: spacing,
                                             vertical: isMobile ? 6 : 8,
                                           ),
                                         ),
                                         items: const [
-                                          DropdownMenuItem(value: 'daily', child: Text(' Daily')),
-                                          DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                                          DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
+                                          DropdownMenuItem(
+                                            value: 'daily',
+                                            child: Text(' Daily'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'monthly',
+                                            child: Text('Monthly'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'yearly',
+                                            child: Text('Yearly'),
+                                          ),
                                         ],
                                         onChanged: (value) {
                                           if (value != null) {
@@ -442,9 +453,13 @@ class _ReportScreenState extends State<ReportScreen> {
                                         style: TextStyle(
                                           fontSize: fontSize,
                                           fontWeight: FontWeight.w500,
+                                          color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
                                         ),
-                                        dropdownColor: Colors.white,
-                                        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                                        dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                                        icon: const Icon(
+                                          Icons.arrow_drop_down,
+                                          color: Color(0xFF173B69),
+                                        ),
                                         isExpanded: true,
                                       ),
                                     ),
@@ -479,7 +494,10 @@ class _ReportScreenState extends State<ReportScreen> {
                                         value: _filterDepartment,
                                         decoration: InputDecoration(
                                           labelText: 'Department',
-                                          labelStyle: TextStyle(fontSize: fontSize),
+                                          labelStyle: TextStyle(
+                                            fontSize: fontSize,
+                                            color: Colors.grey[700],
+                                          ),
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(10),
                                             borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -493,7 +511,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                             borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                                           ),
                                           filled: true,
-                                          fillColor: Colors.white,
+                                          fillColor: Colors.white, // ✅ Background ពណ៌ស
                                           contentPadding: EdgeInsets.symmetric(
                                             horizontal: spacing,
                                             vertical: isMobile ? 6 : 8,
@@ -522,9 +540,13 @@ class _ReportScreenState extends State<ReportScreen> {
                                         style: TextStyle(
                                           fontSize: fontSize,
                                           fontWeight: FontWeight.w500,
+                                          color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
                                         ),
-                                        dropdownColor: Colors.white,
-                                        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                                        dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                                        icon: const Icon(
+                                          Icons.arrow_drop_down,
+                                          color: Color(0xFF173B69),
+                                        ),
                                         isExpanded: true,
                                       ),
                                     ),
@@ -561,7 +583,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             ),
                           ),
 
-                          // ✅ Summary Cards - ប្រើ Responsive
+                          // Summary Cards
                           Container(
                             padding: EdgeInsets.symmetric(
                               vertical: spacing,
@@ -604,7 +626,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             ),
                           ),
 
-                          // ✅ Total Days Summary
+                          // Total Days Summary
                           Container(
                             margin: EdgeInsets.symmetric(horizontal: spacing),
                             padding: EdgeInsets.symmetric(
@@ -657,7 +679,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
                           SizedBox(height: spacing),
 
-                          // ✅ Report List
+                          // Report List
                           _reportData.isEmpty
                               ? Padding(
                                   padding: EdgeInsets.all(spacing * 5),
@@ -724,7 +746,6 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // ✅ Summary Card with Responsive
   Widget _buildSummaryCard({
     required String label,
     required String value,

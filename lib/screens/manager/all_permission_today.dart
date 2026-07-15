@@ -9,7 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_system/app_fonts.dart';
 import '../../services/request_service.dart';
-import '../../utils/responsive.dart'; // ✅ Import Responsive
+import '../../utils/responsive.dart';
 
 class TodayRequest {
   final String requestId;
@@ -559,7 +559,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -618,21 +617,42 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                 value: _selectedReportType,
                                 decoration: InputDecoration(
                                   labelText: 'Report Type',
-                                  labelStyle: TextStyle(fontSize: fontSize),
+                                  labelStyle: TextStyle(
+                                    fontSize: fontSize,
+                                    color: Colors.grey[700],
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white,
+                                  fillColor: Colors.white, // ✅ Background ពណ៌ស
                                   contentPadding: EdgeInsets.symmetric(
                                     horizontal: spacing,
                                     vertical: isMobile ? 6 : 8,
                                   ),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'daily', child: Text(' Daily')),
-                                  DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                                  DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
+                                  DropdownMenuItem(
+                                    value: 'daily',
+                                    child: Text(' Daily'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'monthly',
+                                    child: Text('Monthly'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'yearly',
+                                    child: Text('Yearly'),
+                                  ),
                                 ],
                                 onChanged: (value) {
                                   if (value != null) {
@@ -642,7 +662,15 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                     _loadAllRequests();
                                   }
                                 },
-                                style: TextStyle(fontSize: fontSize),
+                                style: TextStyle(
+                                  fontSize: fontSize,
+                                  color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                                ),
+                                dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                                icon: const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Color(0xFF173B69),
+                                ),
                               ),
                             ),
                             SizedBox(width: spacing),
@@ -672,23 +700,50 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                 value: _filterStatus,
                                 decoration: InputDecoration(
                                   labelText: 'Status Filter',
-                                  labelStyle: TextStyle(fontSize: fontSize),
+                                  labelStyle: TextStyle(
+                                    fontSize: fontSize,
+                                    color: Colors.grey[700],
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white,
+                                  fillColor: Colors.white, // ✅ Background ពណ៌ស
                                   contentPadding: EdgeInsets.symmetric(
                                     horizontal: spacing,
                                     vertical: isMobile ? 6 : 8,
                                   ),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'all', child: Text('All')),
-                                  DropdownMenuItem(value: 'pending', child: Text(' Pending')),
-                                  DropdownMenuItem(value: 'approved', child: Text(' Approved')),
-                                  DropdownMenuItem(value: 'auto_approved', child: Text(' Auto Approved')),
-                                  DropdownMenuItem(value: 'rejected', child: Text(' Rejected')),
+                                  DropdownMenuItem(
+                                    value: 'all',
+                                    child: Text('All'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'pending',
+                                    child: Text(' Pending'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'approved',
+                                    child: Text(' Approved'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'auto_approved',
+                                    child: Text(' Auto Approved'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'rejected',
+                                    child: Text(' Rejected'),
+                                  ),
                                 ],
                                 onChanged: (value) {
                                   if (value != null) {
@@ -698,7 +753,15 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                     _applyFilters();
                                   }
                                 },
-                                style: TextStyle(fontSize: fontSize),
+                                style: TextStyle(
+                                  fontSize: fontSize,
+                                  color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                                ),
+                                dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                                icon: const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Color(0xFF173B69),
+                                ),
                               ),
                             ),
                             if (_filterStatus != 'all') ...[
