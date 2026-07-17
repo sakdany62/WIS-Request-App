@@ -2,8 +2,10 @@
 import 'package:flutter/material.dart';
 import 'user_management_screen.dart';
 import 'policy_screen.dart';
+import 'warning_management_screen.dart';
+import 'terms_management_screen.dart'; 
 import '../../app_fonts.dart';
-import '../../utils/responsive.dart'; // ✅ Import Responsive
+import '../../utils/responsive.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -17,7 +19,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -29,7 +30,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ---------- Custom header with icon under title ----------
+            // ---------- Custom header ----------
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(
@@ -54,7 +55,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Settings",
+                    "Admin Settings",
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -65,7 +66,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               ),
             ),
 
-            // ---------- Settings content (scrollable) ----------
+            // ---------- Settings content ----------
             Expanded(
               child: SingleChildScrollView(
                 padding: padding,
@@ -108,6 +109,50 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => const PolicyScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    SizedBox(height: spacing * 2),
+
+                    // ✅ Terms & Conditions Management Card (NEW)
+                    _buildSettingsCard(
+                      icon: Icons.description,
+                      title: 'Terms & Conditions',
+                      subtitle: 'Create and manage terms & conditions versions',
+                      iconColor: Colors.purple,
+                      isMobile: isMobile,
+                      fontSize: fontSize,
+                      spacing: spacing,
+                      iconSize: iconSize,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TermsManagementScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    SizedBox(height: spacing * 2),
+
+                    // Warning Management Card
+                    _buildSettingsCard(
+                      icon: Icons.warning_amber_rounded,
+                      title: 'Warning Management',
+                      subtitle: 'Create and manage warning notifications for users',
+                      iconColor: Colors.red,
+                      isMobile: isMobile,
+                      fontSize: fontSize,
+                      spacing: spacing,
+                      iconSize: iconSize,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WarningManagementScreen(),
                           ),
                         );
                       },

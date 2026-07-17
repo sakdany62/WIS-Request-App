@@ -1,0 +1,1039 @@
+// lib/screens/admin/warning_management_screen.dart
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import '../../services/warning_service.dart';
+import '../../app_fonts.dart';
+
+class WarningManagementScreen extends StatefulWidget {
+  const WarningManagementScreen({super.key});
+
+  @override
+  State<WarningManagementScreen> createState() => _WarningManagementScreenState();
+}
+
+class _WarningManagementScreenState extends State<WarningManagementScreen> {
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _messageController = TextEditingController();
+  final TextEditingController _expiresAtController = TextEditingController();
+  
+  String _selectedSeverity = 'info';
+  String _selectedAudience = 'all';
+  DateTime? _expiresAt;
+  bool _isCreating = false;
+
+  final List<String> _severityOptions = ['info', 'warning', 'critical'];
+  final List<String> _audienceOptions = ['all', 'staff', 'manager', 'admin'];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _messageController.dispose();
+    _expiresAtController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createWarning() async {
+    if (_titleController.text.trim().isEmpty) {
+      _showSnackBar('Please enter a title', Colors.red);
+      return;
+    }
+    if (_messageController.text.trim().isEmpty) {
+      _showSnackBar('Please enter a message', Colors.red);
+      return;
+    }
+
+    setState(() => _isCreating = true);
+
+    try {
+      await WarningService.createWarning(
+        title: _titleController.text.trim(),
+        message: _messageController.text.trim(),
+        severity: _selectedSeverity,
+        targetAudience: _selectedAudience,
+        expiresAt: _expiresAt,
+      );
+
+      _showSnackBar('✅ Warning created successfully!', Colors.green);
+      
+      // Clear form
+      _titleController.clear();
+      _messageController.clear();
+      _expiresAtController.clear();
+      setState(() {
+        _expiresAt = null;
+        _selectedSeverity = 'info';
+        _selectedAudience = 'all';
+      });
+    } catch (e) {
+      _showSnackBar('Error: $e', Colors.red);
+    } finally {
+      if (mounted) {
+        setState(() => _isCreating = false);
+      }
+    }
+  }
+
+  Future<void> _pickExpiryDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 7)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2030),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _expiresAt = picked;
+        _expiresAtController.text = DateFormat('dd MMM yyyy').format(picked);
+      });
+    }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: TextStyle(fontSize: AppFonts.md)),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Warning Management',
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: const Color(0xFF173B69),
+          foregroundColor: Colors.white,
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Create Warning'),
+              Tab(text: 'Active Warnings'),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildCreateWarningTab(),
+            _buildActiveWarningsTab(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreateWarningTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title
+          Text(
+            'Create New Warning',
+            style: TextStyle(
+              fontSize: AppFonts.md + 4,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF173B69),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Title Field
+          Text(
+            'Title *',
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _titleController,
+            decoration: InputDecoration(
+              hintText: 'Enter warning title',
+              hintStyle: TextStyle(
+                fontSize: AppFonts.md,
+                color: Colors.grey.shade400,
+              ),
+              // ✅ Added border
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: Colors.grey.shade300,
+                  width: 1.5,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: Colors.grey.shade300,
+                  width: 1.5,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Color(0xFF173B69),
+                  width: 2,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Message Field
+          Text(
+            'Message *',
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _messageController,
+            maxLines: 5,
+            decoration: InputDecoration(
+              hintText: 'Enter warning message',
+              hintStyle: TextStyle(
+                fontSize: AppFonts.md,
+                color: Colors.grey.shade400,
+              ),
+              // ✅ Added border
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: Colors.grey.shade300,
+                  width: 1.5,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: Colors.grey.shade300,
+                  width: 1.5,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Color(0xFF173B69),
+                  width: 2,
+                ),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+            ),
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Severity Dropdown
+          Text(
+            'Severity',
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              // ✅ Added border
+              border: Border.all(
+                color: Colors.grey.shade300,
+                width: 1.5,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedSeverity,
+                items: _severityOptions.map((severity) {
+                  return DropdownMenuItem(
+                    value: severity,
+                    child: Row(
+                      children: [
+                        Icon(
+                          _getSeverityIcon(severity),
+                          color: _getSeverityColor(severity),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          severity.toUpperCase(),
+                          style: TextStyle(
+                            color: _getSeverityColor(severity),
+                            fontWeight: FontWeight.w500,
+                            fontSize: AppFonts.md,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedSeverity = value);
+                  }
+                },
+                isExpanded: true,
+                dropdownColor: Colors.white,
+                style: TextStyle(
+                  fontSize: AppFonts.md,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Audience Dropdown
+          Text(
+            'Target Audience',
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              // ✅ Added border
+              border: Border.all(
+                color: Colors.grey.shade300,
+                width: 1.5,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedAudience,
+                items: _audienceOptions.map((audience) {
+                  return DropdownMenuItem(
+                    value: audience,
+                    child: Text(
+                      audience.toUpperCase(),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: AppFonts.md,
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedAudience = value);
+                  }
+                },
+                isExpanded: true,
+                dropdownColor: Colors.white,
+                style: TextStyle(
+                  fontSize: AppFonts.md,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Expiry Date
+          Text(
+            'Expiry Date (Optional)',
+            style: TextStyle(
+              fontSize: AppFonts.md,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickExpiryDate,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                // ✅ Added border
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 1.5,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    color: Colors.grey.shade600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _expiresAtController.text.isEmpty
+                          ? 'No expiry date set'
+                          : _expiresAtController.text,
+                      style: TextStyle(
+                        fontSize: AppFonts.md,
+                        color: _expiresAtController.text.isEmpty
+                            ? Colors.grey.shade500
+                            : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  if (_expiresAtController.text.isNotEmpty)
+                    IconButton(
+                      icon: Icon(
+                        Icons.close,
+                        size: 20,
+                        color: Colors.grey.shade600,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _expiresAt = null;
+                          _expiresAtController.clear();
+                        });
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Info Box
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.blue.shade200,
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Colors.blue.shade700,
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Warning will be shown to users when they open the app',
+                    style: TextStyle(
+                      fontSize: AppFonts.md,
+                      color: Colors.blue.shade700,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Create Button
+          SizedBox(
+            width: double.infinity,
+            height: 55,
+            child: ElevatedButton(
+              onPressed: _isCreating ? null : _createWarning,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF173B69),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+                disabledBackgroundColor: Colors.grey.shade400,
+              ),
+              child: _isCreating
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.add_alert, size: 22),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Create Warning',
+                          style: TextStyle(
+                            fontSize: AppFonts.md,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveWarningsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: WarningService.getAllWarnings(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text(
+                  'Error: ${snapshot.error}',
+                  style: TextStyle(color: Colors.red, fontSize: AppFonts.md),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {});
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF173B69),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'Retry',
+                    style: TextStyle(fontSize: AppFonts.md),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF173B69),
+            ),
+          );
+        }
+
+        final warnings = snapshot.data?.docs ?? [];
+
+        if (warnings.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.warning_amber_outlined,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No warnings created yet',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: AppFonts.md + 2,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Start by creating your first warning',
+                  style: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: AppFonts.md,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Count active warnings
+        final activeCount = warnings.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return data['isActive'] == true;
+        }).length;
+
+        return Column(
+          children: [
+            // Summary header
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: Colors.grey.shade50,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Total: ${warnings.length} | Active: $activeCount',
+                    style: TextStyle(
+                      fontSize: AppFonts.md,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: warnings.length,
+                itemBuilder: (context, index) {
+                  final doc = warnings[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  final isActive = data['isActive'] ?? true;
+                  final severity = data['severity'] ?? 'info';
+                  final color = _getSeverityColor(severity);
+                  
+                  // Get read count
+                  final readBy = data['readBy'] as List? ?? [];
+                  final readCount = readBy.length;
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    elevation: isActive ? 2 : 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: isActive ? Colors.transparent : Colors.grey.shade200,
+                        width: 1,
+                      ),
+                    ),
+                    child: ListTile(
+                      leading: Container(
+                        width: 4,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: isActive ? color : Colors.grey,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      title: Text(
+                        data['title'] ?? 'Untitled',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: AppFonts.md,
+                          decoration: isActive ? null : TextDecoration.lineThrough,
+                          color: isActive ? Colors.black87 : Colors.grey.shade500,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 4),
+                          Text(
+                            data['message'] ?? 'No message',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: AppFonts.md,
+                              color: isActive ? Colors.grey.shade700 : Colors.grey.shade400,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              _buildChip(
+                                severity.toUpperCase(),
+                                color.withOpacity(0.15),
+                                color,
+                              ),
+                              _buildChip(
+                                'Audience: ${data['targetAudience'] ?? 'all'}',
+                                Colors.grey.shade200,
+                                Colors.grey.shade700,
+                              ),
+                              if (data['expiresAt'] != null)
+                                _buildChip(
+                                  'Expires: ${_formatDate(data['expiresAt'])}',
+                                  Colors.orange.shade50,
+                                  Colors.orange.shade700,
+                                ),
+                              _buildChip(
+                                isActive ? 'Active' : 'Inactive',
+                                isActive ? Colors.green.shade50 : Colors.red.shade50,
+                                isActive ? Colors.green.shade700 : Colors.red.shade700,
+                              ),
+                              _buildChip(
+                                'Read: $readCount',
+                                Colors.blue.shade50,
+                                Colors.blue.shade700,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      trailing: PopupMenuButton(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'toggle',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isActive ? Icons.pause : Icons.play_arrow,
+                                  color: isActive ? Colors.orange : Colors.green,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  isActive ? 'Deactivate' : 'Activate',
+                                  style: TextStyle(
+                                    fontSize: AppFonts.md,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'view_readers',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.visibility, size: 20, color: Colors.blue),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'View Readers',
+                                  style: TextStyle(
+                                    fontSize: AppFonts.md,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.delete, size: 20, color: Colors.red),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Delete',
+                                  style: TextStyle(
+                                    fontSize: AppFonts.md,
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        onSelected: (value) async {
+                          if (value == 'toggle') {
+                            await WarningService.updateWarning(
+                              warningId: doc.id,
+                              isActive: !isActive,
+                            );
+                            _showSnackBar(
+                              isActive ? 'Warning deactivated' : 'Warning activated',
+                              Colors.green,
+                            );
+                          } else if (value == 'view_readers') {
+                            _showReadersList(readBy);
+                          } else if (value == 'delete') {
+                            await _confirmDelete(doc.id);
+                          }
+                        },
+                      ),
+                      isThreeLine: true,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Show readers list
+  void _showReadersList(List<dynamic> readBy) async {
+    if (readBy.isEmpty) {
+      _showSnackBar('No readers yet', Colors.grey);
+      return;
+    }
+
+    // Get user names from userIds
+    List<Map<String, String>> readers = [];
+    for (var userId in readBy) {
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userId', isEqualTo: userId)
+            .limit(1)
+            .get();
+        
+        if (userDoc.docs.isNotEmpty) {
+          final data = userDoc.docs.first.data();
+          readers.add({
+            'name': data['fullName'] ?? data['username'] ?? userId,
+            'id': userId,
+          });
+        } else {
+          readers.add({
+            'name': userId,
+            'id': userId,
+          });
+        }
+      } catch (e) {
+        readers.add({
+          'name': userId,
+          'id': userId,
+        });
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'Readers (${readers.length})',
+          style: TextStyle(
+            fontSize: AppFonts.md + 2,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF173B69),
+          ),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: ListView.builder(
+            itemCount: readers.length,
+            itemBuilder: (context, index) {
+              final reader = readers[index];
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: const Color(0xFF173B69).withOpacity(0.1),
+                  child: Text(
+                    reader['name']![0].toUpperCase(),
+                    style: TextStyle(
+                      color: const Color(0xFF173B69),
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppFonts.md,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  reader['name']!,
+                  style: TextStyle(
+                    fontSize: AppFonts.md,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                subtitle: Text(
+                  'ID: ${reader['id']}',
+                  style: TextStyle(
+                    fontSize: AppFonts.md,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF173B69),
+            ),
+            child: Text(
+              'Close',
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChip(String label, Color bgColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: textColor.withOpacity(0.2),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: AppFonts.md * 0.7,
+          color: textColor,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(String warningId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'Delete Warning',
+          style: TextStyle(
+            fontSize: AppFonts.md + 2,
+            fontWeight: FontWeight.bold,
+            color: Colors.red.shade700,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to delete this warning? This action cannot be undone.',
+          style: TextStyle(
+            fontSize: AppFonts.md,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: Text(
+              'Delete',
+              style: TextStyle(
+                fontSize: AppFonts.md,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await WarningService.deleteWarning(warningId);
+        _showSnackBar('Warning deleted successfully', Colors.green);
+      } catch (e) {
+        _showSnackBar('Error: $e', Colors.red);
+      }
+    }
+  }
+
+  Color _getSeverityColor(String severity) {
+    switch (severity.toLowerCase()) {
+      case 'critical':
+        return Colors.red;
+      case 'warning':
+        return Colors.orange;
+      case 'info':
+        return Colors.blue;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  IconData _getSeverityIcon(String severity) {
+    switch (severity.toLowerCase()) {
+      case 'critical':
+        return Icons.dangerous;
+      case 'warning':
+        return Icons.warning_amber_rounded;
+      case 'info':
+        return Icons.info_outline;
+      default:
+        return Icons.info_outline;
+    }
+  }
+
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+    if (timestamp is Timestamp) {
+      final date = timestamp.toDate();
+      return DateFormat('dd MMM yyyy').format(date);
+    }
+    return 'N/A';
+  }
+}
