@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'user_management_screen.dart';
 import 'policy_screen.dart';
-import 'warning_management_screen.dart';
+import 'warning_management_screen.dart' as warning;
 import 'terms_management_screen.dart'; 
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
@@ -116,7 +116,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
                     SizedBox(height: spacing * 2),
 
-                    // ✅ Terms & Conditions Management Card (NEW)
+                    // Terms & Conditions Management Card
                     _buildSettingsCard(
                       icon: Icons.description,
                       title: 'Terms & Conditions',
@@ -138,7 +138,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
                     SizedBox(height: spacing * 2),
 
-                    // Warning Management Card
+                    // Warning Management Card - ✅ កែប្រែនេះ
                     _buildSettingsCard(
                       icon: Icons.warning_amber_rounded,
                       title: 'Warning Management',
@@ -152,7 +152,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const WarningManagementScreen(),
+                            builder: (context) => warning.WarningManagementScreen(), // ✅ លុប const ចេញ
                           ),
                         );
                       },

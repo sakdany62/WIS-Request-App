@@ -10,8 +10,9 @@ import '../../services/terms_service.dart';
 import '../../services/warning_service.dart';
 import '../../widgets/warning_popup.dart';
 import 'warning_popup_settings_screen.dart';
-import '../admin/warning_management_screen.dart'; 
+import '../admin/warning_management_screen.dart' as warning;
 import '../admin/terms_read_tracking_screen.dart'; 
+
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -248,7 +249,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             );
           } else if (title == 'Terms & Conditions') {
-            // Navigate to dynamic Terms & Conditions
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -260,7 +260,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const WarningManagementScreen(),
+                  builder: (context) => warning.WarningManagementScreen(), // ✅ កែប្រែនេះ
                 ),
               );
             } else {
@@ -666,22 +666,6 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                             ),
                             child: Column(
                               children: [
-                                Icon(
-                                  Icons.description,
-                                  size: isMobile ? 36 : 48,
-                                  color: const Color(0xFF1E457E),
-                                ),
-                                SizedBox(height: isMobile ? 4 : 8),
-                                Text(
-                                  _termsData!['title'] ?? 'Terms & Conditions',
-                                  style: TextStyle(
-                                    fontSize: isMobile ? fontSize + 4 : AppFonts.md + 4,
-                                    fontWeight: FontWeight.bold,
-                                    color: const Color(0xFF1E457E),
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                SizedBox(height: isMobile ? 4 : 8),
                                 Wrap(
                                   alignment: WrapAlignment.center,
                                   spacing: isMobile ? 8 : 16,
@@ -724,7 +708,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
 
                           SizedBox(height: isMobile ? 24 : 32),
 
-                        
+                          // Confirmation Checkbox
                           if (_staffId != null)
                             Container(
                               width: double.infinity,
@@ -740,7 +724,6 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  // Checkbox
                                   if (!_isMarkingRead)
                                     Checkbox(
                                       value: _isCheckboxChecked,

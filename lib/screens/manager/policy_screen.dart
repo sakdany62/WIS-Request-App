@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/policy_service.dart';
 import '../../models/policy_model.dart';
-// 👇 Use the same import as other files (adjust if needed)
+import '../../utils/responsive.dart';
 import 'package:permission_system/app_fonts.dart';
 
 class PolicyScreen extends StatefulWidget {

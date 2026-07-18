@@ -92,13 +92,25 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
     }
   }
 
+  // ✅ កែប្រែមុខងារ _formatDate ដើម្បីបង្ហាញម៉ោងកម្ពុជាជាមួយ AM/PM
   String _formatDate(dynamic timestamp) {
     if (timestamp == null) return 'Not read yet';
     try {
+      DateTime dateTime;
+      
       if (timestamp is Timestamp) {
-        return DateFormat('dd MMM yyyy, HH:mm').format(timestamp.toDate());
+        dateTime = timestamp.toDate();
+      } else if (timestamp is DateTime) {
+        dateTime = timestamp;
+      } else {
+        return timestamp.toString();
       }
-      return timestamp.toString();
+      
+      // ✅ បំប្លែងទៅម៉ោងកម្ពុជា (UTC+7)
+      final cambodiaTime = dateTime.toUtc().add(const Duration(hours: 7));
+      
+      // ✅ ប្រើ DateFormat ដើម្បីបង្ហាញម៉ោងជាមួយ AM/PM
+      return DateFormat('dd MMM yyyy, hh:mm a').format(cambodiaTime);
     } catch (e) {
       return 'Invalid date';
     }
@@ -118,7 +130,14 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            
+            Text(
+              'Read Status',
+              style: TextStyle(
+                fontSize: isMobile ? fontSize : AppFonts.md,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
             Text(
               widget.termsTitle,
               style: TextStyle(
@@ -598,7 +617,6 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
                                       ],
                                     ),
                                   ),
-                              
                               ],
                             ),
                           ],

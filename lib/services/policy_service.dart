@@ -54,7 +54,7 @@ class PolicyService {
     });
   }
 
-  // បន្ថែម Method សម្រាប់ទាញយក Policy តាម ID
+  // Method សម្រាប់ទាញយក Policy តាម ID
   Future<PolicyModel?> getPolicyById(String id) async {
     try {
       final doc = await _policiesCollection.doc(id).get();
@@ -69,5 +69,47 @@ class PolicyService {
       print('Error getting policy by id: $e');
       return null;
     }
+  }
+
+  // ✅ Method ថ្មី: ទាញយក Allowed Reasons ពី Policy សកម្ម
+  Future<List<String>> getAllowedReasons() async {
+    try {
+      final policy = await getActivePolicy();
+      if (policy != null) {
+        final reasons = policy.allowedReasons;
+        // ✅ ធានាថា "Other" តែងតែមាន
+        if (!reasons.contains('Other')) {
+          reasons.add('Other');
+        }
+        return reasons;
+      }
+      // Default reasons if no policy exists
+      return ['Sick', 'Personal issue', 'Vacation', 'Emergency', 'Other'];
+    } catch (e) {
+      print('❌ Error getting allowed reasons: $e');
+      return ['Sick', 'Personal issue', 'Vacation', 'Emergency', 'Other'];
+    }
+  }
+
+  // ✅ Method ថ្មី: Stream សម្រាប់ស្តាប់ការផ្លាស់ប្តូរ Real-time
+  Stream<List<String>> streamAllowedReasons() {
+    return _policiesCollection
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.docs.isEmpty) {
+        return ['Sick', 'Personal issue', 'Vacation', 'Emergency', 'Other'];
+      }
+      final doc = snapshot.docs.first;
+      final data = doc.data() as Map<String, dynamic>;
+      final reasons = List<String>.from(data['allowedReasons'] ?? []);
+      // ✅ ធានាថា "Other" តែងតែមាន
+      if (!reasons.contains('Other')) {
+        reasons.add('Other');
+      }
+      return reasons.isEmpty 
+          ? ['Sick', 'Personal issue', 'Vacation', 'Emergency', 'Other']
+          : reasons;
+    });
   }
 }

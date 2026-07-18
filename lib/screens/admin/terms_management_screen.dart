@@ -229,7 +229,7 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
             'version': currentTerms?['version'] ?? '1.0.0',
           },
         );
-        _showSnackBar('📨 Notifications sent to all staff!', Colors.blue);
+        _showSnackBar('Notifications sent to all staff!', Colors.blue);
       }
       
       // Force refresh data from server (clear cache)

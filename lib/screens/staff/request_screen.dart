@@ -1,3 +1,5 @@
+// lib/screens/staff/request_screen.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,8 +8,10 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../services/request_service.dart';
 import '../../services/telegram_service.dart';
+import '../../services/policy_service.dart';
 import 'package:permission_system/app_fonts.dart';
 import 'staff_home_screen.dart';
+import '../../utils/responsive.dart'; // ✅ បន្ថែមបន្ទាត់នេះ
 
 class RequestScreen extends StatefulWidget {
   const RequestScreen({super.key});
@@ -24,6 +28,7 @@ class _RequestScreenState extends State<RequestScreen> {
   int totalDays = 0;
   bool _isSubmitting = false;
   final RequestService _requestService = RequestService();
+  final PolicyService _policyService = PolicyService();
 
   File? _selectedImage;
   String? _imageName;
@@ -39,10 +44,43 @@ class _RequestScreenState extends State<RequestScreen> {
   DateTime? _submitTime;
   String _submitTimeString = '';
 
+  // ✅ សម្រាប់ទុក Reason ពី Policy
+  List<String> _allowedReasons = ['Sick', 'Personal issue', 'Vacation', 'Emergency', 'Other'];
+  bool _isLoadingReasons = true;
+  StreamSubscription<List<String>>? _reasonsSubscription;
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _listenToPolicyChanges();
+  }
+
+  // ✅ ស្តាប់ការផ្លាស់ប្តូរ Real-time
+  void _listenToPolicyChanges() {
+    _reasonsSubscription = _policyService.streamAllowedReasons().listen(
+      (reasons) {
+        print('🔄 Real-time update: Reasons changed to $reasons');
+        if (mounted) {
+          setState(() {
+            _allowedReasons = reasons;
+            // ប្រសិនបើ Reason ដែលកំពុងជ្រើសរើសមិនមានទៀត
+            if (!_allowedReasons.contains(selectedReason) && _allowedReasons.isNotEmpty) {
+              selectedReason = _allowedReasons.first;
+            }
+            _isLoadingReasons = false;
+          });
+        }
+      },
+      onError: (error) {
+        print('❌ Error listening to policy changes: $error');
+        if (mounted) {
+          setState(() {
+            _isLoadingReasons = false;
+          });
+        }
+      },
+    );
   }
 
   Future<void> _loadUserData() async {
@@ -238,7 +276,7 @@ class _RequestScreenState extends State<RequestScreen> {
             startDate = null;
             endDate = null;
             totalDays = 0;
-            selectedReason = 'Sick';
+            selectedReason = _allowedReasons.isNotEmpty ? _allowedReasons.first : 'Sick';
             otherController.clear();
             _selectedImage = null;
             _imageName = null;
@@ -382,7 +420,7 @@ class _RequestScreenState extends State<RequestScreen> {
                     child: Text(
                       message,
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: Responsive.fontSize(context, AppFonts.md),
                         color: Colors.white,
                         fontWeight: FontWeight.w500,
                       ),
@@ -425,6 +463,8 @@ class _RequestScreenState extends State<RequestScreen> {
 
   @override
   void dispose() {
+    // ✅ បិទ Stream ពេលចាកចេញ
+    _reasonsSubscription?.cancel();
     _hideOverlayMessage();
     otherController.dispose();
     super.dispose();
@@ -433,35 +473,37 @@ class _RequestScreenState extends State<RequestScreen> {
   @override
   Widget build(BuildContext context) {
     const Color primary = Color(0xFF1A3B68);
+    final double spacing = Responsive.spacing(context);
+    final double padding = Responsive.isMobile(context) ? 16 : 24;
     
     return Scaffold(
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(padding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(bottom: 16, top: 8),
+              padding: EdgeInsets.only(bottom: spacing * 2, top: 8),
               child: Row(
                 children: [
                   Icon(
                     Icons.assignment_outlined,
                     color: primary,
-                    size: 28,
+                    size: Responsive.iconSize(context, 28),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: spacing),
                   Text(
                     "Leave Request",
                     style: TextStyle(
                       color: primary,
                       fontWeight: FontWeight.bold,
-                      fontSize: AppFonts.md + 5,
+                      fontSize: Responsive.fontSize(context, AppFonts.md + 5),
                     ),
                   ),
                 ],
               ),
             ),
-            const Divider(height: 24),
+            Divider(height: spacing * 3),
 
             // ============ CARD 1: SELECT DATE ============
             Card(
@@ -470,38 +512,46 @@ class _RequestScreenState extends State<RequestScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(spacing * 2),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       "Select Date",
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: Responsive.fontSize(context, AppFonts.md),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: spacing * 2),
                     
                     GestureDetector(
                       onTap: pickStartDate,
-                      child: _box(formatDate(startDate)),
+                      child: _buildDateBox(
+                        context, 
+                        formatDate(startDate),
+                        spacing,
+                      ),
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: spacing * 1.5),
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(spacing * 1.5),
                       decoration: BoxDecoration(
                         color: Colors.green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.calendar_today, color: Colors.green),
-                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.calendar_today, 
+                            color: Colors.green,
+                            size: Responsive.iconSize(context, 20),
+                          ),
+                          SizedBox(width: spacing),
                           Text(
                             "Total Days: 1 day",
                             style: TextStyle(
-                              fontSize: AppFonts.md,
+                              fontSize: Responsive.fontSize(context, AppFonts.md),
                               fontWeight: FontWeight.bold,
                               color: Colors.green,
                             ),
@@ -513,7 +563,7 @@ class _RequestScreenState extends State<RequestScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: spacing * 2.5),
 
             // ============ CARD 2: DOCUMENT REFERENCE ============
             Card(
@@ -522,25 +572,25 @@ class _RequestScreenState extends State<RequestScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(spacing * 2),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       "Document Reference (Optional)",
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: Responsive.fontSize(context, AppFonts.md),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: spacing * 1.5),
                     Material(
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: _pickImage,
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: EdgeInsets.symmetric(horizontal: spacing * 2, vertical: spacing * 1.5),
                           decoration: BoxDecoration(
                             border: Border.all(
                               color: _selectedImage != null ? Colors.green : Colors.grey.shade300,
@@ -554,16 +604,16 @@ class _RequestScreenState extends State<RequestScreen> {
                               Icon(
                                 Icons.image,
                                 color: _selectedImage != null ? Colors.green : Colors.grey.shade600,
-                                size: 24,
+                                size: Responsive.iconSize(context, 24),
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(width: spacing * 1.5),
                               Expanded(
                                 child: Text(
                                   _selectedImage != null 
                                       ? _imageName ?? 'Image selected' 
                                       : 'Select Image',
                                   style: TextStyle(
-                                    fontSize: AppFonts.md,
+                                    fontSize: Responsive.fontSize(context, AppFonts.md),
                                     color: _selectedImage != null ? Colors.black : Colors.grey.shade600,
                                     fontWeight: _selectedImage != null ? FontWeight.w500 : FontWeight.normal,
                                   ),
@@ -580,7 +630,7 @@ class _RequestScreenState extends State<RequestScreen> {
                               else
                                 Icon(
                                   Icons.arrow_forward_ios,
-                                  size: 16,
+                                  size: Responsive.iconSize(context, 16),
                                   color: Colors.grey.shade400,
                                 ),
                             ],
@@ -592,7 +642,7 @@ class _RequestScreenState extends State<RequestScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: spacing * 2.5),
 
             // ============ CARD 3: REASON FOR LEAVE ============
             Card(
@@ -601,26 +651,45 @@ class _RequestScreenState extends State<RequestScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(spacing * 2),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       "Reason for Leave",
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: Responsive.fontSize(context, AppFonts.md),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    _buildRadio("Sick"),
-                    _buildRadio("Personal issue"),
-                    _buildRadio("Vacation"),
-                    _buildRadio("Emergency"),
-                    _buildRadio("Other"),
-                    const SizedBox(height: 10),
+                    SizedBox(height: spacing),
                     
-                    // ✅ បង្ហាញ TextField តែពេលជ្រើសរើស "Other" ប៉ុណ្ណោះ (មាន border)
+                    // ✅ បង្ហាញ Loading ឬបញ្ជី Reason
+                    _isLoadingReasons
+                        ? Padding(
+                            padding: EdgeInsets.symmetric(vertical: spacing * 2),
+                            child: const Center(
+                              child: SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Column(
+                            children: [
+                              // ✅ បង្ហាញ Reason ពី Policy ទាំងអស់
+                              ..._allowedReasons.map((reason) => 
+                                _buildRadio(context, reason, spacing)
+                              ).toList(),
+                            ],
+                          ),
+                    
+                    SizedBox(height: spacing * 1.5),
+                    
+                    // ✅ បង្ហាញ TextField តែពេលជ្រើសរើស "Other"
                     Visibility(
                       visible: selectedReason == "Other",
                       child: Column(
@@ -629,11 +698,11 @@ class _RequestScreenState extends State<RequestScreen> {
                           Text(
                             "Please specify your reason:",
                             style: TextStyle(
-                              fontSize: AppFonts.md,
+                              fontSize: Responsive.fontSize(context, AppFonts.md),
                               color: Colors.grey.shade600,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: spacing),
                           Container(
                             decoration: BoxDecoration(
                               border: Border.all(
@@ -644,16 +713,16 @@ class _RequestScreenState extends State<RequestScreen> {
                             ),
                             child: TextField(
                               controller: otherController,
-                              style: TextStyle(fontSize: AppFonts.md),
+                              style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
                               decoration: InputDecoration(
                                 hintText: "Enter other reason...",
-                                hintStyle: TextStyle(fontSize: AppFonts.md),
+                                hintStyle: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
                                 border: InputBorder.none,
                                 filled: true,
                                 fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 14,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: spacing * 2,
+                                  vertical: spacing * 1.8,
                                 ),
                               ),
                               maxLines: 3,
@@ -668,12 +737,12 @@ class _RequestScreenState extends State<RequestScreen> {
               ),
             ),
             
-            const SizedBox(height: 30),
+            SizedBox(height: spacing * 4),
 
             // ============ SUBMIT BUTTON ============
             SizedBox(
               width: double.infinity,
-              height: 55,
+              height: Responsive.buttonHeight(context),
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submitRequest,
                 style: ElevatedButton.styleFrom(
@@ -685,10 +754,10 @@ class _RequestScreenState extends State<RequestScreen> {
                   ),
                 ),
                 child: _isSubmitting
-                    ? const SizedBox(
-                        height: 24,
-                        width: 24,
-                        child: CircularProgressIndicator(
+                    ? SizedBox(
+                        height: Responsive.iconSize(context, 24),
+                        width: Responsive.iconSize(context, 24),
+                        child: const CircularProgressIndicator(
                           strokeWidth: 2,
                           color: Colors.white,
                         ),
@@ -696,18 +765,21 @@ class _RequestScreenState extends State<RequestScreen> {
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.send, size: 20),
-                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.send, 
+                            size: Responsive.iconSize(context, 20)
+                          ),
+                          SizedBox(width: spacing),
                           Text(
                             "Submit Request",
-                            style: TextStyle(fontSize: AppFonts.md),
+                            style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
                           ),
                         ],
                       ),
               ),
             ),
             
-            const SizedBox(height: 100),
+            SizedBox(height: Responsive.isMobile(context) ? 80 : 100),
           ],
         ),
       ),
@@ -716,10 +788,10 @@ class _RequestScreenState extends State<RequestScreen> {
 
   // ============ HELPER WIDGETS ============
   
-  Widget _box(String text) {
+  Widget _buildDateBox(BuildContext context, String text, double spacing) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.all(spacing * 1.8),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.blue.shade200),
         borderRadius: BorderRadius.circular(12),
@@ -729,14 +801,14 @@ class _RequestScreenState extends State<RequestScreen> {
         children: [
           Icon(
             text == "Select Date" ? Icons.calendar_today : Icons.check_circle,
-            size: 18,
+            size: Responsive.iconSize(context, 18),
             color: text == "Select Date" ? Colors.grey : Colors.green,
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: spacing),
           Text(
             text,
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: Responsive.fontSize(context, AppFonts.md),
               color: text == "Select Date" ? Colors.grey : Colors.black,
             ),
           ),
@@ -745,7 +817,7 @@ class _RequestScreenState extends State<RequestScreen> {
     );
   }
 
-  Widget _buildRadio(String title) {
+  Widget _buildRadio(BuildContext context, String title, double spacing) {
     return InkWell(
       onTap: () {
         setState(() {
@@ -756,7 +828,7 @@ class _RequestScreenState extends State<RequestScreen> {
         });
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: EdgeInsets.symmetric(vertical: spacing * 0.5),
         child: Row(
           children: [
             Radio<String>(
@@ -774,7 +846,7 @@ class _RequestScreenState extends State<RequestScreen> {
             ),
             Text(
               title,
-              style: TextStyle(fontSize: AppFonts.md),
+              style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
             ),
           ],
         ),

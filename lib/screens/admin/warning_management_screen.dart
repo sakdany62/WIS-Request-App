@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../services/warning_service.dart';
 import '../../app_fonts.dart';
+import '../../utils/responsive.dart'; // ✅ បន្ថែម
 
 class WarningManagementScreen extends StatefulWidget {
   const WarningManagementScreen({super.key});
@@ -93,7 +94,10 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: TextStyle(fontSize: AppFonts.md)),
+        content: Text(
+          message, 
+          style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
+        ),
         backgroundColor: color,
         duration: const Duration(seconds: 3),
       ),
@@ -102,6 +106,14 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ប្រើ Responsive
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, AppFonts.md);
+    final double spacing = Responsive.spacing(context);
+    final EdgeInsets padding = Responsive.padding(context);
+    final double buttonHeight = Responsive.buttonHeight(context);
+    final double iconSize = Responsive.iconSize(context, 22);
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -109,65 +121,86 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
           title: Text(
             'Warning Management',
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: isMobile ? 16 : 18,
               color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
           ),
           backgroundColor: const Color(0xFF173B69),
           foregroundColor: Colors.white,
-          bottom: const TabBar(
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'Create Warning'),
-              Tab(text: 'Active Warnings'),
+              Tab(
+                child: Text(
+                  'Create Warning',
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 14),
+                  ),
+                ),
+              ),
+              Tab(
+                child: Text(
+                  'Active Warnings',
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 14),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            _buildCreateWarningTab(),
-            _buildActiveWarningsTab(),
+            _buildCreateWarningTab(context, fontSize, spacing, padding, buttonHeight, iconSize),
+            _buildActiveWarningsTab(context, fontSize, spacing, padding),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCreateWarningTab() {
+  Widget _buildCreateWarningTab(
+    BuildContext context,
+    double fontSize,
+    double spacing,
+    EdgeInsets padding,
+    double buttonHeight,
+    double iconSize,
+  ) {
+    final bool isMobile = Responsive.isMobile(context);
+    
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title
           Text(
             'Create New Warning',
             style: TextStyle(
-              fontSize: AppFonts.md + 4,
+              fontSize: isMobile ? fontSize + 2 : fontSize + 4,
               fontWeight: FontWeight.bold,
               color: const Color(0xFF173B69),
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: spacing * 2.5),
 
           // Title Field
           Text(
             'Title *',
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: fontSize,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing),
           TextField(
             controller: _titleController,
             decoration: InputDecoration(
               hintText: 'Enter warning title',
               hintStyle: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: fontSize,
                 color: Colors.grey.shade400,
               ),
-              // ✅ Added border
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
@@ -191,37 +224,36 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
               ),
               filled: true,
               fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: spacing * 2,
+                vertical: isMobile ? 12 : 16,
               ),
             ),
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: fontSize,
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: spacing * 2),
 
           // Message Field
           Text(
             'Message *',
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: fontSize,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing),
           TextField(
             controller: _messageController,
-            maxLines: 5,
+            maxLines: isMobile ? 4 : 5,
             decoration: InputDecoration(
               hintText: 'Enter warning message',
               hintStyle: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: fontSize,
                 color: Colors.grey.shade400,
               ),
-              // ✅ Added border
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
@@ -245,31 +277,30 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
               ),
               filled: true,
               fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: spacing * 2,
+                vertical: isMobile ? 12 : 16,
               ),
             ),
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: fontSize,
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: spacing * 2),
 
           // Severity Dropdown
           Text(
             'Severity',
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: fontSize,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: spacing * 2),
             decoration: BoxDecoration(
-              // ✅ Added border
               border: Border.all(
                 color: Colors.grey.shade300,
                 width: 1.5,
@@ -288,15 +319,15 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                         Icon(
                           _getSeverityIcon(severity),
                           color: _getSeverityColor(severity),
-                          size: 20,
+                          size: Responsive.iconSize(context, 20),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: spacing),
                         Text(
                           severity.toUpperCase(),
                           style: TextStyle(
                             color: _getSeverityColor(severity),
                             fontWeight: FontWeight.w500,
-                            fontSize: AppFonts.md,
+                            fontSize: fontSize,
                           ),
                         ),
                       ],
@@ -311,27 +342,26 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                 isExpanded: true,
                 dropdownColor: Colors.white,
                 style: TextStyle(
-                  fontSize: AppFonts.md,
+                  fontSize: fontSize,
                   color: Colors.black87,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: spacing * 2),
 
           // Audience Dropdown
           Text(
             'Target Audience',
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: fontSize,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: spacing * 2),
             decoration: BoxDecoration(
-              // ✅ Added border
               border: Border.all(
                 color: Colors.grey.shade300,
                 width: 1.5,
@@ -349,7 +379,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                       audience.toUpperCase(),
                       style: TextStyle(
                         fontWeight: FontWeight.w500,
-                        fontSize: AppFonts.md,
+                        fontSize: fontSize,
                       ),
                     ),
                   );
@@ -362,29 +392,28 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                 isExpanded: true,
                 dropdownColor: Colors.white,
                 style: TextStyle(
-                  fontSize: AppFonts.md,
+                  fontSize: fontSize,
                   color: Colors.black87,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: spacing * 2),
 
           // Expiry Date
           Text(
             'Expiry Date (Optional)',
             style: TextStyle(
-              fontSize: AppFonts.md,
+              fontSize: fontSize,
               fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: spacing),
           GestureDetector(
             onTap: _pickExpiryDate,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: EdgeInsets.symmetric(horizontal: spacing * 2, vertical: isMobile ? 12 : 16),
               decoration: BoxDecoration(
-                // ✅ Added border
                 border: Border.all(
                   color: Colors.grey.shade300,
                   width: 1.5,
@@ -397,16 +426,16 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                   Icon(
                     Icons.calendar_today,
                     color: Colors.grey.shade600,
-                    size: 20,
+                    size: Responsive.iconSize(context, 20),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: spacing * 1.5),
                   Expanded(
                     child: Text(
                       _expiresAtController.text.isEmpty
                           ? 'No expiry date set'
                           : _expiresAtController.text,
                       style: TextStyle(
-                        fontSize: AppFonts.md,
+                        fontSize: fontSize,
                         color: _expiresAtController.text.isEmpty
                             ? Colors.grey.shade500
                             : Colors.black87,
@@ -417,7 +446,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                     IconButton(
                       icon: Icon(
                         Icons.close,
-                        size: 20,
+                        size: Responsive.iconSize(context, 20),
                         color: Colors.grey.shade600,
                       ),
                       onPressed: () {
@@ -433,11 +462,11 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: spacing * 3),
 
           // Info Box
           Container(
-            padding: const EdgeInsets.all(14),
+            padding: EdgeInsets.all(spacing * 1.8),
             decoration: BoxDecoration(
               color: Colors.blue.shade50,
               borderRadius: BorderRadius.circular(12),
@@ -451,14 +480,14 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                 Icon(
                   Icons.info_outline,
                   color: Colors.blue.shade700,
-                  size: 22,
+                  size: Responsive.iconSize(context, 22),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: spacing * 1.5),
                 Expanded(
                   child: Text(
                     'Warning will be shown to users when they open the app',
                     style: TextStyle(
-                      fontSize: AppFonts.md,
+                      fontSize: fontSize,
                       color: Colors.blue.shade700,
                       height: 1.4,
                     ),
@@ -467,12 +496,12 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: spacing * 3),
 
           // Create Button
           SizedBox(
             width: double.infinity,
-            height: 55,
+            height: buttonHeight,
             child: ElevatedButton(
               onPressed: _isCreating ? null : _createWarning,
               style: ElevatedButton.styleFrom(
@@ -485,10 +514,10 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                 disabledBackgroundColor: Colors.grey.shade400,
               ),
               child: _isCreating
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
+                  ? SizedBox(
+                      height: Responsive.iconSize(context, 24),
+                      width: Responsive.iconSize(context, 24),
+                      child: const CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Colors.white,
                       ),
@@ -496,12 +525,12 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.add_alert, size: 22),
-                        const SizedBox(width: 10),
+                        Icon(Icons.add_alert, size: Responsive.iconSize(context, 22)),
+                        SizedBox(width: spacing),
                         Text(
                           'Create Warning',
                           style: TextStyle(
-                            fontSize: AppFonts.md,
+                            fontSize: fontSize,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -509,13 +538,20 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                     ),
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: Responsive.isMobile(context) ? 60 : 80),
         ],
       ),
     );
   }
 
-  Widget _buildActiveWarningsTab() {
+  Widget _buildActiveWarningsTab(
+    BuildContext context,
+    double fontSize,
+    double spacing,
+    EdgeInsets padding,
+  ) {
+    final bool isMobile = Responsive.isMobile(context);
+    
     return StreamBuilder<QuerySnapshot>(
       stream: WarningService.getAllWarnings(),
       builder: (context, snapshot) {
@@ -528,7 +564,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                 const SizedBox(height: 16),
                 Text(
                   'Error: ${snapshot.error}',
-                  style: TextStyle(color: Colors.red, fontSize: AppFonts.md),
+                  style: TextStyle(color: Colors.red, fontSize: fontSize),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
@@ -545,7 +581,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                   ),
                   child: Text(
                     'Retry',
-                    style: TextStyle(fontSize: AppFonts.md),
+                    style: TextStyle(fontSize: fontSize),
                   ),
                 ),
               ],
@@ -569,32 +605,32 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(spacing * 2.5),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.warning_amber_outlined,
-                    size: 64,
+                    size: Responsive.iconSize(context, 64),
                     color: Colors.grey,
                   ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: spacing * 2),
                 Text(
                   'No warnings created yet',
                   style: TextStyle(
                     color: Colors.grey,
-                    fontSize: AppFonts.md + 2,
+                    fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: spacing),
                 Text(
                   'Start by creating your first warning',
                   style: TextStyle(
                     color: Colors.grey.shade400,
-                    fontSize: AppFonts.md,
+                    fontSize: fontSize,
                   ),
                 ),
               ],
@@ -613,20 +649,20 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
             // Summary header
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(horizontal: spacing * 2, vertical: spacing * 1.5),
               color: Colors.grey.shade50,
               child: Row(
                 children: [
                   Icon(
                     Icons.info_outline,
-                    size: 20,
+                    size: Responsive.iconSize(context, 20),
                     color: Colors.grey.shade600,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: spacing),
                   Text(
                     'Total: ${warnings.length} | Active: $activeCount',
                     style: TextStyle(
-                      fontSize: AppFonts.md,
+                      fontSize: fontSize,
                       color: Colors.grey.shade600,
                       fontWeight: FontWeight.w500,
                     ),
@@ -636,7 +672,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
             ),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(spacing * 1.5),
                 itemCount: warnings.length,
                 itemBuilder: (context, index) {
                   final doc = warnings[index];
@@ -650,7 +686,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                   final readCount = readBy.length;
 
                   return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
+                    margin: EdgeInsets.only(bottom: spacing),
                     elevation: isActive ? 2 : 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -672,7 +708,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                         data['title'] ?? 'Untitled',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: AppFonts.md,
+                          fontSize: fontSize,
                           decoration: isActive ? null : TextDecoration.lineThrough,
                           color: isActive ? Colors.black87 : Colors.grey.shade500,
                         ),
@@ -680,43 +716,48 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const SizedBox(height: 4),
+                          SizedBox(height: spacing / 2),
                           Text(
                             data['message'] ?? 'No message',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: AppFonts.md,
+                              fontSize: fontSize,
                               color: isActive ? Colors.grey.shade700 : Colors.grey.shade400,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          SizedBox(height: spacing * 0.8),
                           Wrap(
-                            spacing: 4,
-                            runSpacing: 4,
+                            spacing: spacing / 2,
+                            runSpacing: spacing / 2,
                             children: [
                               _buildChip(
+                                context,
                                 severity.toUpperCase(),
                                 color.withOpacity(0.15),
                                 color,
                               ),
                               _buildChip(
+                                context,
                                 'Audience: ${data['targetAudience'] ?? 'all'}',
                                 Colors.grey.shade200,
                                 Colors.grey.shade700,
                               ),
                               if (data['expiresAt'] != null)
                                 _buildChip(
+                                  context,
                                   'Expires: ${_formatDate(data['expiresAt'])}',
                                   Colors.orange.shade50,
                                   Colors.orange.shade700,
                                 ),
                               _buildChip(
+                                context,
                                 isActive ? 'Active' : 'Inactive',
                                 isActive ? Colors.green.shade50 : Colors.red.shade50,
                                 isActive ? Colors.green.shade700 : Colors.red.shade700,
                               ),
                               _buildChip(
+                                context,
                                 'Read: $readCount',
                                 Colors.blue.shade50,
                                 Colors.blue.shade700,
@@ -737,13 +778,13 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                                 Icon(
                                   isActive ? Icons.pause : Icons.play_arrow,
                                   color: isActive ? Colors.orange : Colors.green,
-                                  size: 20,
+                                  size: Responsive.iconSize(context, 20),
                                 ),
-                                const SizedBox(width: 8),
+                                SizedBox(width: spacing),
                                 Text(
                                   isActive ? 'Deactivate' : 'Activate',
                                   style: TextStyle(
-                                    fontSize: AppFonts.md,
+                                    fontSize: fontSize,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -755,11 +796,11 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                             child: Row(
                               children: [
                                 const Icon(Icons.visibility, size: 20, color: Colors.blue),
-                                const SizedBox(width: 8),
+                                SizedBox(width: spacing),
                                 Text(
                                   'View Readers',
                                   style: TextStyle(
-                                    fontSize: AppFonts.md,
+                                    fontSize: fontSize,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -771,11 +812,11 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                             child: Row(
                               children: [
                                 const Icon(Icons.delete, size: 20, color: Colors.red),
-                                const SizedBox(width: 8),
+                                SizedBox(width: spacing),
                                 Text(
                                   'Delete',
                                   style: TextStyle(
-                                    fontSize: AppFonts.md,
+                                    fontSize: fontSize,
                                     color: Colors.red,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -850,6 +891,10 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
       }
     }
 
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, AppFonts.md);
+    final double spacing = Responsive.spacing(context);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -859,7 +904,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
         title: Text(
           'Readers (${readers.length})',
           style: TextStyle(
-            fontSize: AppFonts.md + 2,
+            fontSize: isMobile ? fontSize + 2 : fontSize + 4,
             fontWeight: FontWeight.bold,
             color: const Color(0xFF173B69),
           ),
@@ -879,21 +924,21 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                     style: TextStyle(
                       color: const Color(0xFF173B69),
                       fontWeight: FontWeight.bold,
-                      fontSize: AppFonts.md,
+                      fontSize: fontSize,
                     ),
                   ),
                 ),
                 title: Text(
                   reader['name']!,
                   style: TextStyle(
-                    fontSize: AppFonts.md,
+                    fontSize: fontSize,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 subtitle: Text(
                   'ID: ${reader['id']}',
                   style: TextStyle(
-                    fontSize: AppFonts.md,
+                    fontSize: fontSize,
                     color: Colors.grey.shade600,
                   ),
                 ),
@@ -910,7 +955,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
             child: Text(
               'Close',
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: fontSize,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -920,9 +965,14 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
     );
   }
 
-  Widget _buildChip(String label, Color bgColor, Color textColor) {
+  Widget _buildChip(BuildContext context, String label, Color bgColor, Color textColor) {
+    final double fontSize = Responsive.fontSize(context, AppFonts.md);
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.spacing(context),
+        vertical: Responsive.spacing(context) * 0.6,
+      ),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
@@ -934,7 +984,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
       child: Text(
         label,
         style: TextStyle(
-          fontSize: AppFonts.md * 0.7,
+          fontSize: fontSize * 0.7,
           color: textColor,
           fontWeight: FontWeight.w600,
         ),
@@ -943,6 +993,9 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
   }
 
   Future<void> _confirmDelete(String warningId) async {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, AppFonts.md);
+    
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -952,7 +1005,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
         title: Text(
           'Delete Warning',
           style: TextStyle(
-            fontSize: AppFonts.md + 2,
+            fontSize: isMobile ? fontSize + 2 : fontSize + 4,
             fontWeight: FontWeight.bold,
             color: Colors.red.shade700,
           ),
@@ -960,7 +1013,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
         content: Text(
           'Are you sure you want to delete this warning? This action cannot be undone.',
           style: TextStyle(
-            fontSize: AppFonts.md,
+            fontSize: fontSize,
             height: 1.5,
           ),
         ),
@@ -970,7 +1023,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
             child: Text(
               'Cancel',
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: fontSize,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -983,7 +1036,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
             child: Text(
               'Delete',
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: fontSize,
                 fontWeight: FontWeight.bold,
               ),
             ),

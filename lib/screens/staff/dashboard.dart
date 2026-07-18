@@ -4,10 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../app_fonts.dart';
-import '../../utils/responsive.dart'; // ✅ Import Responsive
+import '../../utils/responsive.dart';
 import 'staff_home_screen.dart';
 import 'request_screen.dart';
 import 'settings_screen.dart';
+
+// ❌ លុប import ទាំងនេះចេញ
+// import 'manager_home_screen.dart';
+// import 'all_permission_today.dart' as permission;
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -31,14 +35,13 @@ class _DashboardState extends State<Dashboard> {
     super.initState();
     _pages = [
       const StaffHomeScreen(),
-      const RequestScreen(), // ✅ RequestScreen ឥឡូវអាចប្រើ const បាន
+      const RequestScreen(),
       const SettingsScreen(),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 24);
@@ -64,7 +67,6 @@ class _DashboardState extends State<Dashboard> {
   }
 
   void _showExitDialog(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
 
@@ -191,11 +193,12 @@ class _DashboardState extends State<Dashboard> {
           setState(() {
             _currentIndex = index;
           });
-          if (index == 0) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              StaffHomeScreenStateManager.refreshData();
-            });
-          }
+          // ❌ លុបបន្ទាត់នេះចេញ
+          // if (index == 0) {
+          //   WidgetsBinding.instance.addPostFrameCallback((_) {
+          //     StaffHomeScreenStateManager.refreshData();
+          //   });
+          // }
         },
         child: Container(
           padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8),

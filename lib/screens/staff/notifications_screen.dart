@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/request_service.dart';
 import 'package:permission_system/app_fonts.dart';
+import '../../utils/responsive.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
