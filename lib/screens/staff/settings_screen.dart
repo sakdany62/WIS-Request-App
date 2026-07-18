@@ -6,11 +6,12 @@ import 'package:provider/provider.dart';
 import '../../app_fonts.dart';
 import '../../providers/auth_provider.dart' as app_auth;
 import '../../utils/responsive.dart';
-import '../../services/terms_service.dart'; // ✅ Add this
+import '../../services/terms_service.dart';
 import '../../services/warning_service.dart';
 import '../../widgets/warning_popup.dart';
 import 'warning_popup_settings_screen.dart';
 import '../admin/warning_management_screen.dart'; 
+import '../admin/terms_read_tracking_screen.dart'; 
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -43,7 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Responsive
+    //  Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -247,7 +248,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             );
           } else if (title == 'Terms & Conditions') {
-            // ✅ Navigate to dynamic Terms & Conditions
+            // Navigate to dynamic Terms & Conditions
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -407,12 +408,24 @@ class TermsConditionsScreen extends StatefulWidget {
 class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
   Map<String, dynamic>? _termsData;
   bool _isLoading = true;
+  bool _isMarkingRead = false;
+  bool _hasRead = false;
+  bool _isCheckboxChecked = false;
   String? _errorMessage;
+  String? _staffId;
 
   @override
   void initState() {
     super.initState();
+    _getCurrentUser();
     _loadTerms();
+  }
+
+  void _getCurrentUser() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _staffId = user.uid;
+    }
   }
 
   Future<void> _loadTerms() async {
@@ -427,11 +440,88 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
         _termsData = terms;
         _isLoading = false;
       });
+      
+      if (terms != null && _staffId != null) {
+        _checkIfRead(terms['id']);
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = 'Failed to load terms: $e';
       });
+    }
+  }
+
+  Future<void> _checkIfRead(String termsId) async {
+    try {
+      final hasRead = await TermsService.hasStaffReadTerms(_staffId!, termsId);
+      setState(() {
+        _hasRead = hasRead;
+        _isCheckboxChecked = hasRead;
+      });
+    } catch (e) {
+      print('Error checking read status: $e');
+    }
+  }
+
+  Future<void> _onCheckboxChanged(bool? value) async {
+    if (value == null) return;
+    
+    if (_staffId == null || _termsData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to confirm reading'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_hasRead) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You have already confirmed reading. Cannot uncheck.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isCheckboxChecked = value;
+    });
+
+    if (value) {
+      setState(() => _isMarkingRead = true);
+
+      try {
+        final termsId = _termsData!['id'];
+        await TermsService.markTermsAsRead(_staffId!, termsId);
+        
+        setState(() {
+          _hasRead = true;
+          _isMarkingRead = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(' Thank you for confirming you have read the Terms & Conditions'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } catch (e) {
+        setState(() {
+          _isCheckboxChecked = false;
+          _isMarkingRead = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to confirm: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -602,24 +692,6 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                                         vertical: 4,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.blue.shade50,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        'Version: ${_termsData!['version'] ?? 'N/A'}',
-                                        style: TextStyle(
-                                          fontSize: isMobile ? fontSize * 0.85 : AppFonts.md,
-                                          color: Colors.blue.shade700,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
                                         color: Colors.green.shade50,
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -650,43 +722,63 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                             );
                           }).toList(),
 
-                          SizedBox(height: isMobile ? 16 : 24),
+                          SizedBox(height: isMobile ? 24 : 32),
 
-                          // Agreement Button
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.all(isMobile ? 12 : 16),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
-                              border: Border.all(
-                                color: Colors.blue.shade200,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.check_circle,
-                                  color: Colors.blue.shade700,
-                                  size: isMobile ? 20 : 24,
+                        
+                          if (_staffId != null)
+                            Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.all(isMobile ? 12 : 16),
+                              margin: EdgeInsets.only(bottom: spacing),
+                              decoration: BoxDecoration(
+                                color: _hasRead ? Colors.green.shade50 : Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+                                border: Border.all(
+                                  color: _hasRead ? Colors.green.shade200 : Colors.orange.shade200,
+                                  width: 1,
                                 ),
-                                SizedBox(width: isMobile ? 8 : 12),
-                                Expanded(
-                                  child: Text(
-                                    'By using this App, you agree to these Terms & Conditions.',
-                                    style: TextStyle(
-                                      fontSize: isMobile ? fontSize : AppFonts.md,
-                                      color: Colors.blue.shade700,
-                                      fontWeight: FontWeight.w500,
+                              ),
+                              child: Row(
+                                children: [
+                                  // Checkbox
+                                  if (!_isMarkingRead)
+                                    Checkbox(
+                                      value: _isCheckboxChecked,
+                                      onChanged: _onCheckboxChanged,
+                                      activeColor: Colors.green,
+                                      checkColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      side: BorderSide(
+                                        color: _hasRead ? Colors.green : Colors.orange,
+                                        width: 2,
+                                      ),
+                                    )
+                                  else
+                                    const SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFF1E457E),
+                                      ),
+                                    ),
+                                  SizedBox(width: spacing),
+                                  Expanded(
+                                    child: Text(
+                                      _hasRead 
+                                          ? ' You have confirmed reading these Terms & Conditions' 
+                                          : ' Please check the box to confirm you have read and agree to these Terms & Conditions',
+                                      style: TextStyle(
+                                        fontSize: isMobile ? fontSize : AppFonts.md,
+                                        color: _hasRead ? Colors.green.shade700 : Colors.orange.shade700,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-
-                          SizedBox(height: isMobile ? 24 : 32),
 
                           // Back to Settings Button
                           SizedBox(
@@ -767,7 +859,6 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double iconSize = Responsive.iconSize(context, 70);

@@ -247,31 +247,35 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
+    // ✅ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 28);
     final double gridSpacing = isMobile ? 6 : 12;
 
-    // ✅ កំណត់ crossAxisCount = 3 ជានិច្ច
+    // ✅ Grid: 3 columns, 2 rows = 6 cards
     const int crossAxisCount = 3;
+    const int rowCount = 2;
 
-    // ✅ គណនាកម្ពស់ Grid - ប្រើតែ 50% នៃអេក្រង់
+    // ✅ Get screen dimensions
     final double screenHeight = MediaQuery.of(context).size.height;
     final double screenWidth = MediaQuery.of(context).size.width;
-    final double headerHeight = isMobile ? 80 : 120;
     final double safeAreaTop = MediaQuery.of(context).padding.top;
+    final double safeAreaBottom = MediaQuery.of(context).padding.bottom;
     
-    // ✅ គណនាកម្ពស់ដែលនៅសល់ ហើយយកតែ 50%
-    final double remainingHeight = screenHeight - safeAreaTop - headerHeight - (spacing * 2);
-    final double availableHeight = remainingHeight * 0.5; // ✅ ត្រឹម 50%
+    // ✅ Header height (profile + name) - Increased size
+    final double headerHeight = isMobile ? 90 : 120;
     
-    // គណនា childAspectRatio
-    final double gridHeight = availableHeight - (spacing * 1.5);
-    final double gridWidth = screenWidth - (spacing * 3);
+    // ✅ Calculate available space (70% of screen)
+    final double totalAvailableHeight = screenHeight - safeAreaTop - safeAreaBottom - (spacing * 2);
+    final double gridHeight = totalAvailableHeight * 0.7; // ✅ 70% of available space
+    
+    // ✅ Calculate childAspectRatio for 3x2 grid
+    final double horizontalPadding = spacing * 2;
+    final double gridWidth = screenWidth - horizontalPadding;
     final double itemWidth = (gridWidth - (gridSpacing * (crossAxisCount - 1))) / crossAxisCount;
-    final double itemHeight = (gridHeight - (gridSpacing * (2 - 1))) / 2; // 2 rows
+    final double itemHeight = (gridHeight - (gridSpacing * (rowCount - 1))) / rowCount;
     final double childAspectRatio = itemWidth / (itemHeight > 0 ? itemHeight : 1);
 
     if (isLoading) {
@@ -330,18 +334,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
+            // ✅ Header with larger size
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(
-                vertical: isMobile ? 8 : 16,
-                horizontal: spacing,
+                vertical: isMobile ? 16 : 24,
+                horizontal: spacing * 1.5,
               ),
               decoration: const BoxDecoration(
                 color: Color(0xFF173B69),
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
                 ),
               ),
               child: _AdminUserHeader(
@@ -356,7 +360,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 iconSize: iconSize,
               ),
             ),
-            // Grid content - បង្ហាញតែពាក់កណ្តាលអេក្រង់
+            
+            // ✅ Grid content - 70% of screen
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
@@ -365,13 +370,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 },
                 child: SingleChildScrollView(
                   physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.all(spacing * 2),
+                  padding: EdgeInsets.all(spacing * 1.5),
                   child: SizedBox(
-                    height: availableHeight,
+                    height: gridHeight,
+                    width: double.infinity,
                     child: _buildStatsGrid(
                       crossAxisCount: crossAxisCount,
                       gridSpacing: gridSpacing,
-                      childAspectRatio: childAspectRatio > 0 ? childAspectRatio : 1.0,
+                      childAspectRatio: childAspectRatio > 0 ? childAspectRatio : 1.2,
                       iconSize: iconSize,
                       fontSize: fontSize,
                       isMobile: isMobile,
@@ -380,8 +386,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 ),
               ),
             ),
-            // ✅ បន្ថែម Spacer ដើម្បីអោយមានកន្លែងទំនេរខាងក្រោម
-            const Spacer(),
           ],
         ),
       ),
@@ -481,7 +485,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     return GestureDetector(
       onTap: () => _navigateToDetail(type),
       child: Container(
-        padding: EdgeInsets.all(isMobile ? 4 : 10),
+        padding: EdgeInsets.all(isMobile ? 6 : 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -499,22 +503,22 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             Icon(
               icon,
               color: color,
-              size: isMobile ? iconSize - 10 : iconSize,
+              size: isMobile ? iconSize - 6 : iconSize,
             ),
-            SizedBox(height: isMobile ? 1 : 4),
+            SizedBox(height: isMobile ? 2 : 4),
             Text(
               value,
               style: TextStyle(
-                fontSize: isMobile ? fontSize - 2 : fontSize + 2,
+                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
-            SizedBox(height: isMobile ? 0 : 2),
+            SizedBox(height: isMobile ? 1 : 2),
             Text(
               label,
               style: TextStyle(
-                fontSize: isMobile ? fontSize * 0.55 : fontSize,
+                fontSize: isMobile ? fontSize * 0.6 : fontSize,
                 color: Colors.grey[600],
               ),
               textAlign: TextAlign.center,
@@ -590,22 +594,24 @@ class _AdminUserHeader extends StatelessWidget {
 
     return Row(
       children: [
+        // ✅ Profile Avatar - Larger
         GestureDetector(
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const ProfileScreen()),
           ),
           child: CircleAvatar(
-            radius: isMobile ? 20 : 40,
+            radius: isMobile ? 28 : 42,
             backgroundColor: avatarBg,
             child: Icon(
               Icons.admin_panel_settings,
-              size: isMobile ? 20 : 40,
+              size: isMobile ? 28 : 42,
               color: avatarIcon,
             ),
           ),
         ),
-        SizedBox(width: isMobile ? spacing / 2 : spacing),
+        SizedBox(width: isMobile ? spacing : spacing * 1.5),
+        // ✅ User Info - Larger text
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -613,8 +619,8 @@ class _AdminUserHeader extends StatelessWidget {
             children: [
               if (isLoading)
                 SizedBox(
-                  height: 14,
-                  width: 14,
+                  height: 16,
+                  width: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     color: useWhiteTheme ? Colors.white : const Color(0xFF173B69),
@@ -625,22 +631,23 @@ class _AdminUserHeader extends StatelessWidget {
                   adminName,
                   style: TextStyle(
                     color: textColor,
-                    fontSize: isMobile ? fontSize - 2 : fontSize + 2,
+                    fontSize: isMobile ? fontSize + 2 : fontSize + 6,
                     fontWeight: FontWeight.bold,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
-              SizedBox(height: spacing / 4),
+              SizedBox(height: spacing / 3),
               Text(
                 'Administrator',
                 style: TextStyle(
                   color: subTextColor,
-                  fontSize: isMobile ? fontSize * 0.7 : fontSize,
+                  fontSize: isMobile ? fontSize * 0.75 : fontSize + 2,
                 ),
               ),
             ],
           ),
         ),
+        // ✅ Notification Bell - Larger
         Stack(
           children: [
             IconButton(
@@ -658,30 +665,30 @@ class _AdminUserHeader extends StatelessWidget {
               icon: Icon(
                 Icons.notifications_none,
                 color: iconColor,
-                size: isMobile ? iconSize - 12 : iconSize,
+                size: isMobile ? iconSize + 4 : iconSize + 8,
               ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
             if (unreadCount > 0)
               Positioned(
-                right: 0,
-                top: 0,
+                right: 2,
+                top: 2,
                 child: Container(
-                  padding: const EdgeInsets.all(2),
+                  padding: const EdgeInsets.all(3),
                   decoration: const BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
                   ),
                   constraints: BoxConstraints(
-                    minWidth: isMobile ? 12 : 18,
-                    minHeight: isMobile ? 12 : 18,
+                    minWidth: isMobile ? 14 : 20,
+                    minHeight: isMobile ? 14 : 20,
                   ),
                   child: Text(
                     unreadCount > 99 ? '99+' : unreadCount.toString(),
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: isMobile ? 7 : 10,
+                      fontSize: isMobile ? 8 : 11,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
@@ -690,6 +697,7 @@ class _AdminUserHeader extends StatelessWidget {
               ),
           ],
         ),
+        SizedBox(width: isMobile ? 4 : 8),
       ],
     );
   }

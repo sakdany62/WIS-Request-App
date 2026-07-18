@@ -2,9 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/terms_service.dart';
+import '../../services/notification_service.dart'; 
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
+import 'terms_read_tracking_screen.dart';
 
 class TermsManagementScreen extends StatefulWidget {
   const TermsManagementScreen({super.key});
@@ -32,19 +35,38 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
   Future<void> _loadCurrentTerms() async {
     setState(() => _isLoading = true);
     try {
+      // Clear old data first
+      _sections = [];
+      _termsId = '';
+      _titleController.clear();
+      
       final terms = await TermsService.getCurrentTerms();
       if (terms != null) {
+        // Convert sections from List<Map<String, dynamic>> to List<Map<String, String>>
+        List<Map<String, String>> convertedSections = [];
+        final sectionsData = terms['sections'] as List? ?? [];
+        for (var section in sectionsData) {
+          if (section is Map<String, dynamic>) {
+            convertedSections.add({
+              'title': section['title']?.toString() ?? '',
+              'content': section['content']?.toString() ?? '',
+            });
+          }
+        }
+        
         setState(() {
-          _titleController.text = terms['title'] ?? '';
-          _sections = List<Map<String, String>>.from(terms['sections'] ?? []);
-          _termsId = terms['id'] ?? '';
+          _titleController.text = terms['title']?.toString() ?? '';
+          _sections = convertedSections;
+          _termsId = terms['id']?.toString() ?? '';
           _isLoading = false;
         });
+        print(' Loaded terms: ${terms['title']} (ID: ${terms['id']})');
       } else {
         setState(() => _isLoading = false);
+        print('ℹ️ No terms found');
       }
     } catch (e) {
-      print('Error loading terms: $e');
+      print('❌ Error loading terms: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -157,6 +179,9 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
       }
 
       final now = DateFormat('dd MMM yyyy').format(DateTime.now());
+      String notificationTitle = '';
+      String notificationBody = '';
+      String? termsId;
       
       if (_termsId.isNotEmpty) {
         // Update existing terms
@@ -167,7 +192,10 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
           sections: _sections,
           lastUpdated: now,
         );
-        _showSnackBar('✅ Terms & Conditions updated successfully!', Colors.green);
+        termsId = _termsId;
+        notificationTitle = ' Terms & Conditions Updated';
+        notificationBody = 'Admin has updated the Terms & Conditions. Please review the changes.';
+        _showSnackBar(' Terms & Conditions updated successfully!', Colors.green);
       } else {
         // Create new terms
         await TermsService.createTerms(
@@ -177,11 +205,39 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
           version: '1.0.0',
           lastUpdated: now,
         );
-        _showSnackBar('✅ Terms & Conditions created successfully!', Colors.green);
+        notificationTitle = ' New Terms & Conditions Available';
+        notificationBody = 'Admin has published new Terms & Conditions. Please read and confirm.';
+        _showSnackBar('Terms & Conditions created successfully!', Colors.green);
       }
       
-      // Refresh data
+      // ✅ Get the current terms ID after save
+      final currentTerms = await TermsService.getCurrentTerms();
+      if (currentTerms != null) {
+        termsId = currentTerms['id'];
+      }
+      
+      // ✅ Send notification to all staff
+      if (termsId != null) {
+        await NotificationService.sendNotificationToAllStaff(
+          title: notificationTitle,
+          body: notificationBody,
+          type: 'terms_update',
+          termsId: termsId,
+          additionalData: {
+            'title': title,
+            'lastUpdated': now,
+            'version': currentTerms?['version'] ?? '1.0.0',
+          },
+        );
+        _showSnackBar('📨 Notifications sent to all staff!', Colors.blue);
+      }
+      
+      // Force refresh data from server (clear cache)
+      await TermsService.clearCache();
+      
+      // Load current terms again
       await _loadCurrentTerms();
+      
       setState(() => _isSaving = false);
     } catch (e) {
       _showSnackBar('Error: $e', Colors.red);
@@ -240,6 +296,25 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
         actions: [
+          // View Read Status Button
+          if (_termsId.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.people_alt, color: Colors.white),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => TermsReadTrackingScreen(
+                      termsId: _termsId,
+                      termsTitle: _titleController.text.trim().isNotEmpty 
+                          ? _titleController.text.trim() 
+                          : 'Terms & Conditions',
+                    ),
+                  ),
+                );
+              },
+              tooltip: 'View Staff Read Status',
+            ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: _loadCurrentTerms,
@@ -430,32 +505,6 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
                 }).toList(),
               ),
 
-            SizedBox(height: spacing * 3),
-
-            // Info Box
-            Container(
-              padding: EdgeInsets.all(isMobile ? 12 : 16),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.blue.shade700),
-                  SizedBox(width: spacing),
-                  Expanded(
-                    child: Text(
-                      'Saving will update the terms & conditions for all staff immediately.',
-                      style: TextStyle(
-                        fontSize: isMobile ? fontSize : AppFonts.md,
-                        color: Colors.blue.shade700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             SizedBox(height: spacing * 3),
 
             // Save Button
