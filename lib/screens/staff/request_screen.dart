@@ -11,7 +11,7 @@ import '../../services/telegram_service.dart';
 import '../../services/policy_service.dart';
 import 'package:permission_system/app_fonts.dart';
 import 'staff_home_screen.dart';
-import '../../utils/responsive.dart'; // ✅ បន្ថែមបន្ទាត់នេះ
+import '../../utils/responsive.dart';
 
 class RequestScreen extends StatefulWidget {
   const RequestScreen({super.key});
@@ -35,6 +35,7 @@ class _RequestScreenState extends State<RequestScreen> {
 
   String _staffName = '';
   String _staffPosition = '';
+  String _staffDepartment = ''; // 👈 បន្ថែម
   String _managerName = '';
   String _managerId = '';
 
@@ -99,11 +100,12 @@ class _RequestScreenState extends State<RequestScreen> {
           setState(() {
             _staffName = data['fullName'] ?? data['name'] ?? user.displayName ?? user.email ?? 'Staff';
             _staffPosition = data['position'] ?? data['department'] ?? 'Employee';
+            _staffDepartment = data['department'] ?? 'N/A'; // 👈 បន្ថែម
             _managerName = data['managerName'] ?? 'Manager';
             _managerId = data['managerId'] ?? '';
           });
         }
-        print('👤 Staff: $_staffName, Position: $_staffPosition');
+        print('👤 Staff: $_staffName, Position: $_staffPosition, Department: $_staffDepartment');
         print('👤 Manager: $_managerName');
       }
     } catch (e) {
@@ -334,9 +336,11 @@ class _RequestScreenState extends State<RequestScreen> {
         'submitTime': _submitTimeString,
       };
 
+      // 👇 ហៅ formatPermissionRequestWithInfo ជាមួយ staffDepartment
       final message = TelegramService.formatPermissionRequestWithInfo(
         staffName: _staffName.isNotEmpty ? _staffName : 'Staff',
         staffPosition: _staffPosition.isNotEmpty ? _staffPosition : 'Employee',
+        staffDepartment: _staffDepartment.isNotEmpty ? _staffDepartment : 'N/A', // 👈 បន្ថែមបន្ទាត់នេះ!
         permissionType: selectedReason,
         details: details,
         requestId: requestId,

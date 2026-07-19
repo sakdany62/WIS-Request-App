@@ -58,6 +58,33 @@ class TodayRequest {
 
   factory TodayRequest.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
+    // 🔥 អាន requestNumber ដោយសុវត្ថិភាព
+    int requestNumber = 0;
+    final requestNumberValue = data['requestNumber'];
+    if (requestNumberValue != null) {
+      if (requestNumberValue is int) {
+        requestNumber = requestNumberValue;
+      } else if (requestNumberValue is String) {
+        requestNumber = int.tryParse(requestNumberValue) ?? 0;
+      } else if (requestNumberValue is num) {
+        requestNumber = requestNumberValue.toInt();
+      }
+    }
+    
+    // 🔥 អាន totalDays ដោយសុវត្ថិភាព
+    int totalDays = 0;
+    final totalDaysValue = data['totalDays'];
+    if (totalDaysValue != null) {
+      if (totalDaysValue is int) {
+        totalDays = totalDaysValue;
+      } else if (totalDaysValue is String) {
+        totalDays = int.tryParse(totalDaysValue) ?? 0;
+      } else if (totalDaysValue is num) {
+        totalDays = totalDaysValue.toInt();
+      }
+    }
+    
     return TodayRequest(
       requestId: doc.id,
       userId: data['userId'] ?? '',
@@ -66,12 +93,12 @@ class TodayRequest {
       reason: data['reason'] ?? 'No reason',
       startDate: data['startDate'] ?? '',
       endDate: data['endDate'] ?? '',
-      totalDays: (data['totalDays'] as num?)?.toInt() ?? 0,
+      totalDays: totalDays,
       status: data['status'] ?? 'pending',
       approvalType: data['autoApproved'] == true ? 'Auto' : 'Manual',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       autoApproved: data['autoApproved'] ?? false,
-      requestNumber: (data['requestNumber'] as num?)?.toInt() ?? 0,
+      requestNumber: requestNumber,
       fileUrl: data['fileUrl'],
       imageUrl: data['imageUrl'],
       rejectionReason: data['rejectionReason'],
@@ -634,7 +661,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                     borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white, // ✅ Background ពណ៌ស
+                                  fillColor: Colors.white,
                                   contentPadding: EdgeInsets.symmetric(
                                     horizontal: spacing,
                                     vertical: isMobile ? 6 : 8,
@@ -664,9 +691,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                 },
                                 style: TextStyle(
                                   fontSize: fontSize,
-                                  color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                                  color: Colors.black,
                                 ),
-                                dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                                dropdownColor: Colors.white,
                                 icon: const Icon(
                                   Icons.arrow_drop_down,
                                   color: Color(0xFF173B69),
@@ -717,7 +744,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                     borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white, // ✅ Background ពណ៌ស
+                                  fillColor: Colors.white,
                                   contentPadding: EdgeInsets.symmetric(
                                     horizontal: spacing,
                                     vertical: isMobile ? 6 : 8,
@@ -755,9 +782,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                 },
                                 style: TextStyle(
                                   fontSize: fontSize,
-                                  color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                                  color: Colors.black,
                                 ),
-                                dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                                dropdownColor: Colors.white,
                                 icon: const Icon(
                                   Icons.arrow_drop_down,
                                   color: Color(0xFF173B69),

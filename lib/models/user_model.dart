@@ -1,9 +1,13 @@
+// ============================================================
+// 1. lib/models/user_model.dart
+// ============================================================
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class UserModel {
   final String id;
   final String userId;
+  final int userIdInt; // 👈 បន្ថែមសម្រាប់តម្រៀប
   final String roleId;
   final String fullName;
   final String phone;
@@ -11,8 +15,8 @@ class UserModel {
   final String username;
   final String status;
   final DateTime? createdAt;
-  final String? department;       
-  final String? departmentId;     
+  final String? department;
+  final String? departmentId;
   final String? profileImage;
   final String? profileImageUrl;
   final String? employeeId;
@@ -22,6 +26,7 @@ class UserModel {
   UserModel({
     required this.id,
     required this.userId,
+    required this.userIdInt,
     required this.roleId,
     required this.fullName,
     required this.phone,
@@ -42,9 +47,23 @@ class UserModel {
   // FACTORY FROM FIRESTORE
   // ============================================================
   factory UserModel.fromFirestore(Map<String, dynamic> data, String documentId) {
+    // 🔥 អាន userIdInt ដោយសុវត្ថិភាព
+    int userIdInt = 0;
+    final userIdIntValue = data['userIdInt'];
+    if (userIdIntValue != null) {
+      if (userIdIntValue is int) {
+        userIdInt = userIdIntValue;
+      } else if (userIdIntValue is String) {
+        userIdInt = int.tryParse(userIdIntValue) ?? 0;
+      } else if (userIdIntValue is num) {
+        userIdInt = userIdIntValue.toInt();
+      }
+    }
+
     return UserModel(
       id: documentId,
       userId: data['userId']?.toString() ?? '',
+      userIdInt: userIdInt,
       roleId: data['roleId']?.toString() ?? '2',
       fullName: data['fullName']?.toString() ?? '',
       phone: data['phone']?.toString() ?? '',
@@ -73,6 +92,7 @@ class UserModel {
   Map<String, dynamic> toMap() {
     return {
       'userId': userId,
+      'userIdInt': userIdInt,
       'roleId': roleId,
       'fullName': fullName,
       'phone': phone,
@@ -200,6 +220,7 @@ class UserModel {
   UserModel copyWith({
     String? id,
     String? userId,
+    int? userIdInt,
     String? roleId,
     String? fullName,
     String? phone,
@@ -218,6 +239,7 @@ class UserModel {
     return UserModel(
       id: id ?? this.id,
       userId: userId ?? this.userId,
+      userIdInt: userIdInt ?? this.userIdInt,
       roleId: roleId ?? this.roleId,
       fullName: fullName ?? this.fullName,
       phone: phone ?? this.phone,
@@ -240,7 +262,7 @@ class UserModel {
   // ============================================================
   @override
   String toString() {
-    return 'UserModel(id: $id, fullName: $fullName, roleId: $roleId, email: $email)';
+    return 'UserModel(id: $id, userId: $userId, fullName: $fullName, roleId: $roleId, email: $email)';
   }
 
   // ============================================================

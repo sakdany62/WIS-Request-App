@@ -58,12 +58,35 @@ class TelegramService {
     }
   }
 
-  // ===== Get Full Staff Info from Firebase =====
+  // ===== Get Staff Department from Firebase =====
+  static Future<String> _getStaffDepartment() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return 'N/A';
+
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userId', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final data = querySnapshot.docs.first.data();
+        return data['department'] ?? 'N/A';
+      }
+      return 'N/A';
+    } catch (e) {
+      print(' Error getting staff department: $e');
+      return 'N/A';
+    }
+  }
+
+  // ===== Get Full Staff Info from Firebase (including department) =====
   static Future<Map<String, String>> _getStaffInfo() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        return {'name': 'Staff', 'position': 'Employee'};
+        return {'name': 'Staff', 'position': 'Employee', 'department': 'N/A'};
       }
 
       final querySnapshot = await FirebaseFirestore.instance
@@ -77,15 +100,17 @@ class TelegramService {
         return {
           'name': data['fullName'] ?? data['name'] ?? user.displayName ?? user.email ?? 'Staff',
           'position': data['position'] ?? data['department'] ?? 'Employee',
+          'department': data['department'] ?? 'N/A',
         };
       }
       return {
         'name': user.displayName ?? user.email ?? 'Staff',
         'position': 'Employee',
+        'department': 'N/A',
       };
     } catch (e) {
       print(' Error getting staff info: $e');
-      return {'name': 'Staff', 'position': 'Employee'};
+      return {'name': 'Staff', 'position': 'Employee', 'department': 'N/A'};
     }
   }
 
@@ -235,7 +260,7 @@ class TelegramService {
         chatId == 'MANAGER_CHAT_ID' || 
         chatId == 'ADMIN_CHAT_ID' ||
         chatId == 'GROUP_CHAT_ID') {
-      print('⚠️ Chat ID is not set or invalid');
+      print(' Chat ID is not set or invalid');
       return false;
     }
 
@@ -268,6 +293,7 @@ class TelegramService {
   static Future<String> formatPermissionRequest({
     String? staffName,
     String? staffPosition,
+    String? staffDepartment,
     required String permissionType,
     required Map<String, dynamic> details,
     required String requestId,
@@ -275,6 +301,7 @@ class TelegramService {
   }) async {
     String finalStaffName = staffName ?? await _getStaffName();
     String finalStaffPosition = staffPosition ?? await _getStaffPosition();
+    String finalStaffDepartment = staffDepartment ?? await _getStaffDepartment();
     String typeDisplay = _getPermissionTypeDisplay(permissionType);
     String reason = details['reason'] ?? typeDisplay;
     String formattedStatus = _formatStatus(status);
@@ -301,6 +328,7 @@ class TelegramService {
 NEW PERMISSION REQUEST
 
 Staff Name: $finalStaffName
+Department: $finalStaffDepartment
 Position: $finalStaffPosition
 Submit Time: $submitTime
 
@@ -315,6 +343,7 @@ Status: $formattedStatus
   static String formatPermissionRequestWithInfo({
     required String staffName,
     required String staffPosition,
+    required String staffDepartment,
     required String permissionType,
     required Map<String, dynamic> details,
     required String requestId,
@@ -346,6 +375,7 @@ Status: $formattedStatus
 NEW PERMISSION REQUEST
 
 Staff Name: $staffName
+Department: $staffDepartment
 Position: $staffPosition
 Submit Time: $submitTime
 
@@ -395,6 +425,7 @@ TEST MESSAGE FROM PERMISSION SYSTEM
 
 Staff: ${staffInfo['name']}
 Position: ${staffInfo['position']}
+Department: ${staffInfo['department']}
 Status: Bot is working correctly!
 Date: ${_formatDateTimeAMPM()}
 
@@ -416,7 +447,7 @@ This is a test message sent to:
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['ok'] == true) {
-          print('✅ Bot is running: ${data['result']['username']}');
+          print(' Bot is running: ${data['result']['username']}');
           return true;
         }
       }

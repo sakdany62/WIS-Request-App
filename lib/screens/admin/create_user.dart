@@ -1,3 +1,6 @@
+// ============================================================
+// lib/screens/admin/create_user_screen.dart
+// ============================================================
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -19,6 +22,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   final _fullNameController = TextEditingController();
   final _usernameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _positionController = TextEditingController();
   String _selectedRole = '2';
   String _selectedDepartmentId = '';
   String _selectedStatus = 'Active';
@@ -38,7 +42,65 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     return _selectedRole != '1' && _selectedRole != '4';
   }
 
-  //  ទាញយក Admin Credentials
+  bool _showPositionField() {
+    return _selectedRole == '2';
+  }
+
+  // ==================== CHECK IF MANAGER EXISTS IN DEPARTMENT ====================
+  Future<bool> _checkManagerExistsInDepartment(String departmentId) async {
+    try {
+      if (departmentId.isEmpty) {
+        // ប្រសិនបើមិនបានជ្រើសរើស Department
+        return false;
+      }
+      
+      final snapshot = await _firestore
+          .collection('users')
+          .where('roleId', isEqualTo: '3')
+          .where('departmentId', isEqualTo: departmentId)
+          .where('status', isEqualTo: 'Active')
+          .get();
+      
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('❌ Error checking manager exists in department: $e');
+      return false;
+    }
+  }
+
+  // ==================== GENERATE USER NUMBER ====================
+  Future<int> _generateUserNumber() async {
+    try {
+      final counterRef = _firestore.collection('counters').doc('user_counter');
+      
+      final result = await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(counterRef);
+        
+        int currentCount = 0;
+        if (snapshot.exists) {
+          final data = snapshot.data();
+          currentCount = (data?['value'] as int?) ?? 0;
+        }
+        
+        final newCount = currentCount + 1;
+        transaction.set(counterRef, {'value': newCount});
+        
+        return newCount;
+      });
+      
+      return result;
+    } catch (e) {
+      print('❌ Error generating user number: $e');
+      return DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    }
+  }
+
+  // ==================== FORMAT USER NUMBER ====================
+  String _formatUserNumber(int number) {
+    return number.toString().padLeft(4, '0');
+  }
+
+  // ទាញយក Admin Credentials
   Future<Map<String, String>?> _getAdminCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     final email = prefs.getString('admin_email');
@@ -49,13 +111,12 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     return null;
   }
 
-  //  Auto Re-login Admin
+  // Auto Re-login Admin
   Future<bool> _autoReLoginAdmin() async {
     final credentials = await _getAdminCredentials();
     
     if (credentials != null) {
       try {
-        //  Login with stored credentials
         await _auth.signInWithEmailAndPassword(
           email: credentials['email']!,
           password: credentials['password']!,
@@ -74,6 +135,46 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   Future<void> _createUser() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // 🔥 ពិនិត្យមើលថា Manager មានរួចហើយក្នុង Department នេះឬនៅ
+    if (_selectedRole == '3') {
+      if (_selectedDepartmentId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Please select a department for Manager.'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+      
+      final managerExists = await _checkManagerExistsInDepartment(_selectedDepartmentId);
+      if (managerExists) {
+        // ស្វែងរកឈ្មោះ Department
+        String departmentName = '';
+        final dept = _departments.firstWhere(
+          (d) => d['id'] == _selectedDepartmentId,
+          orElse: () => {},
+        );
+        departmentName = dept['name'] ?? 'this department';
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '⚠️ A Manager already exists in "$departmentName". Only one Manager per department is allowed.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -82,7 +183,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
       
-      //  ពិនិត្យមើលថា Email មានហើយឬនៅ
+      // ពិនិត្យមើលថា Email មានហើយឬនៅ
       try {
         final methods = await _auth.fetchSignInMethodsForEmail(email);
         if (methods.isNotEmpty) {
@@ -133,9 +234,16 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         departmentName = dept['name'] ?? '';
       }
 
+      // 🔥 បង្កើត User Number
+      final userNumberInt = await _generateUserNumber();
+      final userNumberFormatted = _formatUserNumber(userNumberInt);
+      
+      print(' User Number: $userNumberFormatted');
+
       // 2. Save user to Firestore
       await _firestore.collection('users').doc(newUserUid).set({
-        'userId': newUserUid,
+        'userId': userNumberFormatted,
+        'userIdInt': userNumberInt,
         'email': email,
         'fullName': _fullNameController.text.trim(),
         'username': _usernameController.text.trim(),
@@ -143,20 +251,20 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         'roleId': _selectedRole,
         'departmentId': _selectedDepartmentId.isEmpty ? null : _selectedDepartmentId,
         'department': departmentName.isEmpty ? null : departmentName,
+        'position': _showPositionField() ? _positionController.text.trim() : null,
         'status': _selectedStatus,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // 3.  Sign out the new user
+      // 3. Sign out the new user
       await _auth.signOut();
       print('New user signed out');
 
-      // 4.  Auto Re-login Admin
+      // 4. Auto Re-login Admin
       final reLoginSuccess = await _autoReLoginAdmin();
       
       if (reLoginSuccess && mounted) {
-        //  Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(' User created successfully'),
@@ -164,11 +272,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
             duration: Duration(seconds: 2),
           ),
         );
-        
-        //  Navigate back to Admin Dashboard
-        Navigator.pop(context); // Close CreateUserScreen
+        Navigator.pop(context);
       } else {
-        // ❌ If auto re-login fails, go to login screen
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -214,6 +319,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     _fullNameController.dispose();
     _phoneController.dispose();
     _usernameController.dispose();
+    _positionController.dispose();
     super.dispose();
   }
 
@@ -537,6 +643,9 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                       if (value == '1') {
                         _selectedDepartmentId = '';
                       }
+                      if (value != '2') {
+                        _positionController.clear();
+                      }
                     });
                   }
                 },
@@ -633,6 +742,58 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                   isExpanded: true,
                   menuMaxHeight: 300,
+                ),
+                SizedBox(height: spacing * 1.5),
+              ],
+
+              // POSITION TEXTFIELD
+              if (_showPositionField()) ...[
+                Text(
+                  'Position',
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey,
+                  ),
+                ),
+                SizedBox(height: spacing * 0.6),
+                TextFormField(
+                  controller: _positionController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter position (e.g. Teacher, Accountant, etc.)',
+                    hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.red, width: 1.5),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: Colors.red, width: 2.0),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: spacing * 1.5,
+                      vertical: isMobile ? 12 : 14,
+                    ),
+                  ),
+                  style: TextStyle(fontSize: fontSize, color: Colors.black),
+                  validator: (value) {
+                    if (_showPositionField() && (value?.isEmpty ?? true)) {
+                      return 'Position is required for Staff';
+                    }
+                    return null;
+                  },
                 ),
                 SizedBox(height: spacing * 1.5),
               ],

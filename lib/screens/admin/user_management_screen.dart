@@ -1,3 +1,6 @@
+// ============================================================
+// lib/screens/admin/user_management_screen.dart
+// ============================================================
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -72,7 +75,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             user.email.toLowerCase().contains(query) ||
             user.username.toLowerCase().contains(query) ||
             (user.department?.toLowerCase().contains(query) ?? false) ||
-            (user.departmentId?.toLowerCase().contains(query) ?? false);
+            (user.departmentId?.toLowerCase().contains(query) ?? false) ||
+            (user.position?.toLowerCase().contains(query) ?? false);
       }).toList();
     }
     
@@ -85,11 +89,28 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return filtered;
   }
 
+  String _getPositionDisplay(UserModel user) {
+    if (user.position != null && user.position!.isNotEmpty) {
+      return user.position!;
+    }
+    return 'N/A';
+  }
+
+  bool _showDepartmentField(String role) {
+    return role != '1' && role != '4';
+  }
+
+  bool _showPositionField(String role) {
+    return role == '2';
+  }
+
   Future<void> _showEditDialog(UserModel user) async {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: user.fullName);
     final phoneController = TextEditingController(text: user.phone);
     final emailController = TextEditingController(text: user.email);
+    final positionController = TextEditingController(text: _getPositionDisplay(user));
+    
     String selectedRole = user.roleId;
     String selectedStatus = user.status;
     String selectedDepartmentId = user.departmentId ?? '';
@@ -115,7 +136,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Full Name
                 TextFormField(
                   controller: nameController,
                   decoration: InputDecoration(
@@ -145,7 +165,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
                 SizedBox(height: spacing * 1.5),
 
-                // Email
                 TextFormField(
                   controller: emailController,
                   decoration: InputDecoration(
@@ -180,7 +199,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
                 SizedBox(height: spacing * 1.5),
 
-                // Phone
                 TextFormField(
                   controller: phoneController,
                   decoration: InputDecoration(
@@ -209,7 +227,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
                 SizedBox(height: spacing * 1.5),
 
-                // Role Dropdown
                 DropdownButtonFormField<String>(
                   value: selectedRole,
                   decoration: InputDecoration(
@@ -235,79 +252,23 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ),
                   ),
                   items: const [
-                    DropdownMenuItem(
-                      value: '1',
-                      child: Text('👑 Admin'),
-                    ),
-                    DropdownMenuItem(
-                      value: '2',
-                      child: Text(' Staff'),
-                    ),
-                    DropdownMenuItem(
-                      value: '3',
-                      child: Text(' Manager'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) selectedRole = value;
-                  },
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
-                  dropdownColor: Colors.white,
-                  icon: const Icon(
-                    Icons.arrow_drop_down,
-                    color: Color(0xFF173B69),
-                  ),
-                ),
-                SizedBox(height: spacing * 1.5),
-
-                // Department Dropdown
-                DropdownButtonFormField<String>(
-                  value: selectedDepartmentId.isEmpty ? null : selectedDepartmentId,
-                  decoration: InputDecoration(
-                    labelText: 'Department',
-                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: spacing * 1.5,
-                      vertical: isMobile ? 6 : 8,
-                    ),
-                  ),
-                  hint: Text(
-                    'Select Department',
-                    style: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
-                  ),
-                  items: [
-                    const DropdownMenuItem(
-                      value: '',
-                      child: Text('No Department'),
-                    ),
-                    ..._departments.map((dept) {
-                      return DropdownMenuItem(
-                        value: dept['id'],
-                        child: Text(dept['name']!),
-                      );
-                    }),
+                    DropdownMenuItem(value: '1', child: Text('👑 Admin')),
+                    DropdownMenuItem(value: '2', child: Text(' Staff')),
+                    DropdownMenuItem(value: '3', child: Text(' Manager')),
                   ],
                   onChanged: (value) {
                     if (value != null) {
-                      selectedDepartmentId = value;
+                      setState(() {
+                        selectedRole = value;
+                        if (value == '1') {
+                          selectedDepartmentId = '';
+                        }
+                        if (value != '2') {
+                          positionController.clear();
+                        } else {
+                          positionController.text = _getPositionDisplay(user);
+                        }
+                      });
                     }
                   },
                   style: TextStyle(
@@ -316,14 +277,102 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     color: Colors.black,
                   ),
                   dropdownColor: Colors.white,
-                  icon: const Icon(
-                    Icons.arrow_drop_down,
-                    color: Color(0xFF173B69),
-                  ),
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                 ),
                 SizedBox(height: spacing * 1.5),
 
-                // Status Dropdown
+                if (_showDepartmentField(selectedRole)) ...[
+                  DropdownButtonFormField<String>(
+                    value: selectedDepartmentId.isEmpty ? null : selectedDepartmentId,
+                    decoration: InputDecoration(
+                      labelText: 'Department',
+                      labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: spacing * 1.5,
+                        vertical: isMobile ? 6 : 8,
+                      ),
+                    ),
+                    hint: Text(
+                      'Select Department',
+                      style: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('No Department')),
+                      ..._departments.map((dept) {
+                        return DropdownMenuItem(
+                          value: dept['id'],
+                          child: Text(dept['name']!),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        selectedDepartmentId = value;
+                      }
+                    },
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black,
+                    ),
+                    dropdownColor: Colors.white,
+                    icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                  ),
+                  SizedBox(height: spacing * 1.5),
+                ],
+
+                if (_showPositionField(selectedRole)) ...[
+                  TextFormField(
+                    controller: positionController,
+                    decoration: InputDecoration(
+                      labelText: 'Position',
+                      labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+                      hintText: 'e.g. Teacher, Accountant, etc.',
+                      hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: spacing * 1.5,
+                        vertical: isMobile ? 12 : 14,
+                      ),
+                    ),
+                    validator: (value) {
+                      if (_showPositionField(selectedRole) && (value?.isEmpty ?? true)) {
+                        return 'Position is required for Staff';
+                      }
+                      return null;
+                    },
+                    style: TextStyle(fontSize: fontSize, color: Colors.black),
+                  ),
+                  SizedBox(height: spacing * 1.5),
+                ],
+
                 DropdownButtonFormField<String>(
                   value: selectedStatus,
                   decoration: InputDecoration(
@@ -349,14 +398,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ),
                   ),
                   items: const [
-                    DropdownMenuItem(
-                      value: 'Active',
-                      child: Text(' Active'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'Inactive',
-                      child: Text(' Inactive'),
-                    ),
+                    DropdownMenuItem(value: 'Active', child: Text(' Active')),
+                    DropdownMenuItem(value: 'Inactive', child: Text(' Inactive')),
                   ],
                   onChanged: (value) {
                     if (value != null) selectedStatus = value;
@@ -367,10 +410,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     color: Colors.black,
                   ),
                   dropdownColor: Colors.white,
-                  icon: const Icon(
-                    Icons.arrow_drop_down,
-                    color: Color(0xFF173B69),
-                  ),
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                 ),
               ],
             ),
@@ -406,6 +446,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   departmentName = dept['name'] ?? '';
                 }
 
+                String? positionValue;
+                if (_showPositionField(selectedRole)) {
+                  final posText = positionController.text.trim();
+                  if (posText.isNotEmpty && posText != 'N/A') {
+                    positionValue = posText;
+                  } else {
+                    positionValue = null;
+                  }
+                }
+
                 final updatedUser = user.copyWith(
                   fullName: nameController.text,
                   phone: phoneController.text,
@@ -414,6 +464,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   status: selectedStatus,
                   departmentId: selectedDepartmentId.isEmpty ? null : selectedDepartmentId,
                   department: departmentName.isEmpty ? null : departmentName,
+                  position: positionValue,
                 );
                 
                 await _userService.updateUser(updatedUser);
@@ -490,7 +541,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            
           ],
         ),
         actions: [
@@ -535,7 +585,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ),
         );
         
-        // Show additional info about Auth deletion
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -757,6 +806,13 @@ class _UserCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String getDisplayPosition() {
+      if (user.position != null && user.position!.isNotEmpty) {
+        return user.position!;
+      }
+      return 'N/A';
+    }
+
     return Card(
       margin: EdgeInsets.only(bottom: spacing),
       elevation: 2,
@@ -789,6 +845,14 @@ class _UserCard extends StatelessWidget {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
+                  // 👇 បង្ហាញ User ID
+                  Text(
+                    'ID: ${user.userId}',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.85,
+                      color: Colors.grey[600],
+                    ),
+                  ),
                   Text(
                     user.email,
                     style: TextStyle(
@@ -820,7 +884,7 @@ class _UserCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (user.department != null && user.department!.isNotEmpty)
+                      if (user.department != null && user.department!.isNotEmpty && user.roleId != '1')
                         Container(
                           padding: EdgeInsets.symmetric(
                             horizontal: spacing / 2,
@@ -839,6 +903,24 @@ class _UserCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: spacing / 2,
+                          vertical: spacing / 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          ' ${getDisplayPosition()}',
+                          style: TextStyle(
+                            fontSize: isMobile ? fontSize * 0.8 : fontSize,
+                            color: Colors.purple[700],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                       Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: spacing / 2,
@@ -864,7 +946,6 @@ class _UserCard extends StatelessWidget {
                 ],
               ),
             ),
-            // Action Buttons
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

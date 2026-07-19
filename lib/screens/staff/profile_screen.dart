@@ -1,3 +1,7 @@
+// ============================================================
+// lib/screens/staff/staff_profile_screen.dart
+// ============================================================
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,14 +25,16 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
   String? errorMessage;
   String? profileImageUrl;
   final ImagePicker _imagePicker = ImagePicker();
+  StreamSubscription<DocumentSnapshot>? _userSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
+    _listenToUserData();
   }
 
-  Future<void> _loadUserData() async {
+  // 👇 ប្រើ Stream ដើម្បីស្តាប់ការផ្លាស់ប្តូរ Real-time
+  void _listenToUserData() {
     final user = FirebaseAuth.instance.currentUser;
     
     if (user == null) {
@@ -39,37 +45,41 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       return;
     }
     
-    try {
-      print('🔍 Loading staff data for UID: ${user.uid}');
-      
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      
-      if (docSnapshot.exists) {
-        final data = docSnapshot.data()!;
-        print(' Staff data found: $data');
-        
+    setState(() {
+      isLoading = true;
+    });
+    
+    _userSubscription = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .listen(
+      (docSnapshot) {
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data()!;
+          print('🔄 Staff data updated: $data');
+          
+          setState(() {
+            userData = Map<String, dynamic>.from(data);
+            profileImageUrl = data['profileImageUrl'] ?? data['profileImage'] ?? '';
+            isLoading = false;
+            errorMessage = null;
+          });
+        } else {
+          setState(() {
+            errorMessage = 'Staff profile not found in database';
+            isLoading = false;
+          });
+        }
+      },
+      onError: (error) {
+        print('❌ Error listening to staff data: $error');
         setState(() {
-          userData = Map<String, dynamic>.from(data);
-          profileImageUrl = data['profileImageUrl'] ?? data['profileImage'] ?? '';
+          errorMessage = 'Failed to load staff data: $error';
           isLoading = false;
         });
-      } else {
-        print('⚠️ No staff document found for UID: ${user.uid}');
-        setState(() {
-          errorMessage = 'Staff profile not found in database';
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('❌ Error loading staff data: $e');
-      setState(() {
-        errorMessage = 'Failed to load staff data: $e';
-        isLoading = false;
-      });
-    }
+      },
+    );
   }
 
   Future<void> _pickAndUploadImage() async {
@@ -353,10 +363,14 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
   }
 
   @override
+  void dispose() {
+    _userSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14);
-    final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 24);
 
     final user = FirebaseAuth.instance.currentUser;
@@ -413,7 +427,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                   isLoading = true;
                   errorMessage = null;
                 });
-                _loadUserData();
+                _listenToUserData();
               },
               child: Text(
                 'Retry',
@@ -654,8 +668,8 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       child: Column(
         children: [
           _InfoRow(
-            label: 'Employee ID',
-            value: _getValue('employeeId', 'userId'),
+            label: 'User ID',
+            value: _getValue('userId'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),

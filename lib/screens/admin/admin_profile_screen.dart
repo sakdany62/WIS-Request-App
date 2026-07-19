@@ -687,13 +687,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             isMobile: isMobile,
             fontSize: fontSize,
           ),
-          _buildDivider(),
-          _InfoRowAdmin(
-            label: 'Department',
-            value: _getValue('department'),
-            isMobile: isMobile,
-            fontSize: fontSize,
-          ),
+         
           _buildDivider(),
           _InfoRowAdmin(
             label: 'Role',

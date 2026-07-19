@@ -6,15 +6,16 @@ class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // ============================================================
-  // UPDATE USER
+  // UPDATE USER - FIXED: Added position field
   // ============================================================
   Future<void> updateUser(UserModel user) async {
     try {
       print('📝 Updating user: ${user.id}');
+      print('📝 Position: ${user.position}');
       
       await _firestore
           .collection('users')
-          .doc(user.id)  // user.id is the userId
+          .doc(user.id)
           .update({
             'fullName': user.fullName,
             'phone': user.phone,
@@ -23,6 +24,7 @@ class UserService {
             'status': user.status,
             'departmentId': user.departmentId ?? '',
             'department': user.department ?? '',
+            'position': user.position, // 👈 បន្ថែមបន្ទាត់នេះ!
             'updatedAt': FieldValue.serverTimestamp(),
           });
       

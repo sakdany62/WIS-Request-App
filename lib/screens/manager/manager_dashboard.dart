@@ -6,7 +6,7 @@ import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import 'manager_home_screen.dart';
 import 'all_permission_today.dart' as permission;
-import '../staff/settings_screen.dart';  // ✅ រក្សា Settings
+import '../staff/settings_screen.dart'; 
 
 class ManagerDashboard extends StatefulWidget {
   const ManagerDashboard({super.key});
@@ -148,7 +148,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                     1,
                     Icons.assignment_outlined,
                     Icons.assignment,
-                    'Requests',
+                    'Report',
                     isMobile,
                     iconSize,
                     fontSize,

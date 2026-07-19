@@ -13,6 +13,40 @@ class RequestService {
   final CollectionReference _policiesCollection = 
       FirebaseFirestore.instance.collection('permission_policies');
 
+  // ==================== GENERATE REQUEST NUMBER ====================
+  Future<int> _generateRequestNumber() async {
+    try {
+      final counterRef = _firestore.collection('counters').doc('request_counter');
+      
+      final result = await _firestore.runTransaction((transaction) async {
+        final snapshot = await transaction.get(counterRef);
+        
+        int currentCount = 0;
+        if (snapshot.exists) {
+          final data = snapshot.data();
+          currentCount = (data?['value'] as int?) ?? 0;
+        }
+        
+        final newCount = currentCount + 1;
+        transaction.set(counterRef, {'value': newCount});
+        
+        return newCount;
+      });
+      
+      return result;
+    } catch (e) {
+      print('❌ Error generating request number: $e');
+      // Fallback: ប្រើ timestamp
+      return DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    }
+  }
+
+  // ==================== FORMAT REQUEST NUMBER ====================
+  String _formatRequestNumber(int number) {
+    // បង្ហាញជា 4 ខ្ទង់ឧ. 0001, 0012, 0123, 1234
+    return number.toString().padLeft(4, '0');
+  }
+
   // ==================== SUBMIT REQUEST ====================
   Future<Map<String, dynamic>> submitRequestWithAutoApprove({
     required String startDate,
@@ -92,13 +126,13 @@ class RequestService {
     String status;
     String? autoMessage;
     bool needManagerApproval = false;
-    int requestNumber = requestCountInMonth + 1;
+    int requestCountInMonthValue = requestCountInMonth + 1;
     
     if (policy != null && policy.autoApprove) {
-      if (requestNumber == 1) {
+      if (requestCountInMonthValue == 1) {
         status = 'approved';
         autoMessage = policy.firstRequestMessage;
-      } else if (requestNumber == 2) {
+      } else if (requestCountInMonthValue == 2) {
         status = 'approved';
         autoMessage = policy.secondRequestMessage;
       } else {
@@ -123,6 +157,12 @@ class RequestService {
       submitTimeString = utcTime.toIso8601String();
     }
 
+    // 🔥 **បង្កើត Request Number ជាលេខ**
+    final requestNumberInt = await _generateRequestNumber();
+    final requestNumberFormatted = _formatRequestNumber(requestNumberInt);
+    
+    print('📝 Request Number: $requestNumberFormatted');
+
     final requestData = {
       'userId': user.uid,
       'userEmail': userEmail,
@@ -131,13 +171,14 @@ class RequestService {
       'startDate': startDate,
       'endDate': endDate,
       'totalDays': totalDays,
-      'reason': reasonForStorage,  // ← រក្សាទុកអត្ថបទដើម (ឧ. "sad")
-      'originalReason': reason,  // ← រក្សាទុក reason ដើម (ឧ. "Other")
+      'reason': reasonForStorage,
+      'originalReason': reason,
       'fileUrl': fileUrl,
       'imageUrl': imageUrl,
       'status': status,
-      'requestNumber': requestNumber,
-      'requestCountInMonth': requestCountInMonth + 1,
+      'requestNumber': requestNumberFormatted, // 👈 ប្រើលេខដែលបាន Format
+      'requestNumberInt': requestNumberInt, // 👈 រក្សាទុកជា int សម្រាប់តម្រៀប
+      'requestCountInMonth': requestCountInMonthValue,
       'month': DateTime.now().month,
       'year': DateTime.now().year,
       'autoApproved': status == 'approved',
@@ -149,11 +190,15 @@ class RequestService {
     };
 
     final docRef = await _requestsCollection.add(requestData);
-    await docRef.update({'requestId': docRef.id});
+    
+    // 👇 Update requestId ជាលេខដែលបាន Format
+    await docRef.update({
+      'requestId': requestNumberFormatted, // 👈 ប្រើលេខជា requestId
+    });
 
     // ============ Send Notifications ============
     print('🔔 ====== SENDING NOTIFICATIONS ======');
-    print('🔔 Request ID: ${docRef.id}');
+    print('🔔 Request ID: $requestNumberFormatted');
     print('🔔 Status: $status');
     print('🔔 Need Manager Approval: $needManagerApproval');
     print('🔔 Department: "$userDepartment"');
@@ -165,23 +210,23 @@ class RequestService {
       title: status == 'approved' ? 'Request Auto-Approved' : 'Request Needs Approval',
       message: autoMessage ?? 'Your request has been submitted successfully',
       type: status == 'approved' ? 'auto_approved' : 'submitted',
-      requestId: docRef.id,
+      requestId: requestNumberFormatted, // 👈 ប្រើលេខ
       extraData: {
-        'requestNumber': requestNumber,
+        'requestNumber': requestNumberFormatted,
         'totalDays': totalDays,
         'submitTime': submitTimeString,
       },
     );
 
     // 2. Notify ALL Managers (regardless of department)
-    await _notifyManagersForNewRequest(requestData, docRef.id, status, submitTimeString);
+    await _notifyManagersForNewRequest(requestData, requestNumberFormatted, status, submitTimeString);
 
     // 3. If approval needed, notify Admins
     if (needManagerApproval) {
-      await _notifyAdminsForApproval(requestData, docRef.id, submitTimeString);
+      await _notifyAdminsForApproval(requestData, requestNumberFormatted, submitTimeString);
     } else {
       // 4. If Auto Approved, notify Admins
-      await _notifyAdminsForAutoApproval(requestData, docRef.id, submitTimeString);
+      await _notifyAdminsForAutoApproval(requestData, requestNumberFormatted, submitTimeString);
     }
 
     print('🔔 ====== NOTIFICATIONS COMPLETED ======');
@@ -189,8 +234,8 @@ class RequestService {
     return {
       'status': status,
       'message': autoMessage,
-      'requestId': docRef.id,
-      'requestNumber': requestNumber,
+      'requestId': requestNumberFormatted, // 👈 ត្រឡប់លេខ
+      'requestNumber': requestNumberFormatted,
       'needManagerApproval': needManagerApproval,
     };
   }
@@ -200,7 +245,7 @@ class RequestService {
     final department = requestData['department'] ?? '';
     final isAutoApproved = status == 'approved';
     final staffName = requestData['userName'] ?? 'Unknown';
-    final requestNumber = requestData['requestNumber'] ?? 0;
+    final requestNumber = requestData['requestNumber'] ?? '0000';
     final totalDays = requestData['totalDays'] ?? 0;
     final userEmail = requestData['userEmail'] ?? '';
     

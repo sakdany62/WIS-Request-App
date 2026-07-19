@@ -48,9 +48,11 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       return;
     }
 
-    setState(() {
-      managerId = user.uid;
-    });
+    if (mounted) {
+      setState(() {
+        managerId = user.uid;
+      });
+    }
 
     await _loadManagerData();
     await _loadStaffCount();
@@ -64,35 +66,43 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       try {
         final docSnapshot = await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)  // ✅ Use userId as document ID
+            .doc(user.uid)
             .get();
 
         if (docSnapshot.exists) {
           final data = docSnapshot.data()!;
-          setState(() {
-            managerName = data['fullName'] ?? data['username'] ?? 'Manager User';
-            managerDepartment = data['department'] ?? '';
-            isLoading = false;
-            errorMessage = null;
-          });
+          if (mounted) {
+            setState(() {
+              managerName = data['fullName'] ?? data['username'] ?? 'Manager User';
+              managerDepartment = data['department'] ?? '';
+              isLoading = false;
+              errorMessage = null;
+            });
+          }
         } else {
-          setState(() {
-            managerName = user.email?.split('@').first ?? 'Manager User';
-            isLoading = false;
-            errorMessage = 'User profile not found in database';
-          });
+          if (mounted) {
+            setState(() {
+              managerName = user.email?.split('@').first ?? 'Manager User';
+              isLoading = false;
+              errorMessage = 'User profile not found in database';
+            });
+          }
         }
       } catch (e) {
-        setState(() {
-          isLoading = false;
-          errorMessage = 'Failed to load user data: $e';
-        });
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+            errorMessage = 'Failed to load user data: $e';
+          });
+        }
       }
     } else {
-      setState(() {
-        isLoading = false;
-        errorMessage = 'No user logged in';
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'No user logged in';
+        });
+      }
     }
   }
 
@@ -107,9 +117,11 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
           .where('status', isEqualTo: 'Active')
           .get();
 
-      setState(() {
-        _staffCount = snapshot.docs.length;
-      });
+      if (mounted) {
+        setState(() {
+          _staffCount = snapshot.docs.length;
+        });
+      }
     } catch (e) {
       print('Error loading staff count: $e');
     }
@@ -138,7 +150,21 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         
         final status = data['status'] ?? 'pending';
         final autoApprovedValue = data['autoApproved'] ?? false;
-        final days = (data['totalDays'] as num?)?.toInt() ?? 0;
+        
+        // 🔥 អាន totalDays ដោយសុវត្ថិភាព
+        int days = 0;
+        final daysValue = data['totalDays'];
+        if (daysValue != null) {
+          if (daysValue is int) {
+            days = daysValue;
+          } else if (daysValue is double) {
+            days = daysValue.toInt();
+          } else if (daysValue is String) {
+            days = int.tryParse(daysValue) ?? 0;
+          } else if (daysValue is num) {
+            days = daysValue.toInt();
+          }
+        }
         
         if (status == 'pending') {
           pending++;
@@ -154,18 +180,25 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         totalDays += days;
       }
       
-      setState(() {
-        _totalRequests = total;
-        _pendingRequests = pending;
-        _approvedRequests = approved;
-        _rejectedRequests = rejected;
-        _autoApprovedRequests = autoApproved;
-        _totalDays = totalDays;
-      });
+      if (mounted) {
+        setState(() {
+          _totalRequests = total;
+          _pendingRequests = pending;
+          _approvedRequests = approved;
+          _rejectedRequests = rejected;
+          _autoApprovedRequests = autoApproved;
+          _totalDays = totalDays;
+        });
+      }
       
-      print(' Statistics loaded: Total=$total, Pending=$pending, Approved=$approved, Rejected=$rejected');
+      print('📊 Statistics loaded: Total=$total, Pending=$pending, Approved=$approved, Rejected=$rejected');
     } catch (e) {
-      print(' Error loading statistics: $e');
+      print('❌ Error loading statistics: $e');
+      if (mounted) {
+        setState(() {
+          // Keep existing values or set to 0
+        });
+      }
     }
   }
 
@@ -207,7 +240,7 @@ Status: APPROVED
       
       await TelegramService.sendToAll(approvalMessage);
       
-      print(' Telegram notifications sent for approval');
+      print('📨 Telegram notifications sent for approval');
 
       await _loadStatistics();
 
@@ -215,7 +248,7 @@ Status: APPROVED
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              ' Request approved successfully',
+              '✅ Request approved successfully',
               style: TextStyle(fontSize: AppFonts.md),
             ),
             backgroundColor: Colors.green,
@@ -345,7 +378,7 @@ Status: REJECTED
                 
                 await TelegramService.sendToAll(rejectionMessage);
                 
-                print(' Telegram notifications sent for rejection');
+                print('📨 Telegram notifications sent for rejection');
 
                 await _loadStatistics();
 
@@ -353,7 +386,7 @@ Status: REJECTED
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        'Request rejected',
+                        '❌ Request rejected',
                         style: TextStyle(fontSize: AppFonts.md),
                       ),
                       backgroundColor: Colors.red,
@@ -427,10 +460,12 @@ Status: REJECTED
                 SizedBox(height: spacing * 2.5),
                 ElevatedButton(
                   onPressed: () {
-                    setState(() {
-                      errorMessage = null;
-                      isLoading = true;
-                    });
+                    if (mounted) {
+                      setState(() {
+                        errorMessage = null;
+                        isLoading = true;
+                      });
+                    }
                     _checkAuthAndLoad();
                   },
                   child: Text(
