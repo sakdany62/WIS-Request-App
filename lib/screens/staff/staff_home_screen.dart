@@ -1,9 +1,8 @@
-// lib/screens/staff/staff_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notifications_screen.dart';
-import 'profile_screen.dart';
+import 'profile_screen.dart';  // ✅ Staff Profile
 import 'package:permission_system/app_fonts.dart';
 import '../../utils/responsive.dart'; 
 
@@ -76,14 +75,13 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     
     if (user != null) {
       try {
-        final querySnapshot = await FirebaseFirestore.instance
+        final docSnapshot = await FirebaseFirestore.instance
             .collection('users')
-            .where('userId', isEqualTo: user.uid)
-            .limit(1)
+            .doc(user.uid)  // ✅ Use userId as document ID
             .get();
         
-        if (querySnapshot.docs.isNotEmpty) {
-          final data = querySnapshot.docs.first.data();
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data()!;
           if (mounted) {
             setState(() {
               userName = data['fullName'] ?? data['username'] ?? 'Staff User';
@@ -241,12 +239,10 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 24);
-    final EdgeInsets padding = Responsive.padding(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
@@ -538,10 +534,11 @@ class _UserHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        // ✅ Avatar - Click to Staff Profile
         GestureDetector(
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const ProfileScreen()),
+            MaterialPageRoute(builder: (context) => const StaffProfileScreen()),
           ),
           child: CircleAvatar(
             radius: isMobile ? 30 : 40,

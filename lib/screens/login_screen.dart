@@ -29,6 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final prefs = await SharedPreferences.getInstance();
       final email = prefs.getString('remember_email') ?? '';
       final remember = prefs.getBool('remember_me') ?? false;
+      
       if (mounted) {
         setState(() {
           emailController.text = email;
@@ -37,6 +38,19 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       print('❌ Error loading saved credentials: $e');
+    }
+  }
+
+  // ✅ រក្សាទុក Admin Credentials (សម្រាប់ Auto Re-login)
+  Future<void> _saveAdminCredentials(String email, String password, String uid) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('admin_email', email);
+      await prefs.setString('admin_password', password);
+      await prefs.setString('admin_uid', uid);
+      print('✅ Admin credentials saved successfully');
+    } catch (e) {
+      print('❌ Error saving admin credentials: $e');
     }
   }
 
@@ -69,15 +83,19 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       
-      // ប្រើ AuthProvider សម្រាប់ login
       bool success = await authProvider.signIn(email, password);
 
       if (success && mounted) {
-        // រក្សាទុក credentials
         await _saveCredentials();
 
         final user = authProvider.currentUser;
         if (user != null) {
+          // ✅ ប្រសិនបើជា Admin រក្សាទុក Admin Credentials
+          if (user.isAdmin) {
+            await _saveAdminCredentials(email, password, user.userId);
+            print('✅ Admin credentials saved!');
+          }
+
           String route;
           if (user.isAdmin) {
             route = '/admin-dashboard';
@@ -87,7 +105,6 @@ class _LoginScreenState extends State<LoginScreen> {
             route = '/dashboard';
           }
           
-          // លុបប្រវត្តិ navigation ទាំងអស់
           Navigator.pushNamedAndRemoveUntil(
             context,
             route,
@@ -204,8 +221,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 15),
-
-              // Remember Me + Forgot Password
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

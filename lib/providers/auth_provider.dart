@@ -21,7 +21,6 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggedIn => _currentUser != null;
   String? get errorMessage => _errorMessage;
 
-  // Role Checkers
   bool get isAdmin => _currentUser?.isAdmin ?? false;
   bool get isManager => _currentUser?.isManager ?? false;
   bool get isStaff => _currentUser?.isStaff ?? false;
@@ -75,31 +74,28 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // LOAD USER FROM FIRESTORE
+  // LOAD USER FROM FIRESTORE - ✅ FIXED: Use doc(userId)
   // ============================================================
   Future<void> _loadUserFromFirestore(String userId) async {
     try {
       print('🔄 Loading user data for: $userId');
       
-      final QuerySnapshot query = await _firestore
+      // ✅ FIX: Use doc() with userId as document ID
+      final docSnapshot = await _firestore
           .collection('users')
-          .where('userId', isEqualTo: userId)
-          .limit(1)
+          .doc(userId)  // Use userId as document ID
           .get();
       
-      if (query.docs.isNotEmpty) {
-        final doc = query.docs.first;
-        _currentUser = UserModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        _currentUser = UserModel.fromFirestore(data, docSnapshot.id);
         _errorMessage = null;
         print('✅ User loaded: ${_currentUser?.fullName}, Role: ${_currentUser?.roleId}');
       } else {
-        print('⚠️ User document not found in Firestore');
+        print('⚠️ User document not found for userId: $userId');
         _currentUser = null;
-        _errorMessage = 'User profile not found';
-        await _auth.signOut();
+        _errorMessage = 'User profile not found. Please contact admin.';
+        // Don't create user automatically
       }
     } catch (e) {
       print('❌ Error loading user: $e');
@@ -118,7 +114,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Validate input
       if (email.isEmpty || password.isEmpty) {
         _errorMessage = 'Please enter email and password';
         _isLoading = false;
@@ -140,7 +135,9 @@ class AuthProvider extends ChangeNotifier {
           print('✅ Sign in successful: ${_currentUser!.fullName}');
           return true;
         } else {
-          _errorMessage = 'User account not properly configured';
+          _errorMessage = 'User account not properly configured. Please contact admin.';
+          // Sign out if user not found in Firestore
+          await _auth.signOut();
           return false;
         }
       }
@@ -197,15 +194,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // UPDATE USER
-  // ============================================================
-  void updateUser(UserModel user) {
-    _currentUser = user;
-    notifyListeners();
-  }
-
-  // ============================================================
-  // UPDATE USER IN FIRESTORE
+  // UPDATE USER IN FIRESTORE - ✅ FIXED: Use doc(userId)
   // ============================================================
   Future<bool> updateUserInFirestore(Map<String, dynamic> data) async {
     if (_currentUser == null) {
@@ -214,27 +203,20 @@ class AuthProvider extends ChangeNotifier {
     }
 
     try {
-      final querySnapshot = await _firestore
+      // ✅ FIX: Use doc() with userId
+      await _firestore
           .collection('users')
-          .where('userId', isEqualTo: _currentUser!.userId)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        final docRef = querySnapshot.docs.first.reference;
-        await docRef.update({
-          ...data,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-        
-        // Refresh user data
-        await refreshUser();
-        print('✅ User updated successfully');
-        return true;
-      } else {
-        _errorMessage = 'User document not found';
-        return false;
-      }
+          .doc(_currentUser!.userId)
+          .update({
+            ...data,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+      
+      // Refresh user data
+      await refreshUser();
+      print('✅ User updated successfully');
+      return true;
+      
     } catch (e) {
       print('❌ Error updating user: $e');
       _errorMessage = 'Failed to update user: $e';
@@ -243,56 +225,18 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // CHECK EMAIL EXISTS
-  // ============================================================
-  Future<bool> checkEmailExists(String email) async {
-    try {
-      List<String> methods = await _auth.fetchSignInMethodsForEmail(
-        email.trim()
-      );
-      return methods.isNotEmpty;
-    } catch (e) {
-      print('❌ Check email error: $e');
-      return false;
-    }
-  }
-
-  // ============================================================
-  // SEND PASSWORD RESET EMAIL
-  // ============================================================
-  Future<bool> sendPasswordResetEmail(String email) async {
-    try {
-      await _auth.sendPasswordResetEmail(email: email.trim());
-      print('✅ Password reset email sent to $email');
-      return true;
-    } on FirebaseAuthException catch (e) {
-      print('❌ Password reset error: ${e.code}');
-      _errorMessage = _handleAuthError(e);
-      return false;
-    } catch (e) {
-      print('❌ Unexpected error: $e');
-      _errorMessage = 'Failed to send reset email';
-      return false;
-    }
-  }
-
-  // ============================================================
-  // GET USER BY ID (for admin/manager functions)
+  // GET USER BY ID - ✅ FIXED: Use doc(userId)
   // ============================================================
   Future<UserModel?> getUserById(String userId) async {
     try {
-      final querySnapshot = await _firestore
+      final docSnapshot = await _firestore
           .collection('users')
-          .where('userId', isEqualTo: userId)
-          .limit(1)
+          .doc(userId)
           .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        final doc = querySnapshot.docs.first;
-        return UserModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        return UserModel.fromFirestore(data, docSnapshot.id);
       }
       return null;
     } catch (e) {
@@ -302,7 +246,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // GET ALL USERS (for admin/manager functions)
+  // GET ALL USERS
   // ============================================================
   Future<List<UserModel>> getAllUsers() async {
     try {
@@ -347,6 +291,40 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================================
+  // CHECK EMAIL EXISTS
+  // ============================================================
+  Future<bool> checkEmailExists(String email) async {
+    try {
+      List<String> methods = await _auth.fetchSignInMethodsForEmail(
+        email.trim()
+      );
+      return methods.isNotEmpty;
+    } catch (e) {
+      print('❌ Check email error: $e');
+      return false;
+    }
+  }
+
+  // ============================================================
+  // SEND PASSWORD RESET EMAIL
+  // ============================================================
+  Future<bool> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      print('✅ Password reset email sent to $email');
+      return true;
+    } on FirebaseAuthException catch (e) {
+      print('❌ Password reset error: ${e.code}');
+      _errorMessage = _handleAuthError(e);
+      return false;
+    } catch (e) {
+      print('❌ Unexpected error: $e');
+      _errorMessage = 'Failed to send reset email';
+      return false;
+    }
+  }
+
+  // ============================================================
   // HANDLE AUTH ERRORS
   // ============================================================
   String _handleAuthError(FirebaseAuthException e) {
@@ -381,7 +359,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // CHECK USER ROLE AND NAVIGATE (Helper method)
+  // GET DASHBOARD ROUTE
   // ============================================================
   String getDashboardRoute() {
     if (isAdmin) return '/admin-dashboard';
@@ -396,7 +374,6 @@ class AuthProvider extends ChangeNotifier {
   // ============================================================
   @override
   void dispose() {
-    // Clean up resources if needed
     super.dispose();
   }
 }

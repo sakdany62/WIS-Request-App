@@ -1,4 +1,3 @@
-// lib/screens/manager/manager_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,7 +5,7 @@ import '../../services/request_service.dart';
 import '../../services/telegram_service.dart';
 import '../../utils/responsive.dart'; 
 import '../staff/notifications_screen.dart';
-import '../staff/profile_screen.dart';
+import 'manager_profile_screen.dart';  // ✅ Manager Profile
 import '../../app_fonts.dart';
 
 class ManagerHomeScreen extends StatefulWidget {
@@ -63,17 +62,15 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
 
     if (user != null) {
       try {
-        final querySnapshot = await FirebaseFirestore.instance
+        final docSnapshot = await FirebaseFirestore.instance
             .collection('users')
-            .where('userId', isEqualTo: user.uid)
-            .limit(1)
+            .doc(user.uid)  // ✅ Use userId as document ID
             .get();
 
-        if (querySnapshot.docs.isNotEmpty) {
-          final data = querySnapshot.docs.first.data() as Map<String, dynamic>;
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data()!;
           setState(() {
-            managerName =
-                data['fullName'] ?? data['username'] ?? 'Manager User';
+            managerName = data['fullName'] ?? data['username'] ?? 'Manager User';
             managerDepartment = data['department'] ?? '';
             isLoading = false;
             errorMessage = null;
@@ -259,7 +256,6 @@ Status: APPROVED
       String requestId, String userName, int totalDays) async {
     final reasonController = TextEditingController();
     
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
 
@@ -393,7 +389,6 @@ Status: REJECTED
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -862,10 +857,11 @@ class _ManagerUserHeader extends StatelessWidget {
 
     return Row(
       children: [
+        // ✅ Avatar - Click to Manager Profile
         GestureDetector(
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const ProfileScreen()),
+            MaterialPageRoute(builder: (context) => const ManagerProfileScreen()),
           ),
           child: CircleAvatar(
             radius: isMobile ? 30 : 40,
@@ -912,7 +908,7 @@ class _ManagerUserHeader extends StatelessWidget {
             ],
           ),
         ),
-        _NotificationIconWithBadge(
+        _NotificationIconWithBadgeManager(
           userId: userId,
           iconColor: iconColor,
           isMobile: isMobile,
@@ -923,14 +919,14 @@ class _ManagerUserHeader extends StatelessWidget {
   }
 }
 
-// ================= NOTIFICATION ICON WITH BADGE =================
-class _NotificationIconWithBadge extends StatelessWidget {
+// ================= NOTIFICATION ICON WITH BADGE (Manager) =================
+class _NotificationIconWithBadgeManager extends StatelessWidget {
   final String userId;
   final Color iconColor;
   final bool isMobile;
   final double iconSize;
 
-  const _NotificationIconWithBadge({
+  const _NotificationIconWithBadgeManager({
     required this.userId,
     this.iconColor = const Color(0xFF173B69),
     required this.isMobile,

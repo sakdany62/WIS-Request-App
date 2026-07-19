@@ -14,10 +14,10 @@ class UserModel {
   final String? department;       
   final String? departmentId;     
   final String? profileImage;
-  final String? profileImageUrl;   // បន្ថែមសម្រាប់ភាពឆបគ្នា
-  final String? employeeId;        // បន្ថែមសម្រាប់ភាពឆបគ្នា
-  final String? position;          // បន្ថែមសម្រាប់ភាពឆបគ្នា
-  final DateTime? updatedAt;       // បន្ថែមសម្រាប់ភាពឆបគ្នា
+  final String? profileImageUrl;
+  final String? employeeId;
+  final String? position;
+  final DateTime? updatedAt;
 
   UserModel({
     required this.id,
@@ -57,7 +57,8 @@ class UserModel {
       department: data['department']?.toString() ?? '',
       departmentId: data['departmentId']?.toString() ?? '',
       profileImage: data['profileImage']?.toString() ?? '',
-      profileImageUrl: data['profileImageUrl']?.toString() ?? data['profileImage']?.toString() ?? '',
+      profileImageUrl: data['profileImageUrl']?.toString() ?? 
+          data['profileImage']?.toString() ?? '',
       employeeId: data['employeeId']?.toString() ?? '',
       position: data['position']?.toString() ?? '',
       updatedAt: data['updatedAt'] != null 
@@ -95,10 +96,10 @@ class UserModel {
   // ROLE CHECKERS
   // ============================================================
   bool get isAdmin => roleId == '1';
-  bool get isDirector => roleId == '4';  // Executive Director
+  bool get isDirector => roleId == '4';
   bool get isManager => roleId == '3';
   bool get isStaff => roleId == '2';
-  bool get isHead => roleId == '4';      // Head of Department = Director
+  bool get isHead => roleId == '4';
 
   // ============================================================
   // ROLE NAME

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user_model.dart';
 import '../app_fonts.dart';
+import '../utils/responsive.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -52,15 +53,30 @@ class _SplashScreenState extends State<SplashScreen> {
   String _getDashboardRoute(UserModel user) {
     if (user.isAdmin) {
       return '/admin-dashboard';
+    } else if (user.isDirector) {
+      return '/director-dashboard';
     } else if (user.isManager) {
       return '/manager-dashboard';
+    } else if (user.isStaff) {
+      return '/dashboard';
     } else {
-      return '/dashboard'; // staff
+      // Default to staff dashboard if role is unknown
+      return '/dashboard';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Get responsive values
+    final bool isMobile = Responsive.isMobile(context);
+    final double logoSize = isMobile ? 150 : 200;
+    final double spacing = Responsive.spacing(context);
+    
+    // ✅ Use AppFonts.md for both texts (since that's the only one available)
+    // Or use Responsive.fontSize with a number directly
+    final double mainFontSize = Responsive.fontSize(context, AppFonts.md);
+    final double smallFontSize = Responsive.fontSize(context, 12); // Use number directly
+
     return Scaffold(
       backgroundColor: const Color(0xFF173B69),
       body: SafeArea(
@@ -68,18 +84,44 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // ✅ ប្រើ Image.asset ដូច Login Screen
+              // Logo - Responsive size
               SizedBox(
-                width: 200,
-                height: 200,
+                width: logoSize,
+                height: logoSize,
                 child: Image.asset(
                   'assets/img/logo.png',
                   fit: BoxFit.contain,
                 ),
               ),
-              const SizedBox(height: 50),
+              SizedBox(height: spacing * 3),
+              
+              // Loading indicator
               const CircularProgressIndicator(
-                color: Colors.white,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                strokeWidth: 3,
+              ),
+              
+              SizedBox(height: spacing * 2),
+              
+              // App name - Responsive font
+              Text(
+                'Westland Permission System',
+                style: TextStyle(
+                  fontSize: mainFontSize,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: spacing),
+              
+              // Loading text - Responsive font
+              Text(
+                'Loading...',
+                style: TextStyle(
+                  fontSize: smallFontSize, // Now using 12 instead of AppFonts.sm
+                  color: Colors.white70,
+                ),
               ),
             ],
           ),

@@ -130,14 +130,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Read Status',
-              style: TextStyle(
-                fontSize: isMobile ? fontSize : AppFonts.md,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
+            
             Text(
               widget.termsTitle,
               style: TextStyle(

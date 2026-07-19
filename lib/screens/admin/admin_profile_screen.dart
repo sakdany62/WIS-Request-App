@@ -4,17 +4,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cross_file/cross_file.dart';
-import '../../app_fonts.dart';
-import '../../utils/responsive.dart';
+import '../../app_fonts.dart';  
+import '../../utils/responsive.dart';  
 
-class StaffProfileScreen extends StatefulWidget {
-  const StaffProfileScreen({super.key});
+class AdminProfileScreen extends StatefulWidget {
+  const AdminProfileScreen({super.key});
 
   @override
-  State<StaffProfileScreen> createState() => _StaffProfileScreenState();
+  State<AdminProfileScreen> createState() => _AdminProfileScreenState();
 }
 
-class _StaffProfileScreenState extends State<StaffProfileScreen> {
+class _AdminProfileScreenState extends State<AdminProfileScreen> {
   Map<String, dynamic>? userData;
   bool isLoading = true;
   bool isUploading = false;
@@ -40,7 +40,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     }
     
     try {
-      print('🔍 Loading staff data for UID: ${user.uid}');
+      print('🔍 Loading admin data for UID: ${user.uid}');
       
       final docSnapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -49,7 +49,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
-        print(' Staff data found: $data');
+        print('✅ Admin data found: $data');
         
         setState(() {
           userData = Map<String, dynamic>.from(data);
@@ -57,16 +57,16 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
           isLoading = false;
         });
       } else {
-        print('⚠️ No staff document found for UID: ${user.uid}');
+        print('⚠️ No admin document found for UID: ${user.uid}');
         setState(() {
-          errorMessage = 'Staff profile not found in database';
+          errorMessage = 'Admin profile not found in database';
           isLoading = false;
         });
       }
     } catch (e) {
-      print('❌ Error loading staff data: $e');
+      print('❌ Error loading admin data: $e');
       setState(() {
-        errorMessage = 'Failed to load staff data: $e';
+        errorMessage = 'Failed to load admin data: $e';
         isLoading = false;
       });
     }
@@ -180,7 +180,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       final snapshot = await uploadTask.whenComplete(() => {});
       final downloadUrl = await snapshot.ref.getDownloadURL();
       
-      print(' Image uploaded successfully: $downloadUrl');
+      print('✅ Image uploaded successfully: $downloadUrl');
       return downloadUrl;
     } catch (e) {
       print('❌ Error uploading image: $e');
@@ -201,9 +201,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             'updatedAt': FieldValue.serverTimestamp(),
           });
       
-      print(' database updated with profile image URL');
+      print('✅ Database updated with profile image URL');
     } catch (e) {
-      print(' Error updating Firestore: $e');
+      print('❌ Error updating Firestore: $e');
       throw Exception('Failed to update profile: $e');
     }
   }
@@ -262,9 +262,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       
       try {
         await storageRef.delete();
-        print(' Image deleted from storage');
+        print('✅ Image deleted from storage');
       } catch (e) {
-        print('No image to delete or error: $e');
+        print('⚠️ No image to delete or error: $e');
       }
 
       await FirebaseFirestore.instance
@@ -365,14 +365,14 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         title: Text(
-          'Staff Profile',
+          'Admin Profile',
           style: TextStyle(
             fontSize: isMobile ? 16 : 18,
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: const Color(0xFF173B69),
+        backgroundColor: const Color(0xFF173B69), // ✅ ពណ៌ដូច Staff
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -428,7 +428,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     if (userData == null) {
       return Center(
         child: Text(
-          'No staff data available',
+          'No admin data available',
           style: TextStyle(fontSize: fontSize),
         ),
       );
@@ -446,7 +446,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Staff Information',
+                  'Admin Information',
                   style: TextStyle(
                     fontSize: isMobile ? fontSize : fontSize + 2,
                     fontWeight: FontWeight.bold,
@@ -483,8 +483,8 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                 height: avatarSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.blue,
-                  border: Border.all(color: Colors.blue, width: 4),
+                  color: const Color(0xFF173B69), // ✅ ពណ៌ដូច Staff
+                  border: Border.all(color: const Color(0xFF173B69), width: 4),
                   image: (profileImageUrl != null && profileImageUrl!.isNotEmpty)
                       ? DecorationImage(
                           image: NetworkImage(profileImageUrl!),
@@ -497,7 +497,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                 ),
                 child: (profileImageUrl == null || profileImageUrl!.isEmpty)
                     ? Icon(
-                        Icons.person,
+                        Icons.admin_panel_settings,
                         size: avatarIconSize,
                         color: Colors.white,
                       )
@@ -511,7 +511,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                   child: Container(
                     padding: EdgeInsets.all(cameraPadding),
                     decoration: BoxDecoration(
-                      color: Colors.blue,
+                      color: const Color(0xFF173B69), // ✅ ពណ៌ដូច Staff
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
                     ),
@@ -567,7 +567,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
           SizedBox(height: spacing),
           
           Text(
-            userData?['fullName'] ?? userData?['username'] ?? 'Staff User',
+            userData?['fullName'] ?? userData?['username'] ?? 'Admin User',
             style: TextStyle(
               fontSize: isMobile ? fontSize + 2 : fontSize + 4,
               fontWeight: FontWeight.bold,
@@ -575,7 +575,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
           ),
           SizedBox(height: spacing / 2),
           Text(
-            userData?['email'] ?? user?.email ?? 'staff@westland.com',
+            userData?['email'] ?? user?.email ?? 'admin@westland.com',
             style: TextStyle(
               fontSize: isMobile ? fontSize * 0.85 : fontSize,
               color: Colors.grey,
@@ -588,14 +588,14 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
               vertical: spacing / 2,
             ),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
+              color: const Color(0xFF173B69).withOpacity(0.1), // ✅ ពណ៌ដូច Staff
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              ' Staff',
+              ' Admin',
               style: TextStyle(
                 fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                color: Colors.blue,
+                color: const Color(0xFF173B69), // ✅ ពណ៌ដូច Staff
               ),
             ),
           ),
@@ -653,63 +653,63 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       ),
       child: Column(
         children: [
-          _InfoRow(
+          _InfoRowAdmin(
             label: 'Employee ID',
             value: _getValue('employeeId', 'userId'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowAdmin(
             label: 'Username',
             value: _getValue('username'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowAdmin(
             label: 'Full Name',
             value: _getValue('fullName'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowAdmin(
             label: 'Email',
             value: _getValue('email'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowAdmin(
             label: 'Phone',
             value: _getValue('phone'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowAdmin(
             label: 'Department',
             value: _getValue('department'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
-            label: 'Position',
-            value: _getValue('position'),
+          _InfoRowAdmin(
+            label: 'Role',
+            value: 'Admin',
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowAdmin(
             label: 'Status',
             value: _getValue('status'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowAdmin(
             label: 'Member Since',
             value: _formatDate(userData?['createdAt']),
             isMobile: isMobile,
@@ -731,13 +731,13 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
   }
 }
 
-class _InfoRow extends StatelessWidget {
+class _InfoRowAdmin extends StatelessWidget {
   final String label;
   final String value;
   final bool isMobile;
   final double fontSize;
 
-  const _InfoRow({
+  const _InfoRowAdmin({
     required this.label,
     required this.value,
     required this.isMobile,

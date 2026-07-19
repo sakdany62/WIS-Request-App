@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../app_fonts.dart';
+import '../../utils/responsive.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CreateUserScreen extends StatefulWidget {
   const CreateUserScreen({super.key});
@@ -22,7 +24,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   String _selectedStatus = 'Active';
   bool _isLoading = false;
 
-  // ============ List of Departments with IDs ============
   final List<Map<String, String>> _departments = [
     {'id': 'dept_it', 'name': 'IT Department'},
     {'id': 'dept_education', 'name': 'Education Department'},
@@ -33,10 +34,41 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Check if department should be shown
   bool _showDepartment() {
-    // Hide for Admin (roleId = '1') and Director (roleId = '4')
     return _selectedRole != '1' && _selectedRole != '4';
+  }
+
+  //  ទាញយក Admin Credentials
+  Future<Map<String, String>?> _getAdminCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('admin_email');
+    final password = prefs.getString('admin_password');
+    if (email != null && password != null && email.isNotEmpty && password.isNotEmpty) {
+      return {'email': email, 'password': password};
+    }
+    return null;
+  }
+
+  //  Auto Re-login Admin
+  Future<bool> _autoReLoginAdmin() async {
+    final credentials = await _getAdminCredentials();
+    
+    if (credentials != null) {
+      try {
+        //  Login with stored credentials
+        await _auth.signInWithEmailAndPassword(
+          email: credentials['email']!,
+          password: credentials['password']!,
+        );
+        print(' Admin auto re-login successful!');
+        return true;
+      } catch (e) {
+        print('❌ Admin auto re-login failed: $e');
+        return false;
+      }
+    }
+    print('❌ No admin credentials found');
+    return false;
   }
 
   Future<void> _createUser() async {
@@ -47,12 +79,51 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     });
 
     try {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+      
+      //  ពិនិត្យមើលថា Email មានហើយឬនៅ
+      try {
+        final methods = await _auth.fetchSignInMethodsForEmail(email);
+        if (methods.isNotEmpty) {
+          if (mounted) {
+            await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Email Already Registered'),
+                content: Text(
+                  'The email "$email" is already registered. Please use a different email.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+            setState(() {
+              _isLoading = false;
+            });
+            return;
+          }
+          return;
+        }
+      } catch (e) {
+        if (e is FirebaseAuthException && e.code == 'email-already-in-use') {
+          rethrow;
+        }
+      }
+      
+      // 1. Create user in Firebase Auth
       final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        email: email,
+        password: password,
       );
 
-      // Find department name from Department ID
+      final newUserUid = userCredential.user!.uid;
+
+      // Find department name
       String departmentName = '';
       if (_selectedDepartmentId.isNotEmpty) {
         final dept = _departments.firstWhere(
@@ -62,9 +133,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         departmentName = dept['name'] ?? '';
       }
 
-      await _firestore.collection('users').add({
-        'userId': userCredential.user!.uid,
-        'email': _emailController.text.trim(),
+      // 2. Save user to Firestore
+      await _firestore.collection('users').doc(newUserUid).set({
+        'userId': newUserUid,
+        'email': email,
         'fullName': _fullNameController.text.trim(),
         'username': _usernameController.text.trim(),
         'phone': _phoneController.text.trim(),
@@ -73,21 +145,45 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         'department': departmentName.isEmpty ? null : departmentName,
         'status': _selectedStatus,
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (mounted) {
+      // 3.  Sign out the new user
+      await _auth.signOut();
+      print('New user signed out');
+
+      // 4.  Auto Re-login Admin
+      final reLoginSuccess = await _autoReLoginAdmin();
+      
+      if (reLoginSuccess && mounted) {
+        //  Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('User created successfully!'),
+            content: Text(' User created successfully'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
-        Navigator.pop(context);
+        
+        //  Navigate back to Admin Dashboard
+        Navigator.pop(context); // Close CreateUserScreen
+      } else {
+        // ❌ If auto re-login fails, go to login screen
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⚠️ Please login again as Admin'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          Navigator.pushReplacementNamed(context, '/login');
+        }
       }
+      
     } on FirebaseAuthException catch (e) {
       String message = 'Failed to create user';
       if (e.code == 'email-already-in-use') {
-        message = 'Email already in use';
+        message = 'Email already in use. Please use a different email.';
       } else if (e.code == 'weak-password') {
         message = 'Password is too weak';
       }
@@ -123,12 +219,18 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, AppFonts.md);
+    final double spacing = Responsive.spacing(context);
+    final double buttonHeight = Responsive.buttonHeight(context);
+    final double iconSize = Responsive.iconSize(context, 24);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           'Create New User',
           style: TextStyle(
-            fontSize: AppFonts.md,
+            fontSize: isMobile ? AppFonts.md : AppFonts.md * 1.1,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
@@ -137,32 +239,32 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Colors.white, size: iconSize),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(spacing * 2),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ===== Email =====
-              const Text(
+              // Email
+              Text(
                 'Email',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: spacing * 0.6),
               TextFormField(
                 controller: _emailController,
                 decoration: InputDecoration(
                   hintText: 'Enter email',
-                  hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade400),
+                  hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -183,33 +285,36 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.red, width: 2.0),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: spacing * 1.5,
+                    vertical: isMobile ? 12 : 14,
+                  ),
                 ),
                 keyboardType: TextInputType.emailAddress,
-                style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
+                style: TextStyle(fontSize: fontSize, color: Colors.black),
                 validator: (value) {
                   if (value?.isEmpty ?? true) return 'Email is required';
                   if (!value!.contains('@')) return 'Invalid email';
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: spacing * 1.5),
 
-              // ===== Password =====
-              const Text(
+              // Password
+              Text(
                 'Password',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: spacing * 0.6),
               TextFormField(
                 controller: _passwordController,
                 decoration: InputDecoration(
                   hintText: 'Enter password (min 6 characters)',
-                  hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade400),
+                  hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -230,33 +335,36 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.red, width: 2.0),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: spacing * 1.5,
+                    vertical: isMobile ? 12 : 14,
+                  ),
                 ),
                 obscureText: true,
-                style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
+                style: TextStyle(fontSize: fontSize, color: Colors.black),
                 validator: (value) {
                   if (value?.isEmpty ?? true) return 'Password is required';
                   if (value!.length < 6) return 'Min 6 characters';
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: spacing * 1.5),
 
-              // ===== Full Name =====
-              const Text(
+              // Full Name
+              Text(
                 'Full Name',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: spacing * 0.6),
               TextFormField(
                 controller: _fullNameController,
                 decoration: InputDecoration(
                   hintText: 'Enter full name',
-                  hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade400),
+                  hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -277,28 +385,31 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.red, width: 2.0),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: spacing * 1.5,
+                    vertical: isMobile ? 12 : 14,
+                  ),
                 ),
-                style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
+                style: TextStyle(fontSize: fontSize, color: Colors.black),
                 validator: (value) => value?.isEmpty ?? true ? 'Full name is required' : null,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: spacing * 1.5),
 
-              // ===== Username =====
-              const Text(
+              // Username
+              Text(
                 'Username',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: spacing * 0.6),
               TextFormField(
                 controller: _usernameController,
                 decoration: InputDecoration(
                   hintText: 'Enter username',
-                  hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade400),
+                  hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -319,28 +430,31 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.red, width: 2.0),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: spacing * 1.5,
+                    vertical: isMobile ? 12 : 14,
+                  ),
                 ),
-                style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
+                style: TextStyle(fontSize: fontSize, color: Colors.black),
                 validator: (value) => value?.isEmpty ?? true ? 'Username is required' : null,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: spacing * 1.5),
 
-              // ===== Phone =====
-              const Text(
+              // Phone
+              Text(
                 'Phone',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: spacing * 0.6),
               TextFormField(
                 controller: _phoneController,
                 decoration: InputDecoration(
                   hintText: 'Enter phone number',
-                  hintStyle: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade400),
+                  hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -361,23 +475,26 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Colors.red, width: 2.0),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: spacing * 1.5,
+                    vertical: isMobile ? 12 : 14,
+                  ),
                 ),
                 keyboardType: TextInputType.phone,
-                style: TextStyle(fontSize: AppFonts.md, color: Colors.black),
+                style: TextStyle(fontSize: fontSize, color: Colors.black),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: spacing * 1.5),
 
-              // ===== Role Dropdown =====
-              const Text(
+              // Role Dropdown
+              Text(
                 'Role',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: spacing * 0.6),
               DropdownButtonFormField<String>(
                 value: _selectedRole,
                 decoration: InputDecoration(
@@ -402,66 +519,55 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     borderSide: const BorderSide(color: Colors.red, width: 2.0),
                   ),
                   filled: true,
-                  fillColor: Colors.white, // ✅ Background ពណ៌ស
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: spacing * 1.5,
+                    vertical: isMobile ? 6 : 8,
+                  ),
                 ),
                 items: const [
-                  DropdownMenuItem(
-                    value: '1',
-                    child: Text('👑 Admin'),
-                  ),
-                  DropdownMenuItem(
-                    value: '2',
-                    child: Text(' Staff'),
-                  ),
-                  DropdownMenuItem(
-                    value: '3',
-                    child: Text(' Manager'),
-                  ),
+                  DropdownMenuItem(value: '1', child: Text('👑 Admin')),
+                  DropdownMenuItem(value: '2', child: Text(' Staff')),
+                  DropdownMenuItem(value: '3', child: Text(' Manager')),
                 ],
                 onChanged: (value) {
                   if (value != null) {
                     setState(() {
                       _selectedRole = value;
-                      // Reset department when Admin or Director is selected
-                      if (value == '1' || value == '4') {
+                      if (value == '1') {
                         _selectedDepartmentId = '';
                       }
                     });
                   }
                 },
                 style: TextStyle(
-                  fontSize: AppFonts.md,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                  color: Colors.black,
                 ),
-                dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
-                icon: const Icon(
-                  Icons.arrow_drop_down,
-                  color: Color(0xFF173B69),
-                ),
+                dropdownColor: Colors.white,
+                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                 isExpanded: true,
                 menuMaxHeight: 250,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: spacing * 1.5),
 
-              // ===== Department Dropdown =====
-              // Department field - only shown when not Admin or Director
+              // Department Dropdown
               if (_showDepartment()) ...[
-                const Text(
+                Text(
                   'Department',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: fontSize,
                     fontWeight: FontWeight.w500,
                     color: Colors.grey,
                   ),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: spacing * 0.6),
                 DropdownButtonFormField<String>(
                   value: _selectedDepartmentId.isEmpty ? null : _selectedDepartmentId,
                   hint: Text(
                     'Select Department',
-                    style: TextStyle(fontSize: AppFonts.md, color: Colors.grey.shade500),
+                    style: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
                   ),
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
@@ -485,21 +591,21 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                       borderSide: const BorderSide(color: Colors.red, width: 2.0),
                     ),
                     filled: true,
-                    fillColor: Colors.white, // ✅ Background ពណ៌ស
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    fillColor: Colors.white,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: spacing * 1.5,
+                      vertical: isMobile ? 6 : 8,
+                    ),
                   ),
                   items: [
-                    const DropdownMenuItem(
-                      value: '',
-                      child: Text('No Department'),
-                    ),
+                    const DropdownMenuItem(value: '', child: Text('No Department')),
                     ..._departments.map((dept) {
                       return DropdownMenuItem(
                         value: dept['id'],
                         child: Text(
                           dept['name']!,
                           style: TextStyle(
-                            fontSize: AppFonts.md,
+                            fontSize: fontSize,
                             fontWeight: FontWeight.w500,
                             color: Colors.black,
                           ),
@@ -519,31 +625,28 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     return null;
                   },
                   style: TextStyle(
-                    fontSize: AppFonts.md,
+                    fontSize: fontSize,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                    color: Colors.black,
                   ),
-                  dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
-                  icon: const Icon(
-                    Icons.arrow_drop_down,
-                    color: Color(0xFF173B69),
-                  ),
+                  dropdownColor: Colors.white,
+                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                   isExpanded: true,
                   menuMaxHeight: 300,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: spacing * 1.5),
               ],
 
-              // ===== Status Dropdown =====
-              const Text(
+              // Status Dropdown
+              Text(
                 'Status',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: spacing * 0.6),
               DropdownButtonFormField<String>(
                 value: _selectedStatus,
                 decoration: InputDecoration(
@@ -568,18 +671,15 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     borderSide: const BorderSide(color: Colors.red, width: 2.0),
                   ),
                   filled: true,
-                  fillColor: Colors.white, // ✅ Background ពណ៌ស
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: spacing * 1.5,
+                    vertical: isMobile ? 6 : 8,
+                  ),
                 ),
                 items: const [
-                  DropdownMenuItem(
-                    value: 'Active',
-                    child: Text(' Active'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'Inactive',
-                    child: Text(' Inactive'),
-                  ),
+                  DropdownMenuItem(value: 'Active', child: Text(' Active')),
+                  DropdownMenuItem(value: 'Inactive', child: Text(' Inactive')),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -589,24 +689,21 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   }
                 },
                 style: TextStyle(
-                  fontSize: AppFonts.md,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                  color: Colors.black,
                 ),
-                dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
-                icon: const Icon(
-                  Icons.arrow_drop_down,
-                  color: Color(0xFF173B69),
-                ),
+                dropdownColor: Colors.white,
+                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                 isExpanded: true,
                 menuMaxHeight: 200,
               ),
-              const SizedBox(height: 30),
+              SizedBox(height: spacing * 3),
 
-              // ===== Create Button =====
+              // Create Button
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: buttonHeight,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _createUser,
                   style: ElevatedButton.styleFrom(
@@ -617,7 +714,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     ),
                   ),
                   child: _isLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 24,
                           width: 24,
                           child: CircularProgressIndicator(
@@ -628,7 +725,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                       : Text(
                           'Create User',
                           style: TextStyle(
-                            fontSize: AppFonts.md,
+                            fontSize: fontSize,
                             fontWeight: FontWeight.w600,
                           ),
                         ),

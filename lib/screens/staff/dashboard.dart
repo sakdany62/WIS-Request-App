@@ -1,4 +1,3 @@
-// lib/screens/staff/dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,11 +6,7 @@ import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import 'staff_home_screen.dart';
 import 'request_screen.dart';
-import 'settings_screen.dart';
-
-// ❌ លុប import ទាំងនេះចេញ
-// import 'manager_home_screen.dart';
-// import 'all_permission_today.dart' as permission;
+import 'settings_screen.dart';  // ✅ រក្សា Settings
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -36,7 +31,7 @@ class _DashboardState extends State<Dashboard> {
     _pages = [
       const StaffHomeScreen(),
       const RequestScreen(),
-      const SettingsScreen(),
+      const SettingsScreen(),  // ✅ Settings នៅដដែល
     ];
   }
 
@@ -153,14 +148,14 @@ class _DashboardState extends State<Dashboard> {
                     1,
                     Icons.assignment_outlined,
                     Icons.assignment,
-                    isMobile ? 'Request' : 'Request',
+                    'Request',
                     isMobile,
                     iconSize,
                     fontSize,
                   ),
                   _buildNavItem(
                     2,
-                    Icons.settings_outlined,
+                    Icons.settings_outlined,  // ✅ Settings Icon
                     Icons.settings,
                     'Settings',
                     isMobile,
@@ -193,12 +188,6 @@ class _DashboardState extends State<Dashboard> {
           setState(() {
             _currentIndex = index;
           });
-          // ❌ លុបបន្ទាត់នេះចេញ
-          // if (index == 0) {
-          //   WidgetsBinding.instance.addPostFrameCallback((_) {
-          //     StaffHomeScreenStateManager.refreshData();
-          //   });
-          // }
         },
         child: Container(
           padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8),

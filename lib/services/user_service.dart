@@ -4,57 +4,149 @@ import '../models/user_model.dart';
 
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final CollectionReference _usersCollection = 
-      FirebaseFirestore.instance.collection('users');
 
+  // ============================================================
+  // UPDATE USER
+  // ============================================================
   Future<void> updateUser(UserModel user) async {
     try {
       print('📝 Updating user: ${user.id}');
-      print('📝 FullName: ${user.fullName}');
-      print('📝 Email: ${user.email}');
-      print('📝 Phone: ${user.phone}');
-      print('📝 RoleId: ${user.roleId}');
-      print('📝 Status: ${user.status}');
-      print('📝 Department ID: ${user.departmentId}');
-      print('📝 Department Name: ${user.department}');
       
-      await _usersCollection.doc(user.id).update({
-        'fullName': user.fullName,
-        'phone': user.phone,
-        'email': user.email,
-        'roleId': user.roleId,
-        'status': user.status,
-        'departmentId': user.departmentId ?? '',
-        'department': user.department ?? '',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      await _firestore
+          .collection('users')
+          .doc(user.id)  // user.id is the userId
+          .update({
+            'fullName': user.fullName,
+            'phone': user.phone,
+            'email': user.email,
+            'roleId': user.roleId,
+            'status': user.status,
+            'departmentId': user.departmentId ?? '',
+            'department': user.department ?? '',
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
       
-      print('User updated successfully');
+      print('✅ User updated successfully');
     } catch (e) {
-      print(' Failed to update user: $e');
+      print('❌ Failed to update user: $e');
       throw Exception('Failed to update user: $e');
     }
   }
 
+  // ============================================================
+  // DELETE USER - FIXED: Delete both Firestore and Firebase Auth
+  // ============================================================
   Future<void> deleteUser(String userId, String? authUid) async {
     try {
-      await _usersCollection.doc(userId).delete();
+      // 1. Delete from Firestore
+      await _firestore.collection('users').doc(userId).delete();
+      print('✅ User deleted from Firestore');
+      
+      // 2. Delete from Firebase Auth
       if (authUid != null) {
-        final user = FirebaseAuth.instance.currentUser;
-        if (user != null && user.uid == authUid) {
-          await user.delete();
+        final currentUser = FirebaseAuth.instance.currentUser;
+        
+        // If deleting current user
+        if (currentUser != null && currentUser.uid == authUid) {
+          await currentUser.delete();
+          print('✅ Current user deleted from Firebase Auth');
+        } else {
+          // If deleting other user, we need admin privileges
+          // For client-side, we can't delete other users
+          print('⚠️ Cannot delete other user from Auth without admin privileges');
+          print('ℹ️ Please use Firebase Console or Admin SDK to delete auth users');
         }
       }
-      print('User deleted successfully');
+      
+      print('✅ User deletion process completed');
     } catch (e) {
-      print('Failed to delete user: $e');
+      print('❌ Failed to delete user: $e');
       throw Exception('Failed to delete user: $e');
     }
   }
 
+  // ============================================================
+  // DELETE USER WITH RE-AUTHENTICATION
+  // ============================================================
+  Future<void> deleteUserWithReauth(String userId, String password) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      
+      if (currentUser == null) {
+        throw Exception('No user logged in');
+      }
+      
+      // Re-authenticate before deleting
+      final credential = EmailAuthProvider.credential(
+        email: currentUser.email!,
+        password: password,
+      );
+      
+      await currentUser.reauthenticateWithCredential(credential);
+      
+      // Delete from Firestore
+      await _firestore.collection('users').doc(userId).delete();
+      print('✅ User deleted from Firestore');
+      
+      // Delete from Firebase Auth
+      await currentUser.delete();
+      print('✅ User deleted from Firebase Auth');
+      
+    } catch (e) {
+      print('❌ Failed to delete user: $e');
+      throw Exception('Failed to delete user: $e');
+    }
+  }
+
+  // ============================================================
+  // GET USER BY ID
+  // ============================================================
+  Future<UserModel?> getUserById(String userId) async {
+    try {
+      final docSnapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get();
+          
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        return UserModel.fromFirestore(data, docSnapshot.id);
+      }
+      return null;
+    } catch (e) {
+      print('❌ Failed to get user: $e');
+      return null;
+    }
+  }
+
+  // ============================================================
+  // GET ALL USERS
+  // ============================================================
+  Future<List<UserModel>> getAllUsers() async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        return UserModel.fromFirestore(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
+      }).toList();
+    } catch (e) {
+      print('❌ Failed to get users: $e');
+      return [];
+    }
+  }
+
+  // ============================================================
+  // GET USER STATS
+  // ============================================================
   Future<Map<String, int>> getUserStats() async {
     try {
-      final snapshot = await _usersCollection.get();
+      final snapshot = await _firestore.collection('users').get();
       final Map<String, int> stats = {
         'total': snapshot.docs.length,
         'admin': 0,
@@ -94,7 +186,7 @@ class UserService {
       
       return stats;
     } catch (e) {
-      print(' Failed to get user stats: $e');
+      print('❌ Failed to get user stats: $e');
       return {};
     }
   }

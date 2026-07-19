@@ -1,4 +1,3 @@
-// lib/screens/admin/admin_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,7 +7,7 @@ import '../../services/request_service.dart';
 import '../../services/user_service.dart';
 import '../../utils/responsive.dart';
 import '../staff/notifications_screen.dart';
-import '../staff/profile_screen.dart';
+import 'admin_profile_screen.dart';  // ✅ Admin Profile
 import 'user_management_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
@@ -104,14 +103,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
     if (user != null) {
       try {
-        final querySnapshot = await FirebaseFirestore.instance
+        final docSnapshot = await FirebaseFirestore.instance
             .collection('users')
-            .where('userId', isEqualTo: user.uid)
-            .limit(1)
+            .doc(user.uid)  // ✅ Use userId as document ID
             .get();
 
-        if (querySnapshot.docs.isNotEmpty) {
-          final data = querySnapshot.docs.first.data() as Map<String, dynamic>;
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data()!;
           if (mounted) {
             setState(() {
               adminName = data['fullName'] ?? data['username'] ?? 'Admin User';
@@ -247,31 +245,25 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 28);
     final double gridSpacing = isMobile ? 6 : 12;
 
-    // ✅ Grid: 3 columns, 2 rows = 6 cards
     const int crossAxisCount = 3;
     const int rowCount = 2;
 
-    // ✅ Get screen dimensions
     final double screenHeight = MediaQuery.of(context).size.height;
     final double screenWidth = MediaQuery.of(context).size.width;
     final double safeAreaTop = MediaQuery.of(context).padding.top;
     final double safeAreaBottom = MediaQuery.of(context).padding.bottom;
     
-    // ✅ Header height (profile + name) - Increased size
     final double headerHeight = isMobile ? 90 : 120;
     
-    // ✅ Calculate available space (70% of screen)
     final double totalAvailableHeight = screenHeight - safeAreaTop - safeAreaBottom - (spacing * 2);
-    final double gridHeight = totalAvailableHeight * 0.7; // ✅ 70% of available space
+    final double gridHeight = totalAvailableHeight * 0.7;
     
-    // ✅ Calculate childAspectRatio for 3x2 grid
     final double horizontalPadding = spacing * 2;
     final double gridWidth = screenWidth - horizontalPadding;
     final double itemWidth = (gridWidth - (gridSpacing * (crossAxisCount - 1))) / crossAxisCount;
@@ -334,7 +326,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ✅ Header with larger size
+            // Header
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(
@@ -361,7 +353,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
             ),
             
-            // ✅ Grid content - 70% of screen
+            // Grid content
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
@@ -594,11 +586,11 @@ class _AdminUserHeader extends StatelessWidget {
 
     return Row(
       children: [
-        // ✅ Profile Avatar - Larger
+        // ✅ Avatar - Click to Admin Profile
         GestureDetector(
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const ProfileScreen()),
+            MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
           ),
           child: CircleAvatar(
             radius: isMobile ? 28 : 42,
@@ -611,7 +603,6 @@ class _AdminUserHeader extends StatelessWidget {
           ),
         ),
         SizedBox(width: isMobile ? spacing : spacing * 1.5),
-        // ✅ User Info - Larger text
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -647,7 +638,7 @@ class _AdminUserHeader extends StatelessWidget {
             ],
           ),
         ),
-        // ✅ Notification Bell - Larger
+        // Notification Bell
         Stack(
           children: [
             IconButton(
@@ -779,15 +770,14 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     }
 
     try {
-      final snapshot = await FirebaseFirestore.instance
+      final docSnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .where('userId', isEqualTo: userId)
-          .limit(1)
+          .doc(userId)  // ✅ Use userId as document ID
           .get();
 
       Map<String, dynamic> userData = {};
-      if (snapshot.docs.isNotEmpty) {
-        final data = snapshot.docs.first.data() as Map<String, dynamic>;
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
         userData = {
           'fullName': data['fullName'] ?? 'Unknown',
           'email': data['email'] ?? 'N/A',

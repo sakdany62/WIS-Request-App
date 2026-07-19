@@ -1,12 +1,11 @@
-// lib/screens/admin/admin_dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../app_fonts.dart';
-import '../../utils/responsive.dart'; // ✅ បន្ថែមបន្ទាត់នេះ
+import '../../utils/responsive.dart';
 import 'admin_home_screen.dart';
-import 'admin_setting.dart';
+import 'admin_setting.dart';  // ✅ Settings
 import 'report_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -32,13 +31,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _pages = const [
       AdminHomeScreen(),
       ReportScreen(),
-      AdminSettingsScreen(),
+      AdminSettingsScreen(),  // ✅ Settings នៅដដែល
     ];
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 24);
@@ -64,7 +62,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   void _showExitDialog(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
 
@@ -151,14 +148,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     1,
                     Icons.assessment_outlined,
                     Icons.assessment,
-                    isMobile ? 'Reports' : 'Reports',
+                    'Reports',
                     isMobile,
                     iconSize,
                     fontSize,
                   ),
                   _buildNavItem(
                     2,
-                    Icons.settings_outlined,
+                    Icons.settings_outlined,  // ✅ Settings Icon
                     Icons.settings,
                     'Settings',
                     isMobile,

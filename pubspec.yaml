@@ -14,11 +14,15 @@ dependencies:
   firebase_core: ^3.15.2
   firebase_auth: ^5.5.1
   cloud_firestore: ^5.6.5
-  
-  # ===== FIREBASE STORAGE (ADD THIS) =====
   firebase_storage: ^12.4.4
-    # ... dependencies ផ្សេងទៀត
+  
+  # Firebase Functions (ប្រសិនបើប្រើ Cloud Functions)
+  # firebase_functions: ^5.4.1  # ❌ លុបបន្ទាត់នេះចេញ
+  
+  # Utilities
   cross_file: ^0.3.3+8
+  image_picker: ^1.1.0
+  
   # UI
   google_fonts: ^6.2.1
   intl: ^0.19.0
@@ -26,19 +30,14 @@ dependencies:
   # State Management
   provider: ^6.1.2
   
-  # Utilities
+  # Storage & Preferences
   shared_preferences: ^2.5.2
   url_launcher: ^6.3.1
   http: ^1.3.0
-  
-  # Image Picker
-  image_picker: ^1.1.0
+  path_provider: ^2.1.5
   
   # Excel Export
   excel: ^2.0.0
-  
-  # File Storage
-  path_provider: ^2.1.5
   
   # Open File
   open_file: ^3.2.1

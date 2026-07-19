@@ -1,4 +1,3 @@
-// lib/screens/admin/user_management_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -116,7 +115,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ===== Full Name =====
+                // Full Name
                 TextFormField(
                   controller: nameController,
                   decoration: InputDecoration(
@@ -146,7 +145,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
                 SizedBox(height: spacing * 1.5),
 
-                // ===== Email =====
+                // Email
                 TextFormField(
                   controller: emailController,
                   decoration: InputDecoration(
@@ -181,7 +180,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
                 SizedBox(height: spacing * 1.5),
 
-                // ===== Phone =====
+                // Phone
                 TextFormField(
                   controller: phoneController,
                   decoration: InputDecoration(
@@ -210,7 +209,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
                 SizedBox(height: spacing * 1.5),
 
-                // ===== Role Dropdown =====
+                // Role Dropdown
                 DropdownButtonFormField<String>(
                   value: selectedRole,
                   decoration: InputDecoration(
@@ -229,7 +228,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
                     filled: true,
-                    fillColor: Colors.white, // ✅ Background ពណ៌ស
+                    fillColor: Colors.white,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 6 : 8,
@@ -255,9 +254,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   style: TextStyle(
                     fontSize: fontSize,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                    color: Colors.black,
                   ),
-                  dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                  dropdownColor: Colors.white,
                   icon: const Icon(
                     Icons.arrow_drop_down,
                     color: Color(0xFF173B69),
@@ -265,7 +264,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
                 SizedBox(height: spacing * 1.5),
 
-                // ===== Department Dropdown =====
+                // Department Dropdown
                 DropdownButtonFormField<String>(
                   value: selectedDepartmentId.isEmpty ? null : selectedDepartmentId,
                   decoration: InputDecoration(
@@ -284,7 +283,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
                     filled: true,
-                    fillColor: Colors.white, // ✅ Background ពណ៌ស
+                    fillColor: Colors.white,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 6 : 8,
@@ -314,9 +313,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   style: TextStyle(
                     fontSize: fontSize,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                    color: Colors.black,
                   ),
-                  dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                  dropdownColor: Colors.white,
                   icon: const Icon(
                     Icons.arrow_drop_down,
                     color: Color(0xFF173B69),
@@ -324,7 +323,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
                 SizedBox(height: spacing * 1.5),
 
-                // ===== Status Dropdown =====
+                // Status Dropdown
                 DropdownButtonFormField<String>(
                   value: selectedStatus,
                   decoration: InputDecoration(
@@ -343,7 +342,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                     ),
                     filled: true,
-                    fillColor: Colors.white, // ✅ Background ពណ៌ស
+                    fillColor: Colors.white,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 6 : 8,
@@ -365,9 +364,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   style: TextStyle(
                     fontSize: fontSize,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                    color: Colors.black,
                   ),
-                  dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                  dropdownColor: Colors.white,
                   icon: const Icon(
                     Icons.arrow_drop_down,
                     color: Color(0xFF173B69),
@@ -467,9 +466,32 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           'Delete User',
           style: TextStyle(fontSize: isMobile ? fontSize : fontSize + 2),
         ),
-        content: Text(
-          'Are you sure you want to delete ${user.fullName}?',
-          style: TextStyle(fontSize: fontSize),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete ${user.fullName}?',
+              style: TextStyle(fontSize: fontSize),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              ' This will delete the user from Database.',
+              style: TextStyle(
+                fontSize: fontSize * 0.85,
+                color: Colors.orange,
+              ),
+            ),
+            Text(
+              ' Email: ${user.email}',
+              style: TextStyle(
+                fontSize: fontSize * 0.85,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            
+          ],
         ),
         actions: [
           TextButton(
@@ -483,7 +505,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(
-              'Delete',
+              'Delete ',
               style: TextStyle(fontSize: fontSize),
             ),
           ),
@@ -504,13 +526,24 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         await _userService.deleteUser(user.id, user.userId);
         
         Navigator.pop(context);
-        
         _loadUsers();
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(' User deleted successfully'),
+            content: Text('User deleted from Database'),
             backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Show additional info about Auth deletion
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'To reuse email "${user.email}", delete from Database ',
+              style: TextStyle(fontSize: 12),
+            ),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 5),
           ),
         );
       } catch (e) {
@@ -618,7 +651,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       child: Container(
                         padding: EdgeInsets.symmetric(horizontal: spacing),
                         decoration: BoxDecoration(
-                          color: Colors.white, // ✅ Background ពណ៌ស
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: DropdownButton<String>(
@@ -632,7 +665,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           isExpanded: true,
                           style: TextStyle(
                             fontSize: fontSize,
-                            color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                            color: Colors.black,
                             fontWeight: FontWeight.w500,
                           ),
                           items: [
@@ -658,7 +691,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               _filterDepartment = value!;
                             });
                           },
-                          dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                          dropdownColor: Colors.white,
                         ),
                       ),
                     ),
