@@ -37,7 +37,7 @@ class NotificationPermissionService {
     );
     
     _isInitialized = true;
-    print('Notification service initialized');
+    print('✅ Notification service initialized');
   }
 
   // Request notification permission

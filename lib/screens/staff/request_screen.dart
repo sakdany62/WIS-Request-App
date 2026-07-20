@@ -69,8 +69,10 @@ class _RequestScreenState extends State<RequestScreen> {
           setState(() {
             _allowedReasons = reasons;
             // ប្រសិនបើ Reason ដែលកំពុងជ្រើសរើសមិនមានទៀត
-            if (!_allowedReasons.contains(selectedReason) && _allowedReasons.isNotEmpty) {
+            if (_allowedReasons.isNotEmpty && !_allowedReasons.contains(selectedReason)) {
               selectedReason = _allowedReasons.first;
+            } else if (_allowedReasons.isEmpty) {
+              selectedReason = 'Sick';
             }
             _isLoadingReasons = false;
           });
@@ -89,30 +91,99 @@ class _RequestScreenState extends State<RequestScreen> {
 
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      print('❌ No user logged in');
+      return;
+    }
 
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userId', isEqualTo: user.uid)
-          .get();
+      print('🔍 Looking for user with userId: ${user.uid}');
+      
+      // ✅ សាកល្បងស្វែងរកតាម userId
+      QuerySnapshot? querySnapshot;
+      
+      try {
+        querySnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userId', isEqualTo: user.uid)
+            .get();
+      } catch (e) {
+        print('⚠️ Error searching by userId: $e');
+      }
+      
+      // ✅ បើមិនឃើញ ស្វែងរកតាម email
+      if (querySnapshot == null || querySnapshot.docs.isEmpty) {
+        if (user.email != null && user.email!.isNotEmpty) {
+          print('🔍 Trying to find by email: ${user.email}');
+          querySnapshot = await FirebaseFirestore.instance
+              .collection('users')
+              .where('email', isEqualTo: user.email)
+              .get();
+        }
+      }
 
-      if (doc.docs.isNotEmpty) {
-        final data = doc.docs.first.data() as Map<String, dynamic>;
+      print('📄 Found ${querySnapshot?.docs.length ?? 0} documents');
+
+      if (querySnapshot != null && querySnapshot.docs.isNotEmpty) {
+        final data = querySnapshot.docs.first.data() as Map<String, dynamic>;
+        print('📊 User data: $data');
+        
+        // ✅ ព្យាយាមយកឈ្មោះពីប្រភពផ្សេងៗ
+        String name = data['fullName'] ?? 
+                      data['name'] ?? 
+                      data['displayName'] ?? 
+                      data['username'] ??
+                      user.displayName ?? 
+                      user.email ?? 
+                      'Staff';
+        
+        String position = data['position'] ?? 
+                          data['jobTitle'] ?? 
+                          data['role'] ?? 
+                          'Employee';
+        
+        String department = data['department'] ?? 
+                            data['dept'] ?? 
+                            data['division'] ?? 
+                            'N/A';
+        
         if (mounted) {
           setState(() {
-            _staffName = data['fullName'] ?? data['name'] ?? user.displayName ?? user.email ?? 'Staff';
-            _staffPosition = data['position'] ?? data['department'] ?? 'Employee';
-            _staffDepartment = data['department'] ?? 'N/A';
-            _managerName = data['managerName'] ?? 'Manager';
-            _managerId = data['managerId'] ?? '';
+            _staffName = name;
+            _staffPosition = position;
+            _staffDepartment = department;
+            _managerName = data['managerName'] ?? data['supervisor'] ?? 'Manager';
+            _managerId = data['managerId'] ?? data['supervisorId'] ?? '';
           });
         }
         print('👤 Staff: $_staffName, Position: $_staffPosition, Department: $_staffDepartment');
         print('👤 Manager: $_managerName');
+      } else {
+        print('⚠️ No user document found for userId: ${user.uid}');
+        
+        // ✅ ប្រើព័ត៌មានពី Firebase Auth
+        String name = user.displayName ?? 
+                      (user.email != null ? user.email!.split('@').first : 'Staff');
+        
+        if (mounted) {
+          setState(() {
+            _staffName = name;
+            _staffPosition = 'Employee';
+            _staffDepartment = 'N/A';
+          });
+        }
+        print('👤 Using Firebase Auth: $_staffName');
       }
     } catch (e) {
       print('❌ Error loading user data: $e');
+      if (mounted) {
+        setState(() {
+          _staffName = user.displayName ?? 
+                      (user.email != null ? user.email!.split('@').first : 'Staff');
+          _staffPosition = 'Employee';
+          _staffDepartment = 'N/A';
+        });
+      }
     }
   }
 
@@ -222,16 +293,20 @@ class _RequestScreenState extends State<RequestScreen> {
     _submitTime = now;
     _submitTimeString = _formatTimeWithAMPM(now);
 
+    // ✅ រក្សាទុក reason មុនពេល submit
+    final String selectedReasonAtSubmit = selectedReason;
+    final String otherReasonAtSubmit = otherController.text.trim();
+
     setState(() {
       _isSubmitting = true;
     });
 
     try {
-      String reasonToSend = selectedReason;
+      String reasonToSend = selectedReasonAtSubmit;
       String otherReasonToSend = '';
       
-      if (selectedReason == 'Other') {
-        otherReasonToSend = otherController.text.trim();
+      if (selectedReasonAtSubmit == 'Other') {
+        otherReasonToSend = otherReasonAtSubmit;
         if (otherReasonToSend.isEmpty) {
           _showError('Please specify a reason');
           setState(() {
@@ -241,6 +316,11 @@ class _RequestScreenState extends State<RequestScreen> {
         }
         reasonToSend = 'Other';
       }
+
+      // ✅ ប្រើ reasonText សម្រាប់ notification
+      final String reasonTextForNotification = selectedReasonAtSubmit == 'Other' 
+          ? otherReasonAtSubmit 
+          : selectedReasonAtSubmit;
 
       String? imageUrl;
       
@@ -255,9 +335,11 @@ class _RequestScreenState extends State<RequestScreen> {
         submitTime: _submitTime,
       );
 
+      // ✅ ផ្ញើ Telegram notification ជាមួយ reason ដែលបានរក្សាទុក
       await _sendTelegramNotification(
         requestId: result['requestId'] ?? 'N/A',
         status: result['status'] ?? 'pending',
+        reasonText: reasonTextForNotification,
       );
 
       if (mounted) {
@@ -321,16 +403,13 @@ class _RequestScreenState extends State<RequestScreen> {
     }
   }
 
+  // ✅ កែប្រែ _sendTelegramNotification ឲ្យទទួល reasonText
   Future<void> _sendTelegramNotification({
     required String requestId,
     required String status,
+    required String reasonText,
   }) async {
     try {
-      String reasonText = selectedReason;
-      if (selectedReason == 'Other') {
-        reasonText = otherController.text.trim();
-      }
-
       final details = {
         'reason': reasonText,
         'startDate': formatDate(startDate),
@@ -339,11 +418,18 @@ class _RequestScreenState extends State<RequestScreen> {
         'submitTime': _submitTimeString,
       };
 
+      // ✅ ប្រើ staff name ដែលបានផ្ទុករួច
+      final String displayName = _staffName.isNotEmpty && !_staffName.contains('@')
+          ? _staffName
+          : (FirebaseAuth.instance.currentUser?.displayName ?? 
+             FirebaseAuth.instance.currentUser?.email?.split('@').first ?? 
+             'Staff');
+
       final message = TelegramService.formatPermissionRequestWithInfo(
-        staffName: _staffName.isNotEmpty ? _staffName : 'Staff',
+        staffName: displayName,
         staffPosition: _staffPosition.isNotEmpty ? _staffPosition : 'Employee',
         staffDepartment: _staffDepartment.isNotEmpty ? _staffDepartment : 'N/A',
-        permissionType: selectedReason,
+        permissionType: reasonText,
         details: details,
         requestId: requestId,
         status: status,
@@ -352,24 +438,13 @@ class _RequestScreenState extends State<RequestScreen> {
       final bool sent = await TelegramService.sendToAll(message);
 
       if (sent) {
-        print(' Telegram notification sent successfully');
+        print('✅ Telegram notification sent successfully');
       } else {
         print('⚠️ Failed to send Telegram notification');
       }
     } catch (e) {
       print('⚠️ Telegram error (non-critical): $e');
     }
-  }
-
-  String _mapReasonToType(String reason) {
-    final Map<String, String> mapping = {
-      'Sick': 'sick',
-      'Personal issue': 'personal',
-      'Vacation': 'leave',
-      'Emergency': 'emergency',
-      'Other': 'other',
-    };
-    return mapping[reason] ?? 'other';
   }
 
   void _showError(String message) {

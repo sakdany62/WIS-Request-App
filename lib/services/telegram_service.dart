@@ -353,78 +353,26 @@ class TelegramService {
     
     final String message = '''
 WELCOME TO LEAVE REQUEST SYSTEM!
-================================
+===============================
 YOUR ACCOUNT DETAILS
 - Full Name: $fullName
 - Username: $username
 - Email: $email
 - Password: $password
-Role: $roleName
+- Role: $roleName
 - User ID: $userId
 ${position.isNotEmpty ? '- Position: $position' : ''}
 ${department.isNotEmpty ? '- Department: $department' : ''}
 
-================================
 IMPORTANT: 
 - Please change your password after first login
 - Keep this information safe and secure
-          Thanks!
 ''';
 
     return await sendMessageToPhoneNumber(
       phoneNumber: phoneNumber,
       message: message,
     );
-  }
-
-  // ===== Format permission request message (Async) =====
-  static Future<String> formatPermissionRequest({
-    String? staffName,
-    String? staffPosition,
-    String? staffDepartment,
-    required String permissionType,
-    required Map<String, dynamic> details,
-    required String requestId,
-    String status = 'pending',
-  }) async {
-    String finalStaffName = staffName ?? await _getStaffName();
-    String finalStaffPosition = staffPosition ?? await _getStaffPosition();
-    String finalStaffDepartment = staffDepartment ?? await _getStaffDepartment();
-    String typeDisplay = _getPermissionTypeDisplay(permissionType);
-    String reason = details['reason'] ?? typeDisplay;
-    String formattedStatus = _formatStatus(status);
-
-    // Get submit time from details (supports both DateTime and String)
-    String submitTime = _formatSubmitTime(details['submitTime']);
-
-    String detailsText = '';
-    details.forEach((key, value) {
-      final labels = {
-        'reason': 'Reason',
-        'startDate': 'Start Date',
-        'endDate': 'End Date',
-        'duration': 'Duration',
-      };
-      final label = labels[key] ?? key;
-      // Skip if value is null or empty, and skip submitTime (already displayed above)
-      if (value != null && value.toString().isNotEmpty && key != 'submitTime') {
-        detailsText += '\n  - ${label}: ${value}';
-      }
-    });
-
-    return '''
-NEW PERMISSION REQUEST
-
-Staff Name: $finalStaffName
-Department: $finalStaffDepartment
-Position: $finalStaffPosition
-Submit Time: $submitTime
-
-Details:$detailsText
-
-Request ID: $requestId
-Status: $formattedStatus
-    ''';
   }
 
   // ===== Format permission request message (Synchronous) =====
@@ -438,26 +386,14 @@ Status: $formattedStatus
     String status = 'pending',
   }) {
     String typeDisplay = _getPermissionTypeDisplay(permissionType);
-    String reason = details['reason'] ?? typeDisplay;
     String formattedStatus = _formatStatus(status);
-
-    // Get submit time from details (supports both DateTime and String)
     String submitTime = _formatSubmitTime(details['submitTime']);
 
-    String detailsText = '';
-    details.forEach((key, value) {
-      final labels = {
-        'reason': 'Reason',
-        'startDate': 'Start Date',
-        'endDate': 'End Date',
-        'duration': 'Duration',
-      };
-      final label = labels[key] ?? key;
-      // Skip if value is null or empty, and skip submitTime (already displayed above)
-      if (value != null && value.toString().isNotEmpty && key != 'submitTime') {
-        detailsText += '\n  - ${label}: ${value}';
-      }
-    });
+    // យក reason ពី details ឬប្រើ permissionType
+    String reasonText = details['reason'] ?? typeDisplay;
+    String startDate = details['startDate'] ?? 'N/A';
+    String endDate = details['endDate'] ?? 'N/A';
+    String duration = details['duration']?.toString() ?? 'N/A';
 
     return '''
 NEW PERMISSION REQUEST
@@ -466,11 +402,14 @@ Staff Name: $staffName
 Department: $staffDepartment
 Position: $staffPosition
 Submit Time: $submitTime
+Details:
+ - Reason: $reasonText
+ - Start Date: $startDate
+ - End Date: $endDate
+ - Duration: $duration day
 
-Details:$detailsText
-
-Request ID: $requestId
-Status: $formattedStatus
+ Request ID: $requestId
+ Status: $formattedStatus
     ''';
   }
 
