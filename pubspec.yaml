@@ -16,9 +16,6 @@ dependencies:
   cloud_firestore: ^5.6.5
   firebase_storage: ^12.4.4
   
-  # Firebase Functions (ប្រសិនបើប្រើ Cloud Functions)
-  # firebase_functions: ^5.4.1  # ❌ លុបបន្ទាត់នេះចេញ
-  
   # Utilities
   cross_file: ^0.3.3+8
   image_picker: ^1.1.0
@@ -44,6 +41,9 @@ dependencies:
   
   # Permission
   permission_handler: ^11.3.1
+  
+  # ===== NOTIFICATION PACKAGES =====
+  flutter_local_notifications: ^17.0.1
 
 dev_dependencies:
   flutter_test:

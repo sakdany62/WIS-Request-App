@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/warning_service.dart';
 import '../../app_fonts.dart';
+import '../../utils/responsive.dart';
 
 class WarningPopupSettingsScreen extends StatefulWidget {
   const WarningPopupSettingsScreen({super.key});
@@ -13,7 +14,6 @@ class WarningPopupSettingsScreen extends StatefulWidget {
 
 class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen> {
   bool _isLoading = true;
-  bool _showWarnings = true;
   List<Map<String, dynamic>> _warnings = [];
 
   @override
@@ -39,7 +39,10 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
   void _showSnackBar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: TextStyle(fontSize: AppFonts.md)),
+        content: Text(
+          message, 
+          style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
+        ),
         backgroundColor: color,
       ),
     );
@@ -47,196 +50,166 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, AppFonts.md);
+    final double spacing = Responsive.spacing(context);
+    final EdgeInsets padding = Responsive.padding(context);
+    final double iconSize = Responsive.iconSize(context, 22);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Warning Popup Settings',
+          'Warning Popup',
           style: TextStyle(
-            fontSize: AppFonts.md,
+            fontSize: isMobile ? AppFonts.md : AppFonts.md + 2,
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
-      ),
-      body: Column(
-        children: [
-          // Toggle switch
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                bottom: BorderSide(
-                  color: Colors.grey.shade200,
-                  width: 1,
-                ),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.notifications_active,
-                      color: _showWarnings ? Colors.green : Colors.grey,
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Show Warnings',
-                          style: TextStyle(
-                            fontSize: AppFonts.md,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        Text(
-                          'Display warning popups when opening the app',
-                          style: TextStyle(
-                            fontSize: AppFonts.md,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Switch(
-                  value: _showWarnings,
-                  onChanged: (value) {
-                    setState(() => _showWarnings = value);
-                    // Save preference using shared_preferences
-                    // You can implement this if needed
-                  },
-                  activeColor: const Color(0xFF173B69),
-                ),
-              ],
-            ),
-          ),
-          
-          // Warning list
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _warnings.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.check_circle_outline,
-                              size: 64,
-                              color: Colors.green.shade300,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No active warnings',
-                              style: TextStyle(
-                                fontSize: AppFonts.md,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'You\'re all caught up!',
-                              style: TextStyle(
-                                fontSize: AppFonts.md,
-                                color: Colors.grey.shade400,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            TextButton(
-                              onPressed: _loadWarnings,
-                              child: Text(
-                                'Refresh',
-                                style: TextStyle(
-                                  fontSize: AppFonts.md,
-                                  color: const Color(0xFF173B69),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _warnings.length,
-                        itemBuilder: (context, index) {
-                          final warning = _warnings[index];
-                          final severity = warning['severity'] ?? 'info';
-                          final color = _getSeverityColor(severity);
-                          
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              leading: Container(
-                                width: 4,
-                                height: 40,
-                                color: color,
-                              ),
-                              title: Text(
-                                warning['title'] ?? 'Warning',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: AppFonts.md,
-                                ),
-                              ),
-                              subtitle: Text(
-                                warning['message'] ?? '',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: AppFonts.md,
-                                  color: Colors.grey.shade700,
-                                ),
-                              ),
-                              trailing: Chip(
-                                label: Text(
-                                  severity.toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: AppFonts.md * 0.7,
-                                    color: color,
-                                  ),
-                                ),
-                                backgroundColor: color.withOpacity(0.1),
-                                side: BorderSide.none,
-                              ),
-                              onTap: () {
-                                _showWarningDetails(warning);
-                              },
-                            ),
-                          );
-                        },
-                      ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh, size: iconSize),
+            onPressed: _loadWarnings,
+            tooltip: 'Refresh',
           ),
         ],
       ),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(
+                color: const Color(0xFF173B69),
+              ),
+            )
+          : _warnings.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: iconSize * 2.9,
+                        color: Colors.green.shade300,
+                      ),
+                      SizedBox(height: spacing * 2),
+                      Text(
+                        'No active warnings',
+                        style: TextStyle(
+                          fontSize: fontSize + 2,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      SizedBox(height: spacing),
+                      Text(
+                        'You\'re all caught up!',
+                        style: TextStyle(
+                          fontSize: fontSize,
+                          color: Colors.grey.shade400,
+                        ),
+                      ),
+                      SizedBox(height: spacing),
+                      TextButton(
+                        onPressed: _loadWarnings,
+                        child: Text(
+                          'Refresh',
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            color: const Color(0xFF173B69),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: EdgeInsets.all(spacing * 1.5),
+                  itemCount: _warnings.length,
+                  itemBuilder: (context, index) {
+                    final warning = _warnings[index];
+                    final severity = warning['severity'] ?? 'info';
+                    final color = _getSeverityColor(severity);
+                    
+                    return Card(
+                      margin: EdgeInsets.only(bottom: spacing),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: Container(
+                          width: 4,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        title: Text(
+                          warning['title'] ?? 'Warning',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: fontSize,
+                          ),
+                        ),
+                        subtitle: Text(
+                          warning['message'] ?? '',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        trailing: Chip(
+                          label: Text(
+                            severity.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: fontSize * 0.7,
+                              color: color,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          backgroundColor: color.withOpacity(0.1),
+                          side: BorderSide.none,
+                        ),
+                        onTap: () {
+                          _showWarningDetails(warning);
+                        },
+                        isThreeLine: false,
+                      ),
+                    );
+                  },
+                ),
     );
   }
 
   void _showWarningDetails(Map<String, dynamic> warning) {
     final severity = warning['severity'] ?? 'info';
     final color = _getSeverityColor(severity);
+    final double fontSize = Responsive.fontSize(context, AppFonts.md);
+    final double spacing = Responsive.spacing(context);
+    final double iconSize = Responsive.iconSize(context, 22);
     
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         title: Row(
           children: [
             Icon(
               _getSeverityIcon(severity),
               color: color,
+              size: iconSize,
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: spacing),
             Expanded(
               child: Text(
                 warning['title'] ?? 'Warning',
                 style: TextStyle(
-                  fontSize: AppFonts.md + 2,
+                  fontSize: fontSize + 2,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -250,13 +223,13 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
             Text(
               warning['message'] ?? 'No message',
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: fontSize,
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: spacing * 1.5),
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(spacing),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
@@ -265,14 +238,14 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                 children: [
                   Icon(
                     Icons.label,
-                    size: 16,
+                    size: iconSize * 0.7,
                     color: color,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: spacing),
                   Text(
                     'Severity: ${severity.toUpperCase()}',
                     style: TextStyle(
-                      fontSize: AppFonts.md,
+                      fontSize: fontSize,
                       color: color,
                       fontWeight: FontWeight.w500,
                     ),
@@ -281,19 +254,19 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
               ),
             ),
             if (warning['expiresAt'] != null) ...[
-              const SizedBox(height: 8),
+              SizedBox(height: spacing),
               Row(
                 children: [
                   Icon(
                     Icons.alarm,
-                    size: 16,
+                    size: iconSize * 0.7,
                     color: Colors.grey.shade600,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: spacing),
                   Text(
                     'Expires: ${_formatDate(warning['expiresAt'])}',
                     style: TextStyle(
-                      fontSize: AppFonts.md,
+                      fontSize: fontSize,
                       color: Colors.grey.shade600,
                     ),
                   ),
@@ -305,11 +278,14 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF173B69),
+            ),
             child: Text(
               'Close',
               style: TextStyle(
-                fontSize: AppFonts.md,
-                color: const Color(0xFF173B69),
+                fontSize: fontSize,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),

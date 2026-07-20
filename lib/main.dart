@@ -11,6 +11,7 @@ import 'screens/forgot_password.dart';
 import 'screens/admin/create_user.dart';
 import 'providers/auth_provider.dart';
 import 'app_fonts.dart';
+import 'services/notification_permission_service.dart'; // បន្ថែម
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +24,9 @@ void main() async {
   } catch (e) {
     print('❌ Firebase initialization error: $e');
   }
+  
+  // ដំឡើង notifications
+  await NotificationPermissionService.initializeNotifications();
   
   runApp(
     MultiProvider(
@@ -42,6 +46,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Westland Permission App',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey, // បន្ថែម
       theme: ThemeData(
         primaryColor: const Color(0xFF1A3B68),
         scaffoldBackgroundColor: const Color(0xFFF7F8FA),

@@ -844,7 +844,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
-    final double iconSize = Responsive.iconSize(context, 70);
+    final double logoSize = isMobile ? 90 : 120; // បន្ថយពី 120 -> 90 និង 160 -> 120
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -872,29 +872,34 @@ class AboutScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: isMobile ? 24 : 40),
+            SizedBox(height: isMobile ? 20 : 32), // បន្ថយបន្តិច
+            
+            // Logo with blue background - ដូច splash screen
             Center(
               child: Container(
-                padding: EdgeInsets.all(isMobile ? 16 : 20),
+                width: logoSize,
+                height: logoSize,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: const Color(0xFF173B69), // ពណ៌ខៀវចាស់ដូច splash screen
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
                     ),
                   ],
                 ),
-                child: Icon(
-                  Icons.school,
-                  size: isMobile ? iconSize * 0.7 : iconSize,
-                  color: const Color(0xFF1E457E),
+                padding: EdgeInsets.all(isMobile ? 12 : 16), // បន្ថយ padding
+                child: Image.asset(
+                  'assets/img/logo.png',
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
-            SizedBox(height: isMobile ? 12 : 16),
+            
+            SizedBox(height: isMobile ? 10 : 14), // បន្ថយបន្តិច
+            
             Text(
               "Leave Request Mobile App",
               style: TextStyle(
@@ -912,7 +917,8 @@ class AboutScreen extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(height: isMobile ? 20 : 30),
+            SizedBox(height: isMobile ? 16 : 24), // បន្ថយបន្តិច
+            
             Padding(
               padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20),
               child: Card(
@@ -944,7 +950,7 @@ class AboutScreen extends StatelessWidget {
                         ),
                         textAlign: TextAlign.justify,
                       ),
-                      Divider(height: isMobile ? 20 : 30, thickness: 0.5),
+                      Divider(height: isMobile ? 16 : 24, thickness: 0.5),
                       _buildInfoRow(
                         "Institution:", 
                         "Westland International School",
@@ -958,12 +964,21 @@ class AboutScreen extends StatelessWidget {
                         isMobile,
                         fontSize,
                       ),
+                      SizedBox(height: isMobile ? 4 : 8),
+                      _buildInfoRow(
+                        "Developed by:", 
+                        "WIS IT Team",
+                        isMobile,
+                        fontSize,
+                      ),
                     ],
                   ),
                 ),
               ),
             ),
-            SizedBox(height: isMobile ? 24 : 40),
+            
+            SizedBox(height: isMobile ? 20 : 32), 
+            
             Text(
               "© 2026 Westland International School. All Rights Reserved.",
               style: TextStyle(

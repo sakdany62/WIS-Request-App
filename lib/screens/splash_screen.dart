@@ -1,4 +1,3 @@
-// lib/screens/splash_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../models/user_model.dart';
 import '../app_fonts.dart';
 import '../utils/responsive.dart';
+import '../services/notification_permission_service.dart'; // បន្ថែម
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -22,6 +22,9 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initializeApp() async {
+    // ស្នើសុំ notification permission
+    await _requestNotificationPermission();
+    
     // ពន្យាពេលសម្រាប់ splash animation
     await Future.delayed(const Duration(seconds: 2));
     
@@ -38,12 +41,25 @@ class _SplashScreenState extends State<SplashScreen> {
     _navigateToNextScreen();
   }
 
+  // ស្នើសុំ notification permission
+  Future<void> _requestNotificationPermission() async {
+    try {
+      final granted = await NotificationPermissionService.requestPermission();
+      if (granted) {
+        print(' Notification permission granted');
+      } else {
+        print(' Notification permission denied');
+      }
+    } catch (e) {
+      print(' Error requesting notification permission: $e');
+    }
+  }
+
   void _navigateToNextScreen() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.currentUser;
     
     if (user != null) {
-      // លុប splash screen ចេញពីប្រវត្តិ
       Navigator.pushReplacementNamed(context, _getDashboardRoute(user));
     } else {
       Navigator.pushReplacementNamed(context, '/login');
@@ -60,22 +76,15 @@ class _SplashScreenState extends State<SplashScreen> {
     } else if (user.isStaff) {
       return '/dashboard';
     } else {
-      // Default to staff dashboard if role is unknown
       return '/dashboard';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Get responsive values
     final bool isMobile = Responsive.isMobile(context);
     final double logoSize = isMobile ? 150 : 200;
     final double spacing = Responsive.spacing(context);
-    
-    // ✅ Use AppFonts.md for both texts (since that's the only one available)
-    // Or use Responsive.fontSize with a number directly
-    final double mainFontSize = Responsive.fontSize(context, AppFonts.md);
-    final double smallFontSize = Responsive.fontSize(context, 12); // Use number directly
 
     return Scaffold(
       backgroundColor: const Color(0xFF173B69),
@@ -84,7 +93,6 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo - Responsive size
               SizedBox(
                 width: logoSize,
                 height: logoSize,
@@ -94,16 +102,11 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
               ),
               SizedBox(height: spacing * 3),
-              
-              // Loading indicator
               const CircularProgressIndicator(
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 strokeWidth: 3,
               ),
-              
               SizedBox(height: spacing * 2),
-              
-              
             ],
           ),
         ),
