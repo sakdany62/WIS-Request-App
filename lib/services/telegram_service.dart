@@ -1,3 +1,4 @@
+// lib/services/telegram_service.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -145,12 +146,12 @@ class TelegramService {
     }
   }
 
-  // ===== ⏰ Get current Cambodia time (UTC+7) =====
+  // ===== Get current Cambodia time (UTC+7) =====
   static DateTime _getCambodiaTime() {
     return DateTime.now().toUtc().add(const Duration(hours: 7));
   }
 
-  // ===== ⏰ Format time only (HH:MM AM/PM) Cambodia Time =====
+  // ===== Format time only (HH:MM AM/PM) Cambodia Time =====
   static String formatTimeOnlyAMPM([DateTime? time]) {
     final DateTime now = time ?? DateTime.now();
     
@@ -171,7 +172,7 @@ class TelegramService {
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
-  // ===== ⏰ Format date and time to AM/PM (Cambodia Time UTC+7) =====
+  // ===== Format date and time to AM/PM (Cambodia Time UTC+7) =====
   static String _formatDateTimeAMPM([DateTime? time]) {
     final DateTime now = time ?? DateTime.now();
     
@@ -195,7 +196,7 @@ class TelegramService {
     return '$day/$month/$year ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
-  // ===== ⏰ Format submit time from details (supports both DateTime and String) =====
+  // ===== Format submit time from details (supports both DateTime and String) =====
   static String _formatSubmitTime(dynamic submitTime) {
     // If no submitTime, use current Cambodia time
     if (submitTime == null) {
@@ -289,6 +290,93 @@ class TelegramService {
     }
   }
 
+  // ===== Send message to User by Phone Number =====
+  static Future<bool> sendMessageToPhoneNumber({
+    required String phoneNumber,
+    required String message,
+  }) async {
+    try {
+      if (phoneNumber.isEmpty) {
+        print('Phone number is empty');
+        return false;
+      }
+
+      // Format phone number for Telegram (remove + and special chars)
+      String formattedPhone = phoneNumber.trim();
+      formattedPhone = formattedPhone.replaceAll(RegExp(r'[^0-9]'), '');
+      
+      // If starts with 0, change to 855
+      if (formattedPhone.startsWith('0')) {
+        formattedPhone = '855${formattedPhone.substring(1)}';
+      }
+      // If no 855, add
+      else if (!formattedPhone.startsWith('855')) {
+        formattedPhone = '855$formattedPhone';
+      }
+      
+      final String chatId = formattedPhone;
+      
+      print('Sending Telegram to phone: $phoneNumber -> Chat ID: $chatId');
+      
+      return await _sendMessage(chatId, message);
+      
+    } catch (e) {
+      print('Error sending Telegram to phone: $e');
+      return false;
+    }
+  }
+
+  // ===== Send User Credentials to User's Telegram =====
+  static Future<bool> sendUserCredentialsToUser({
+    required String fullName,
+    required String username,
+    required String email,
+    required String password,
+    required String roleId,
+    required String userId,
+    required String phoneNumber,
+    required String position,
+    required String department,
+  }) async {
+    if (phoneNumber.isEmpty) {
+      print('No phone number provided, skipping Telegram');
+      return false;
+    }
+
+    final roleNames = {
+      '1': 'Admin',
+      '2': 'Staff',
+      '3': 'Manager',
+    };
+    
+    final String roleName = roleNames[roleId] ?? 'User';
+    
+    final String message = '''
+WELCOME TO LEAVE REQUEST SYSTEM!
+================================
+YOUR ACCOUNT DETAILS
+- Full Name: $fullName
+- Username: $username
+- Email: $email
+- Password: $password
+Role: $roleName
+- User ID: $userId
+${position.isNotEmpty ? '- Position: $position' : ''}
+${department.isNotEmpty ? '- Department: $department' : ''}
+
+================================
+IMPORTANT: 
+- Please change your password after first login
+- Keep this information safe and secure
+          Thanks!
+''';
+
+    return await sendMessageToPhoneNumber(
+      phoneNumber: phoneNumber,
+      message: message,
+    );
+  }
+
   // ===== Format permission request message (Async) =====
   static Future<String> formatPermissionRequest({
     String? staffName,
@@ -306,7 +394,7 @@ class TelegramService {
     String reason = details['reason'] ?? typeDisplay;
     String formattedStatus = _formatStatus(status);
 
-    // ⏰ Get submit time from details (supports both DateTime and String)
+    // Get submit time from details (supports both DateTime and String)
     String submitTime = _formatSubmitTime(details['submitTime']);
 
     String detailsText = '';
@@ -353,7 +441,7 @@ Status: $formattedStatus
     String reason = details['reason'] ?? typeDisplay;
     String formattedStatus = _formatStatus(status);
 
-    // ⏰ Get submit time from details (supports both DateTime and String)
+    // Get submit time from details (supports both DateTime and String)
     String submitTime = _formatSubmitTime(details['submitTime']);
 
     String detailsText = '';
@@ -397,7 +485,7 @@ Status: $formattedStatus
     String formattedStatus = _formatStatus(status);
     String typeDisplay = _getPermissionTypeDisplay(permissionType);
     
-    // ⏰ Use Cambodia time for response
+    // Use Cambodia time for response
     String formattedTime = _formatDateTimeAMPM(respondedAt);
 
     return '''
@@ -419,7 +507,7 @@ Thank you for using the system!
   // ===== Send test message =====
   static Future<bool> sendTestMessage() async {
     final staffInfo = await _getStaffInfo();
-    // ⏰ Use Cambodia time for test message
+    // Use Cambodia time for test message
     final testMessage = '''
 TEST MESSAGE FROM PERMISSION SYSTEM
 
@@ -451,10 +539,10 @@ This is a test message sent to:
           return true;
         }
       }
-      print('❌ Bot is not running');
+      print('Bot is not running');
       return false;
     } catch (e) {
-      print('❌ Error checking Bot status: $e');
+      print('Error checking Bot status: $e');
       return false;
     }
   }

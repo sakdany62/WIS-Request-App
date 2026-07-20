@@ -1,12 +1,11 @@
-// ============================================================
 // lib/screens/admin/create_user_screen.dart
-// ============================================================
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/telegram_service.dart';
 
 class CreateUserScreen extends StatefulWidget {
   const CreateUserScreen({super.key});
@@ -50,7 +49,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   Future<bool> _checkManagerExistsInDepartment(String departmentId) async {
     try {
       if (departmentId.isEmpty) {
-        // ប្រសិនបើមិនបានជ្រើសរើស Department
         return false;
       }
       
@@ -100,6 +98,70 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     return number.toString().padLeft(4, '0');
   }
 
+  // ==================== GET ROLE NAME ====================
+  String _getRoleName(String roleId) {
+    final roleNames = {
+      '1': 'Admin',
+      '2': 'Staff',
+      '3': 'Manager',
+    };
+    return roleNames[roleId] ?? 'User';
+  }
+
+  // ==================== SEND TELEGRAM TO GROUP ====================
+  Future<void> _sendTelegramToGroup({
+    required String fullName,
+    required String username,
+    required String email,
+    required String password,
+    required String roleId,
+    required String userId,
+    required String phone,
+    required String position,
+    required String department,
+  }) async {
+    try {
+      final roleNames = {
+        '1': 'Admin',
+        '2': 'Staff',
+        '3': 'Manager',
+      };
+      
+      final String roleName = roleNames[roleId] ?? 'User';
+      
+      final String message = '''
+NEW USER CREATED!
+=================
+ACCOUNT DETAILS:
+- Full Name: $fullName
+- Username: $username
+- Email: $email
+- Password: $password
+- Role: $roleName
+- User ID: $userId
+- Phone: ${phone.isNotEmpty ? phone : 'N/A'}
+${department.isNotEmpty ? '- Department: $department' : ''}
+${position.isNotEmpty ? '- Position: $position' : ''}
+
+IMPORTANT: 
+- Please change password after first login
+- Keep this information safe and secure
+''';
+
+      // 🔥 ផ្ញើទៅ Group, Admin, Manager
+      final bool sent = await TelegramService.sendToAll(message);
+      
+      if (sent) {
+        print(' Telegram sent to Group/Admin/Manager');
+      } else {
+        print('⚠️ Failed to send Telegram');
+      }
+      
+    } catch (e) {
+      print('❌ Error sending Telegram: $e');
+    }
+  }
+
   // ទាញយក Admin Credentials
   Future<Map<String, String>?> _getAdminCredentials() async {
     final prefs = await SharedPreferences.getInstance();
@@ -124,24 +186,24 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         print(' Admin auto re-login successful!');
         return true;
       } catch (e) {
-        print('❌ Admin auto re-login failed: $e');
+        print('Admin auto re-login failed: $e');
         return false;
       }
     }
-    print('❌ No admin credentials found');
+    print(' No admin credentials found');
     return false;
   }
 
   Future<void> _createUser() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // 🔥 ពិនិត្យមើលថា Manager មានរួចហើយក្នុង Department នេះឬនៅ
+    // ពិនិត្យមើលថា Manager មានរួចហើយក្នុង Department នេះឬនៅ
     if (_selectedRole == '3') {
       if (_selectedDepartmentId.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('⚠️ Please select a department for Manager.'),
+              content: Text(' Please select a department for Manager.'),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 3),
             ),
@@ -152,7 +214,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       
       final managerExists = await _checkManagerExistsInDepartment(_selectedDepartmentId);
       if (managerExists) {
-        // ស្វែងរកឈ្មោះ Department
         String departmentName = '';
         final dept = _departments.firstWhere(
           (d) => d['id'] == _selectedDepartmentId,
@@ -164,7 +225,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '⚠️ A Manager already exists in "$departmentName". Only one Manager per department is allowed.',
+                ' A Manager already exists in "$departmentName". Only one Manager per department is allowed.',
               ),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 5),
@@ -182,6 +243,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     try {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
+      final fullName = _fullNameController.text.trim();
+      final username = _usernameController.text.trim();
+      final phone = _phoneController.text.trim();
+      final position = _positionController.text.trim();
       
       // ពិនិត្យមើលថា Email មានហើយឬនៅ
       try {
@@ -234,50 +299,69 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         departmentName = dept['name'] ?? '';
       }
 
-      // 🔥 បង្កើត User Number
+      //  បង្កើត User Number
       final userNumberInt = await _generateUserNumber();
       final userNumberFormatted = _formatUserNumber(userNumberInt);
       
-      print(' User Number: $userNumberFormatted');
+      print('User Number: $userNumberFormatted');
 
       // 2. Save user to Firestore
       await _firestore.collection('users').doc(newUserUid).set({
         'userId': userNumberFormatted,
         'userIdInt': userNumberInt,
         'email': email,
-        'fullName': _fullNameController.text.trim(),
-        'username': _usernameController.text.trim(),
-        'phone': _phoneController.text.trim(),
+        'fullName': fullName,
+        'username': username,
+        'phone': phone,
         'roleId': _selectedRole,
         'departmentId': _selectedDepartmentId.isEmpty ? null : _selectedDepartmentId,
         'department': departmentName.isEmpty ? null : departmentName,
-        'position': _showPositionField() ? _positionController.text.trim() : null,
+        'position': _showPositionField() ? position : null,
         'status': _selectedStatus,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
+      // ====================  ផ្ញើ Telegram ទៅ Group ====================
+      await _sendTelegramToGroup(
+        fullName: fullName,
+        username: username,
+        email: email,
+        password: password,
+        roleId: _selectedRole,
+        userId: userNumberFormatted,
+        phone: phone,
+        position: position,
+        department: departmentName,
+      );
+
       // 3. Sign out the new user
       await _auth.signOut();
-      print('New user signed out');
+      print(' New user signed out');
 
       // 4. Auto Re-login Admin
       final reLoginSuccess = await _autoReLoginAdmin();
       
-      if (reLoginSuccess && mounted) {
+      if (mounted) {
+        String successMessage = ' User created successfully!';
+        successMessage += '\n Telegram sent to Group/Admin/Manager';
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(' User created successfully'),
+          SnackBar(
+            content: Text(successMessage),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 4),
           ),
         );
+      }
+
+      if (reLoginSuccess && mounted) {
         Navigator.pop(context);
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('⚠️ Please login again as Admin'),
+              content: Text(' Please login again as Admin'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -292,23 +376,29 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       } else if (e.code == 'weak-password') {
         message = 'Password is too weak';
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ $message'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ $message'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -559,7 +649,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
               TextFormField(
                 controller: _phoneController,
                 decoration: InputDecoration(
-                  hintText: 'Enter phone number',
+                  hintText: 'Enter phone number (e.g. 012345678)',
                   hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -588,6 +678,15 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 ),
                 keyboardType: TextInputType.phone,
                 style: TextStyle(fontSize: fontSize, color: Colors.black),
+                validator: (value) {
+                  if (value != null && value.isNotEmpty) {
+                    String cleaned = value.replaceAll(RegExp(r'[^0-9+]'), '');
+                    if (cleaned.length < 9) {
+                      return 'Phone number must be at least 9 digits';
+                    }
+                  }
+                  return null;
+                },
               ),
               SizedBox(height: spacing * 1.5),
 
@@ -632,7 +731,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   ),
                 ),
                 items: const [
-                  DropdownMenuItem(value: '1', child: Text('👑 Admin')),
+                  DropdownMenuItem(value: '1', child: Text(' Admin')),
                   DropdownMenuItem(value: '2', child: Text(' Staff')),
                   DropdownMenuItem(value: '3', child: Text(' Manager')),
                 ],

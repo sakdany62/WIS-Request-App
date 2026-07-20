@@ -34,6 +34,29 @@ class _ReportScreenState extends State<ReportScreen> {
     {'id': 'dept_service', 'name': 'Service Department'},
   ];
 
+  // 📅 បន្ថែមមុខងារគណនាថ្ងៃដំបូង និងថ្ងៃចុងក្រោយនៃសប្តាហ៍
+  DateTime _getStartOfWeek(DateTime date) {
+    int weekday = date.weekday;
+    int daysToSubtract = weekday - 1;
+    return DateTime(date.year, date.month, date.day - daysToSubtract);
+  }
+
+  DateTime _getEndOfWeek(DateTime date) {
+    DateTime startOfWeek = _getStartOfWeek(date);
+    return DateTime(
+      startOfWeek.year, 
+      startOfWeek.month, 
+      startOfWeek.day + 6,
+      23, 59, 59, 999,
+    );
+  }
+
+  String _getWeekLabel(DateTime date) {
+    DateTime startOfWeek = _getStartOfWeek(date);
+    DateTime endOfWeek = _getEndOfWeek(date);
+    return '${DateFormat('dd MMM').format(startOfWeek)} - ${DateFormat('dd MMM yyyy').format(endOfWeek)}';
+  }
+
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
     
@@ -85,6 +108,11 @@ class _ReportScreenState extends State<ReportScreen> {
         case 'daily':
           startDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
           endDate = startDate.add(const Duration(days: 1));
+          break;
+        case 'weekly':
+          // 📅 គណនាសប្តាហ៍
+          startDate = _getStartOfWeek(_selectedDate);
+          endDate = _getEndOfWeek(_selectedDate).add(const Duration(milliseconds: 1));
           break;
         case 'monthly':
           startDate = DateTime(_selectedDate.year, _selectedDate.month, 1);
@@ -281,7 +309,7 @@ class _ReportScreenState extends State<ReportScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(' Exported: $fileName'),
+              content: Text('✅ Exported: $fileName'),
               backgroundColor: Colors.green,
             ),
           );
@@ -316,6 +344,8 @@ class _ReportScreenState extends State<ReportScreen> {
     switch (_selectedReportType) {
       case 'daily':
         return DateFormat('dd MMM yyyy').format(_selectedDate);
+      case 'weekly':
+        return _getWeekLabel(_selectedDate);
       case 'monthly':
         return DateFormat('MMMM yyyy').format(_selectedDate);
       case 'yearly':
@@ -388,7 +418,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   : SingleChildScrollView(
                       child: Column(
                         children: [
-                          // ✅ Filter Section - ប្រើ Responsive
+                          // ✅ Filter Section
                           Container(
                             padding: EdgeInsets.symmetric(
                               vertical: spacing * 2,
@@ -422,7 +452,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                             borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                                           ),
                                           filled: true,
-                                          fillColor: Colors.white, // ✅ Background ពណ៌ស
+                                          fillColor: Colors.white,
                                           contentPadding: EdgeInsets.symmetric(
                                             horizontal: spacing,
                                             vertical: isMobile ? 6 : 8,
@@ -434,12 +464,16 @@ class _ReportScreenState extends State<ReportScreen> {
                                             child: Text(' Daily'),
                                           ),
                                           DropdownMenuItem(
+                                            value: 'weekly',
+                                            child: Text(' Weekly'), 
+                                          ),
+                                          DropdownMenuItem(
                                             value: 'monthly',
-                                            child: Text('Monthly'),
+                                            child: Text(' Monthly'),
                                           ),
                                           DropdownMenuItem(
                                             value: 'yearly',
-                                            child: Text('Yearly'),
+                                            child: Text(' Yearly'),
                                           ),
                                         ],
                                         onChanged: (value) {
@@ -453,9 +487,9 @@ class _ReportScreenState extends State<ReportScreen> {
                                         style: TextStyle(
                                           fontSize: fontSize,
                                           fontWeight: FontWeight.w500,
-                                          color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                                          color: Colors.black,
                                         ),
-                                        dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                                        dropdownColor: Colors.white,
                                         icon: const Icon(
                                           Icons.arrow_drop_down,
                                           color: Color(0xFF173B69),
@@ -511,7 +545,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                             borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
                                           ),
                                           filled: true,
-                                          fillColor: Colors.white, // ✅ Background ពណ៌ស
+                                          fillColor: Colors.white,
                                           contentPadding: EdgeInsets.symmetric(
                                             horizontal: spacing,
                                             vertical: isMobile ? 6 : 8,
@@ -540,9 +574,9 @@ class _ReportScreenState extends State<ReportScreen> {
                                         style: TextStyle(
                                           fontSize: fontSize,
                                           fontWeight: FontWeight.w500,
-                                          color: Colors.black, // ✅ អក្សរពណ៌ខ្មៅ
+                                          color: Colors.black,
                                         ),
-                                        dropdownColor: Colors.white, // ✅ Dropdown menu background ពណ៌ស
+                                        dropdownColor: Colors.white,
                                         icon: const Icon(
                                           Icons.arrow_drop_down,
                                           color: Color(0xFF173B69),
@@ -1059,7 +1093,7 @@ class _ReportCard extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.only(top: spacing / 4),
                 child: Text(
-                  '⚠️ ${data['rejectionReason']}',
+                  ' ${data['rejectionReason']}',
                   style: TextStyle(
                     fontSize: cardFontSize * 0.85,
                     color: Colors.red[700],

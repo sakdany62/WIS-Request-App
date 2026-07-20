@@ -35,7 +35,7 @@ class _RequestScreenState extends State<RequestScreen> {
 
   String _staffName = '';
   String _staffPosition = '';
-  String _staffDepartment = ''; // 👈 បន្ថែម
+  String _staffDepartment = '';
   String _managerName = '';
   String _managerId = '';
 
@@ -49,6 +49,9 @@ class _RequestScreenState extends State<RequestScreen> {
   List<String> _allowedReasons = ['Sick', 'Personal issue', 'Vacation', 'Emergency', 'Other'];
   bool _isLoadingReasons = true;
   StreamSubscription<List<String>>? _reasonsSubscription;
+
+  // 🎨 ពណ៌ AppBar ដូច Settings
+  static const Color appBarColor = Color(0xFF1A3B68);
 
   @override
   void initState() {
@@ -100,7 +103,7 @@ class _RequestScreenState extends State<RequestScreen> {
           setState(() {
             _staffName = data['fullName'] ?? data['name'] ?? user.displayName ?? user.email ?? 'Staff';
             _staffPosition = data['position'] ?? data['department'] ?? 'Employee';
-            _staffDepartment = data['department'] ?? 'N/A'; // 👈 បន្ថែម
+            _staffDepartment = data['department'] ?? 'N/A';
             _managerName = data['managerName'] ?? 'Manager';
             _managerId = data['managerId'] ?? '';
           });
@@ -180,7 +183,7 @@ class _RequestScreenState extends State<RequestScreen> {
           _imageName = fileName;
         });
 
-        _showSuccess('✅ Image selected: $fileName');
+        _showSuccess('Image selected: $fileName');
       }
     } catch (e) {
       print('❌ Error picking image: $e');
@@ -336,11 +339,10 @@ class _RequestScreenState extends State<RequestScreen> {
         'submitTime': _submitTimeString,
       };
 
-      // 👇 ហៅ formatPermissionRequestWithInfo ជាមួយ staffDepartment
       final message = TelegramService.formatPermissionRequestWithInfo(
         staffName: _staffName.isNotEmpty ? _staffName : 'Staff',
         staffPosition: _staffPosition.isNotEmpty ? _staffPosition : 'Employee',
-        staffDepartment: _staffDepartment.isNotEmpty ? _staffDepartment : 'N/A', // 👈 បន្ថែមបន្ទាត់នេះ!
+        staffDepartment: _staffDepartment.isNotEmpty ? _staffDepartment : 'N/A',
         permissionType: selectedReason,
         details: details,
         requestId: requestId,
@@ -350,7 +352,7 @@ class _RequestScreenState extends State<RequestScreen> {
       final bool sent = await TelegramService.sendToAll(message);
 
       if (sent) {
-        print('✅ Telegram notification sent successfully');
+        print(' Telegram notification sent successfully');
       } else {
         print('⚠️ Failed to send Telegram notification');
       }
@@ -467,7 +469,6 @@ class _RequestScreenState extends State<RequestScreen> {
 
   @override
   void dispose() {
-    // ✅ បិទ Stream ពេលចាកចេញ
     _reasonsSubscription?.cancel();
     _hideOverlayMessage();
     otherController.dispose();
@@ -476,314 +477,336 @@ class _RequestScreenState extends State<RequestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primary = Color(0xFF1A3B68);
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
-    final double padding = Responsive.isMobile(context) ? 16 : 24;
-    
+    final double iconSize = Responsive.iconSize(context, 40);
+    final EdgeInsets padding = Responsive.padding(context);
+
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(padding),
+      backgroundColor: const Color(0xFFF7F8FA),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: EdgeInsets.only(bottom: spacing * 2, top: 8),
-              child: Row(
+            // ============ CUSTOM HEADER (ដូច Settings) ============
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                vertical: isMobile ? 14 : 20,
+                horizontal: isMobile ? 12 : 24,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFF1A3B68),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  SizedBox(height: isMobile ? 4 : 8),
                   Icon(
                     Icons.assignment_outlined,
-                    color: primary,
-                    size: Responsive.iconSize(context, 28),
+                    color: Colors.white.withOpacity(0.9),
+                    size: isMobile ? iconSize * 0.8 : iconSize,
                   ),
-                  SizedBox(width: spacing),
+                  SizedBox(height: isMobile ? 4 : 8),
                   Text(
                     "Leave Request",
                     style: TextStyle(
-                      color: primary,
+                      color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: Responsive.fontSize(context, AppFonts.md + 5),
+                      fontSize: isMobile ? fontSize + 2 : fontSize + 6,
                     ),
                   ),
                 ],
               ),
             ),
-            Divider(height: spacing * 3),
 
-            // ============ CARD 1: SELECT DATE ============
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(spacing * 2),
+            // ============ CONTENT ============
+            Expanded(
+              child: SingleChildScrollView(
+                padding: padding,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Select Date",
-                      style: TextStyle(
-                        fontSize: Responsive.fontSize(context, AppFonts.md),
-                        fontWeight: FontWeight.bold,
+                    // ============ CARD 1: SELECT DATE ============
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    ),
-                    SizedBox(height: spacing * 2),
-                    
-                    GestureDetector(
-                      onTap: pickStartDate,
-                      child: _buildDateBox(
-                        context, 
-                        formatDate(startDate),
-                        spacing,
-                      ),
-                    ),
-                    SizedBox(height: spacing * 1.5),
-                    Container(
-                      padding: EdgeInsets.all(spacing * 1.5),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today, 
-                            color: Colors.green,
-                            size: Responsive.iconSize(context, 20),
-                          ),
-                          SizedBox(width: spacing),
-                          Text(
-                            "Total Days: 1 day",
-                            style: TextStyle(
-                              fontSize: Responsive.fontSize(context, AppFonts.md),
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: spacing * 2.5),
-
-            // ============ CARD 2: DOCUMENT REFERENCE ============
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(spacing * 2),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Document Reference (Optional)",
-                      style: TextStyle(
-                        fontSize: Responsive.fontSize(context, AppFonts.md),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: spacing * 1.5),
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _pickImage,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: spacing * 2, vertical: spacing * 1.5),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: _selectedImage != null ? Colors.green : Colors.grey.shade300,
-                              width: 1.5,
-                            ),
-                            borderRadius: BorderRadius.circular(12),
-                            color: _selectedImage != null ? Colors.green.shade50 : Colors.white,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.image,
-                                color: _selectedImage != null ? Colors.green : Colors.grey.shade600,
-                                size: Responsive.iconSize(context, 24),
+                      child: Padding(
+                        padding: EdgeInsets.all(spacing * 2),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Select Date",
+                              style: TextStyle(
+                                fontSize: Responsive.fontSize(context, AppFonts.md),
+                                fontWeight: FontWeight.bold,
                               ),
-                              SizedBox(width: spacing * 1.5),
-                              Expanded(
-                                child: Text(
-                                  _selectedImage != null 
-                                      ? _imageName ?? 'Image selected' 
-                                      : 'Select Image',
-                                  style: TextStyle(
-                                    fontSize: Responsive.fontSize(context, AppFonts.md),
-                                    color: _selectedImage != null ? Colors.black : Colors.grey.shade600,
-                                    fontWeight: _selectedImage != null ? FontWeight.w500 : FontWeight.normal,
+                            ),
+                            SizedBox(height: spacing * 2),
+                            
+                            GestureDetector(
+                              onTap: pickStartDate,
+                              child: _buildDateBox(
+                                context, 
+                                formatDate(startDate),
+                                spacing,
+                              ),
+                            ),
+                            SizedBox(height: spacing * 1.5),
+                            Container(
+                              padding: EdgeInsets.all(spacing * 1.5),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today, 
+                                    color: Colors.green,
+                                    size: Responsive.iconSize(context, 20),
+                                  ),
+                                  SizedBox(width: spacing),
+                                  Text(
+                                    "Total Days: 1 day",
+                                    style: TextStyle(
+                                      fontSize: Responsive.fontSize(context, AppFonts.md),
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: spacing * 2.5),
+
+                    // ============ CARD 2: DOCUMENT REFERENCE ============
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(spacing * 2),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Document Reference (Optional)",
+                              style: TextStyle(
+                                fontSize: Responsive.fontSize(context, AppFonts.md),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: spacing * 1.5),
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _pickImage,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(horizontal: spacing * 2, vertical: spacing * 1.5),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: _selectedImage != null ? Colors.green : Colors.grey.shade300,
+                                      width: 1.5,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: _selectedImage != null ? Colors.green.shade50 : Colors.white,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.image,
+                                        color: _selectedImage != null ? Colors.green : Colors.grey.shade600,
+                                        size: Responsive.iconSize(context, 24),
+                                      ),
+                                      SizedBox(width: spacing * 1.5),
+                                      Expanded(
+                                        child: Text(
+                                          _selectedImage != null 
+                                              ? _imageName ?? 'Image selected' 
+                                              : 'Select Image',
+                                          style: TextStyle(
+                                            fontSize: Responsive.fontSize(context, AppFonts.md),
+                                            color: _selectedImage != null ? Colors.black : Colors.grey.shade600,
+                                            fontWeight: _selectedImage != null ? FontWeight.w500 : FontWeight.normal,
+                                          ),
+                                        ),
+                                      ),
+                                      if (_selectedImage != null)
+                                        IconButton(
+                                          icon: const Icon(Icons.close, color: Colors.red),
+                                          onPressed: _removeImage,
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          iconSize: 20,
+                                        )
+                                      else
+                                        Icon(
+                                          Icons.arrow_forward_ios,
+                                          size: Responsive.iconSize(context, 16),
+                                          color: Colors.grey.shade400,
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              if (_selectedImage != null)
-                                IconButton(
-                                  icon: const Icon(Icons.close, color: Colors.red),
-                                  onPressed: _removeImage,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(),
-                                  iconSize: 20,
-                                )
-                              else
-                                Icon(
-                                  Icons.arrow_forward_ios,
-                                  size: Responsive.iconSize(context, 16),
-                                  color: Colors.grey.shade400,
-                                ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: spacing * 2.5),
+                    SizedBox(height: spacing * 2.5),
 
-            // ============ CARD 3: REASON FOR LEAVE ============
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(spacing * 2),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Reason for Leave",
-                      style: TextStyle(
-                        fontSize: Responsive.fontSize(context, AppFonts.md),
-                        fontWeight: FontWeight.bold,
+                    // ============ CARD 3: REASON FOR LEAVE ============
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(spacing * 2),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Reason for Leave",
+                              style: TextStyle(
+                                fontSize: Responsive.fontSize(context, AppFonts.md),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: spacing),
+                            
+                            _isLoadingReasons
+                                ? Padding(
+                                    padding: EdgeInsets.symmetric(vertical: spacing * 2),
+                                    child: const Center(
+                                      child: SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Column(
+                                    children: [
+                                      ..._allowedReasons.map((reason) => 
+                                        _buildRadio(context, reason, spacing)
+                                      ).toList(),
+                                    ],
+                                  ),
+                            
+                            SizedBox(height: spacing * 1.5),
+                            
+                            Visibility(
+                              visible: selectedReason == "Other",
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Please specify your reason:",
+                                    style: TextStyle(
+                                      fontSize: Responsive.fontSize(context, AppFonts.md),
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  SizedBox(height: spacing),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.blue.shade400,
+                                        width: 1.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: TextField(
+                                      controller: otherController,
+                                      style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
+                                      decoration: InputDecoration(
+                                        hintText: "Enter other reason...",
+                                        hintStyle: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
+                                        border: InputBorder.none,
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        contentPadding: EdgeInsets.symmetric(
+                                          horizontal: spacing * 2,
+                                          vertical: spacing * 1.8,
+                                        ),
+                                      ),
+                                      maxLines: 3,
+                                      autofocus: false,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    SizedBox(height: spacing),
                     
-                    // ✅ បង្ហាញ Loading ឬបញ្ជី Reason
-                    _isLoadingReasons
-                        ? Padding(
-                            padding: EdgeInsets.symmetric(vertical: spacing * 2),
-                            child: const Center(
-                              child: SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
+                    SizedBox(height: spacing * 4),
+
+                    // ============ SUBMIT BUTTON ============
+                    SizedBox(
+                      width: double.infinity,
+                      height: Responsive.buttonHeight(context),
+                      child: ElevatedButton(
+                        onPressed: _isSubmitting ? null : _submitRequest,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: appBarColor,
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isSubmitting
+                            ? SizedBox(
+                                height: Responsive.iconSize(context, 24),
+                                width: Responsive.iconSize(context, 24),
+                                child: const CircularProgressIndicator(
                                   strokeWidth: 2,
+                                  color: Colors.white,
                                 ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.send, 
+                                    size: Responsive.iconSize(context, 20)
+                                  ),
+                                  SizedBox(width: spacing),
+                                  Text(
+                                    "Submit Request",
+                                    style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
+                                  ),
+                                ],
                               ),
-                            ),
-                          )
-                        : Column(
-                            children: [
-                              // ✅ បង្ហាញ Reason ពី Policy ទាំងអស់
-                              ..._allowedReasons.map((reason) => 
-                                _buildRadio(context, reason, spacing)
-                              ).toList(),
-                            ],
-                          ),
-                    
-                    SizedBox(height: spacing * 1.5),
-                    
-                    // ✅ បង្ហាញ TextField តែពេលជ្រើសរើស "Other"
-                    Visibility(
-                      visible: selectedReason == "Other",
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Please specify your reason:",
-                            style: TextStyle(
-                              fontSize: Responsive.fontSize(context, AppFonts.md),
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                          SizedBox(height: spacing),
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.blue.shade400,
-                                width: 1.5,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: TextField(
-                              controller: otherController,
-                              style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
-                              decoration: InputDecoration(
-                                hintText: "Enter other reason...",
-                                hintStyle: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
-                                border: InputBorder.none,
-                                filled: true,
-                                fillColor: Colors.white,
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: spacing * 2,
-                                  vertical: spacing * 1.8,
-                                ),
-                              ),
-                              maxLines: 3,
-                              autofocus: false,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
+                    
+                    SizedBox(height: isMobile ? 80 : 100),
                   ],
                 ),
               ),
             ),
-            
-            SizedBox(height: spacing * 4),
-
-            // ============ SUBMIT BUTTON ============
-            SizedBox(
-              width: double.infinity,
-              height: Responsive.buttonHeight(context),
-              child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _submitRequest,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primary,
-                  foregroundColor: Colors.white,
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isSubmitting
-                    ? SizedBox(
-                        height: Responsive.iconSize(context, 24),
-                        width: Responsive.iconSize(context, 24),
-                        child: const CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.send, 
-                            size: Responsive.iconSize(context, 20)
-                          ),
-                          SizedBox(width: spacing),
-                          Text(
-                            "Submit Request",
-                            style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-            
-            SizedBox(height: Responsive.isMobile(context) ? 80 : 100),
           ],
         ),
       ),
@@ -846,7 +869,7 @@ class _RequestScreenState extends State<RequestScreen> {
                   }
                 });
               },
-              activeColor: const Color(0xFF1A3B68),
+              activeColor: appBarColor,
             ),
             Text(
               title,

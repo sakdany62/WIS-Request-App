@@ -59,7 +59,6 @@ class TodayRequest {
   factory TodayRequest.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     
-    // 🔥 អាន requestNumber ដោយសុវត្ថិភាព
     int requestNumber = 0;
     final requestNumberValue = data['requestNumber'];
     if (requestNumberValue != null) {
@@ -72,7 +71,6 @@ class TodayRequest {
       }
     }
     
-    // 🔥 អាន totalDays ដោយសុវត្ថិភាព
     int totalDays = 0;
     final totalDaysValue = data['totalDays'];
     if (totalDaysValue != null) {
@@ -252,10 +250,38 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
+  // 📅 បន្ថែមមុខងារគណនាថ្ងៃដំបូង និងថ្ងៃចុងក្រោយនៃសប្តាហ៍
+  DateTime _getStartOfWeek(DateTime date) {
+    // គណនាថ្ងៃច័ន្ទ (Monday) នៃសប្តាហ៍
+    int weekday = date.weekday;
+    int daysToSubtract = weekday - 1; // 1 = Monday
+    return DateTime(date.year, date.month, date.day - daysToSubtract);
+  }
+
+  DateTime _getEndOfWeek(DateTime date) {
+    // គណនាថ្ងៃអាទិត្យ (Sunday) នៃសប្តាហ៍
+    DateTime startOfWeek = _getStartOfWeek(date);
+    return DateTime(
+      startOfWeek.year, 
+      startOfWeek.month, 
+      startOfWeek.day + 6,
+      23, 59, 59, 999, // ចប់នៅចុងថ្ងៃអាទិត្យ
+    );
+  }
+
+  // 📅 បន្ថែមមុខងារបង្ហាញថ្ងៃសប្តាហ៍
+  String _getWeekLabel(DateTime date) {
+    DateTime startOfWeek = _getStartOfWeek(date);
+    DateTime endOfWeek = _getEndOfWeek(date);
+    return '${DateFormat('dd MMM').format(startOfWeek)} - ${DateFormat('dd MMM yyyy').format(endOfWeek)}';
+  }
+
   String _getDateLabel() {
     switch (_selectedReportType) {
       case 'daily':
         return DateFormat('dd MMM yyyy').format(_selectedDate);
+      case 'weekly':
+        return _getWeekLabel(_selectedDate);
       case 'monthly':
         return DateFormat('MMMM yyyy').format(_selectedDate);
       case 'yearly':
@@ -329,6 +355,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         case 'daily':
           startDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
           endDate = startDate.add(const Duration(days: 1));
+          break;
+        case 'weekly':
+          // 📅 គណនាសប្តាហ៍
+          startDate = _getStartOfWeek(_selectedDate);
+          endDate = _getEndOfWeek(_selectedDate).add(const Duration(milliseconds: 1));
           break;
         case 'monthly':
           startDate = DateTime(_selectedDate.year, _selectedDate.month, 1);
@@ -610,6 +641,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
         elevation: 0,
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: Icon(Icons.refresh, size: iconSize),
@@ -673,12 +705,16 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                     child: Text(' Daily'),
                                   ),
                                   DropdownMenuItem(
+                                    value: 'weekly',
+                                    child: Text('Weekly'), 
+                                  ),
+                                  DropdownMenuItem(
                                     value: 'monthly',
                                     child: Text('Monthly'),
                                   ),
                                   DropdownMenuItem(
                                     value: 'yearly',
-                                    child: Text('Yearly'),
+                                    child: Text(' Yearly'),
                                   ),
                                 ],
                                 onChanged: (value) {
@@ -1360,7 +1396,7 @@ class _RequestCard extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.only(top: spacing / 2),
                 child: Text(
-                  '⚠️ ${request.rejectionReason}',
+                  ' ${request.rejectionReason}',
                   style: TextStyle(
                     fontSize: isMobile ? fontSize * 0.7 : 12,
                     color: Colors.red[700],

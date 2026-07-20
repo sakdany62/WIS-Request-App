@@ -103,26 +103,7 @@ class _SplashScreenState extends State<SplashScreen> {
               
               SizedBox(height: spacing * 2),
               
-              // App name - Responsive font
-              Text(
-                'Westland Permission System',
-                style: TextStyle(
-                  fontSize: mainFontSize,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: spacing),
               
-              // Loading text - Responsive font
-              Text(
-                'Loading...',
-                style: TextStyle(
-                  fontSize: smallFontSize, // Now using 12 instead of AppFonts.sm
-                  color: Colors.white70,
-                ),
-              ),
             ],
           ),
         ),
