@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../services/warning_service.dart';
 import '../../app_fonts.dart';
-import '../../utils/responsive.dart'; // ✅ បន្ថែម
+import '../../utils/responsive.dart';
 
 class WarningManagementScreen extends StatefulWidget {
   const WarningManagementScreen({super.key});
@@ -13,7 +13,7 @@ class WarningManagementScreen extends StatefulWidget {
   State<WarningManagementScreen> createState() => _WarningManagementScreenState();
 }
 
-class _WarningManagementScreenState extends State<WarningManagementScreen> {
+class _WarningManagementScreenState extends State<WarningManagementScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _expiresAtController = TextEditingController();
@@ -23,14 +23,29 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
   DateTime? _expiresAt;
   bool _isCreating = false;
 
+  late TabController _tabController;
+  int _currentTabIndex = 0;
+
   final List<String> _severityOptions = ['info', 'warning', 'critical'];
   final List<String> _audienceOptions = ['all', 'staff', 'manager', 'admin'];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        _currentTabIndex = _tabController.index;
+      });
+    });
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
     _messageController.dispose();
     _expiresAtController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -55,9 +70,8 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
         expiresAt: _expiresAt,
       );
 
-      _showSnackBar('✅ Warning created successfully!', Colors.green);
+      _showSnackBar(' Warning created successfully!', Colors.green);
       
-      // Clear form
       _titleController.clear();
       _messageController.clear();
       _expiresAtController.clear();
@@ -106,7 +120,6 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, AppFonts.md);
     final double spacing = Responsive.spacing(context);
@@ -114,47 +127,76 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
     final double buttonHeight = Responsive.buttonHeight(context);
     final double iconSize = Responsive.iconSize(context, 22);
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            'Warning Management',
-            style: TextStyle(
-              fontSize: isMobile ? 16 : 18,
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          backgroundColor: const Color(0xFF173B69),
-          foregroundColor: Colors.white,
-          bottom: TabBar(
-            tabs: [
-              Tab(
-                child: Text(
-                  'Create Warning',
-                  style: TextStyle(
-                    fontSize: Responsive.fontSize(context, 14),
-                  ),
-                ),
-              ),
-              Tab(
-                child: Text(
-                  'Active Warnings',
-                  style: TextStyle(
-                    fontSize: Responsive.fontSize(context, 14),
-                  ),
-                ),
-              ),
-            ],
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'Warning Management',
+          style: TextStyle(
+            fontSize: isMobile ? 16 : 18,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        body: TabBarView(
-          children: [
-            _buildCreateWarningTab(context, fontSize, spacing, padding, buttonHeight, iconSize),
-            _buildActiveWarningsTab(context, fontSize, spacing, padding),
+        backgroundColor: const Color(0xFF173B69),
+        foregroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.add_alert,
+                    size: Responsive.iconSize(context, 18),
+                    color: _currentTabIndex == 0 ? Colors.white : Colors.white70,
+                  ),
+                  SizedBox(width: spacing / 2),
+                  Text(
+                    'Create Warning',
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 14),
+                      color: _currentTabIndex == 0 ? Colors.white : Colors.white70,
+                      fontWeight: _currentTabIndex == 0 ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: Responsive.iconSize(context, 18),
+                    color: _currentTabIndex == 1 ? Colors.white : Colors.white70,
+                  ),
+                  SizedBox(width: spacing / 2),
+                  Text(
+                    'Active Warnings',
+                    style: TextStyle(
+                      fontSize: Responsive.fontSize(context, 14),
+                      color: _currentTabIndex == 1 ? Colors.white : Colors.white70,
+                      fontWeight: _currentTabIndex == 1 ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildCreateWarningTab(context, fontSize, spacing, padding, buttonHeight, iconSize),
+          _buildActiveWarningsTab(context, fontSize, spacing, padding),
+        ],
       ),
     );
   }
@@ -464,40 +506,6 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
           ),
           SizedBox(height: spacing * 3),
 
-          // Info Box
-          Container(
-            padding: EdgeInsets.all(spacing * 1.8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: Colors.blue.shade200,
-                width: 1.5,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  color: Colors.blue.shade700,
-                  size: Responsive.iconSize(context, 22),
-                ),
-                SizedBox(width: spacing * 1.5),
-                Expanded(
-                  child: Text(
-                    'Warning will be shown to users when they open the app',
-                    style: TextStyle(
-                      fontSize: fontSize,
-                      color: Colors.blue.shade700,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: spacing * 3),
-
           // Create Button
           SizedBox(
             width: double.infinity,
@@ -638,7 +646,6 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
           );
         }
 
-        // Count active warnings
         final activeCount = warnings.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           return data['isActive'] == true;
@@ -646,7 +653,6 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
 
         return Column(
           children: [
-            // Summary header
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(horizontal: spacing * 2, vertical: spacing * 1.5),
@@ -681,7 +687,6 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                   final severity = data['severity'] ?? 'info';
                   final color = _getSeverityColor(severity);
                   
-                  // Get read count
                   final readBy = data['readBy'] as List? ?? [];
                   final readCount = readBy.length;
 
@@ -792,22 +797,6 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                             ),
                           ),
                           PopupMenuItem(
-                            value: 'view_readers',
-                            child: Row(
-                              children: [
-                                const Icon(Icons.visibility, size: 20, color: Colors.blue),
-                                SizedBox(width: spacing),
-                                Text(
-                                  'View Readers',
-                                  style: TextStyle(
-                                    fontSize: fontSize,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
                             value: 'delete',
                             child: Row(
                               children: [
@@ -835,8 +824,6 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
                               isActive ? 'Warning deactivated' : 'Warning activated',
                               Colors.green,
                             );
-                          } else if (value == 'view_readers') {
-                            _showReadersList(readBy);
                           } else if (value == 'delete') {
                             await _confirmDelete(doc.id);
                           }
@@ -851,117 +838,6 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> {
           ],
         );
       },
-    );
-  }
-
-  // Show readers list
-  void _showReadersList(List<dynamic> readBy) async {
-    if (readBy.isEmpty) {
-      _showSnackBar('No readers yet', Colors.grey);
-      return;
-    }
-
-    // Get user names from userIds
-    List<Map<String, String>> readers = [];
-    for (var userId in readBy) {
-      try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .where('userId', isEqualTo: userId)
-            .limit(1)
-            .get();
-        
-        if (userDoc.docs.isNotEmpty) {
-          final data = userDoc.docs.first.data();
-          readers.add({
-            'name': data['fullName'] ?? data['username'] ?? userId,
-            'id': userId,
-          });
-        } else {
-          readers.add({
-            'name': userId,
-            'id': userId,
-          });
-        }
-      } catch (e) {
-        readers.add({
-          'name': userId,
-          'id': userId,
-        });
-      }
-    }
-
-    final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, AppFonts.md);
-    final double spacing = Responsive.spacing(context);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(
-          'Readers (${readers.length})',
-          style: TextStyle(
-            fontSize: isMobile ? fontSize + 2 : fontSize + 4,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF173B69),
-          ),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: ListView.builder(
-            itemCount: readers.length,
-            itemBuilder: (context, index) {
-              final reader = readers[index];
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: const Color(0xFF173B69).withOpacity(0.1),
-                  child: Text(
-                    reader['name']![0].toUpperCase(),
-                    style: TextStyle(
-                      color: const Color(0xFF173B69),
-                      fontWeight: FontWeight.bold,
-                      fontSize: fontSize,
-                    ),
-                  ),
-                ),
-                title: Text(
-                  reader['name']!,
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                subtitle: Text(
-                  'ID: ${reader['id']}',
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF173B69),
-            ),
-            child: Text(
-              'Close',
-              style: TextStyle(
-                fontSize: fontSize,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 

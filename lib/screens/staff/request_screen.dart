@@ -36,6 +36,7 @@ class _RequestScreenState extends State<RequestScreen> {
   String _staffName = '';
   String _staffPosition = '';
   String _staffDepartment = '';
+  String _staffDepartmentId = ''; // ✅ បន្ថែម
   String _managerName = '';
   String _managerId = '';
 
@@ -53,6 +54,15 @@ class _RequestScreenState extends State<RequestScreen> {
   // 🎨 ពណ៌ AppBar ដូច Settings
   static const Color appBarColor = Color(0xFF1A3B68);
 
+  // ✅ មុខងារបំប្លែង Department Name ទៅជា ID
+  String _getDepartmentId(String deptName) {
+    if (deptName.contains('IT')) return 'dept_it';
+    if (deptName.contains('Education')) return 'dept_education';
+    if (deptName.contains('Administration')) return 'dept_administration';
+    if (deptName.contains('Service')) return 'dept_service';
+    return 'dept_unknown';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -68,7 +78,6 @@ class _RequestScreenState extends State<RequestScreen> {
         if (mounted) {
           setState(() {
             _allowedReasons = reasons;
-            // ប្រសិនបើ Reason ដែលកំពុងជ្រើសរើសមិនមានទៀត
             if (_allowedReasons.isNotEmpty && !_allowedReasons.contains(selectedReason)) {
               selectedReason = _allowedReasons.first;
             } else if (_allowedReasons.isEmpty) {
@@ -99,7 +108,6 @@ class _RequestScreenState extends State<RequestScreen> {
     try {
       print('🔍 Looking for user with userId: ${user.uid}');
       
-      // ✅ សាកល្បងស្វែងរកតាម userId
       QuerySnapshot? querySnapshot;
       
       try {
@@ -111,7 +119,6 @@ class _RequestScreenState extends State<RequestScreen> {
         print('⚠️ Error searching by userId: $e');
       }
       
-      // ✅ បើមិនឃើញ ស្វែងរកតាម email
       if (querySnapshot == null || querySnapshot.docs.isEmpty) {
         if (user.email != null && user.email!.isNotEmpty) {
           print('🔍 Trying to find by email: ${user.email}');
@@ -126,9 +133,8 @@ class _RequestScreenState extends State<RequestScreen> {
 
       if (querySnapshot != null && querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data() as Map<String, dynamic>;
-        print('📊 User data: $data');
+        print(' User data: $data');
         
-        // ✅ ព្យាយាមយកឈ្មោះពីប្រភពផ្សេងៗ
         String name = data['fullName'] ?? 
                       data['name'] ?? 
                       data['displayName'] ?? 
@@ -147,21 +153,26 @@ class _RequestScreenState extends State<RequestScreen> {
                             data['division'] ?? 
                             'N/A';
         
+        // ✅ យក departmentId ពី user data
+        String departmentId = data['departmentId'] ?? 
+                              data['deptId'] ?? 
+                              _getDepartmentId(department);
+        
         if (mounted) {
           setState(() {
             _staffName = name;
             _staffPosition = position;
             _staffDepartment = department;
+            _staffDepartmentId = departmentId; // ✅ រក្សាទុក
             _managerName = data['managerName'] ?? data['supervisor'] ?? 'Manager';
             _managerId = data['managerId'] ?? data['supervisorId'] ?? '';
           });
         }
-        print('👤 Staff: $_staffName, Position: $_staffPosition, Department: $_staffDepartment');
+        print('👤 Staff: $_staffName, Position: $_staffPosition, Department: $_staffDepartment (ID: $_staffDepartmentId)');
         print('👤 Manager: $_managerName');
       } else {
         print('⚠️ No user document found for userId: ${user.uid}');
         
-        // ✅ ប្រើព័ត៌មានពី Firebase Auth
         String name = user.displayName ?? 
                       (user.email != null ? user.email!.split('@').first : 'Staff');
         
@@ -170,6 +181,7 @@ class _RequestScreenState extends State<RequestScreen> {
             _staffName = name;
             _staffPosition = 'Employee';
             _staffDepartment = 'N/A';
+            _staffDepartmentId = 'dept_unknown';
           });
         }
         print('👤 Using Firebase Auth: $_staffName');
@@ -182,6 +194,7 @@ class _RequestScreenState extends State<RequestScreen> {
                       (user.email != null ? user.email!.split('@').first : 'Staff');
           _staffPosition = 'Employee';
           _staffDepartment = 'N/A';
+          _staffDepartmentId = 'dept_unknown';
         });
       }
     }
@@ -288,12 +301,10 @@ class _RequestScreenState extends State<RequestScreen> {
       return;
     }
 
-    // ⏰ កត់ត្រាពេលចុច Submit (ម៉ោងកម្ពុជា UTC+7)
     final now = _getCurrentCambodiaTime();
     _submitTime = now;
     _submitTimeString = _formatTimeWithAMPM(now);
 
-    // ✅ រក្សាទុក reason មុនពេល submit
     final String selectedReasonAtSubmit = selectedReason;
     final String otherReasonAtSubmit = otherController.text.trim();
 
@@ -317,13 +328,13 @@ class _RequestScreenState extends State<RequestScreen> {
         reasonToSend = 'Other';
       }
 
-      // ✅ ប្រើ reasonText សម្រាប់ notification
       final String reasonTextForNotification = selectedReasonAtSubmit == 'Other' 
           ? otherReasonAtSubmit 
           : selectedReasonAtSubmit;
 
       String? imageUrl;
       
+      // ✅ បញ្ជូន department និង departmentId ទៅ RequestService
       final result = await _requestService.submitRequestWithAutoApprove(
         startDate: formatDate(startDate),
         endDate: formatDate(endDate),
@@ -333,9 +344,10 @@ class _RequestScreenState extends State<RequestScreen> {
         fileUrl: null,
         imageUrl: imageUrl,
         submitTime: _submitTime,
+        department: _staffDepartment,      // ✅ បន្ថែម
+        departmentId: _staffDepartmentId,  // ✅ បន្ថែម
       );
 
-      // ✅ ផ្ញើ Telegram notification ជាមួយ reason ដែលបានរក្សាទុក
       await _sendTelegramNotification(
         requestId: result['requestId'] ?? 'N/A',
         status: result['status'] ?? 'pending',
@@ -403,7 +415,6 @@ class _RequestScreenState extends State<RequestScreen> {
     }
   }
 
-  // ✅ កែប្រែ _sendTelegramNotification ឲ្យទទួល reasonText
   Future<void> _sendTelegramNotification({
     required String requestId,
     required String status,
@@ -418,7 +429,6 @@ class _RequestScreenState extends State<RequestScreen> {
         'submitTime': _submitTimeString,
       };
 
-      // ✅ ប្រើ staff name ដែលបានផ្ទុករួច
       final String displayName = _staffName.isNotEmpty && !_staffName.contains('@')
           ? _staffName
           : (FirebaseAuth.instance.currentUser?.displayName ?? 
@@ -438,7 +448,7 @@ class _RequestScreenState extends State<RequestScreen> {
       final bool sent = await TelegramService.sendToAll(message);
 
       if (sent) {
-        print('✅ Telegram notification sent successfully');
+        print(' Telegram notification sent successfully');
       } else {
         print('⚠️ Failed to send Telegram notification');
       }
@@ -563,7 +573,7 @@ class _RequestScreenState extends State<RequestScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ============ CUSTOM HEADER (ដូច Settings) ============
+            // ============ CUSTOM HEADER ============
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(

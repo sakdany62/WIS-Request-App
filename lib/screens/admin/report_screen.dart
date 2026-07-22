@@ -95,6 +95,7 @@ class _ReportScreenState extends State<ReportScreen> {
     _loadReport();
   }
 
+  // ==================== LOAD REPORT (កែប្រែ) ====================
   Future<void> _loadReport() async {
     setState(() {
       _isLoading = true;
@@ -110,7 +111,6 @@ class _ReportScreenState extends State<ReportScreen> {
           endDate = startDate.add(const Duration(days: 1));
           break;
         case 'weekly':
-          // 📅 គណនាសប្តាហ៍
           startDate = _getStartOfWeek(_selectedDate);
           endDate = _getEndOfWeek(_selectedDate).add(const Duration(milliseconds: 1));
           break;
@@ -130,6 +130,7 @@ class _ReportScreenState extends State<ReportScreen> {
       final startTimestamp = Timestamp.fromDate(startDate);
       final endTimestamp = Timestamp.fromDate(endDate);
 
+      // ✅ យក where('departmentId') ចេញ ដើម្បីកុំឲ្យត្រូវការ Composite Index
       Query query = _firestore
           .collection('leave_requests')
           .where('createdAt', isGreaterThanOrEqualTo: startTimestamp)
@@ -137,6 +138,9 @@ class _ReportScreenState extends State<ReportScreen> {
           .orderBy('createdAt', descending: true);
 
       final querySnapshot = await query.get();
+
+      print('📊 Total documents: ${querySnapshot.docs.length}');
+      print('🔍 Filter department: $_filterDepartment');
 
       final data = querySnapshot.docs.map((doc) {
         final d = doc.data() as Map<String, dynamic>;
@@ -175,6 +179,7 @@ class _ReportScreenState extends State<ReportScreen> {
         };
       }).toList();
 
+      // ✅ Filter by department ក្នុងកម្មវិធី (Client-side filtering)
       List<Map<String, dynamic>> filteredData = data;
       if (_filterDepartment != 'all') {
         filteredData = data.where((d) {
@@ -192,6 +197,8 @@ class _ReportScreenState extends State<ReportScreen> {
                  deptName.contains(selectedDeptName.replaceAll(' Department', ''));
         }).toList();
       }
+
+      print('📊 Filtered data count: ${filteredData.length}');
 
       setState(() {
         _allReportData = data;
@@ -353,6 +360,18 @@ class _ReportScreenState extends State<ReportScreen> {
       default:
         return '';
     }
+  }
+
+  // ✅ Get current department name for display
+  String _getCurrentDepartmentName() {
+    if (_filterDepartment == 'all') {
+      return 'All Departments';
+    }
+    final dept = _departments.firstWhere(
+      (d) => d['id'] == _filterDepartment,
+      orElse: () => {},
+    );
+    return dept['name'] ?? 'Unknown Department';
   }
 
   @override
@@ -617,6 +636,66 @@ class _ReportScreenState extends State<ReportScreen> {
                             ),
                           ),
 
+                          // ✅ Department Filter Info
+                          Container(
+                            margin: EdgeInsets.symmetric(
+                              horizontal: spacing,
+                              vertical: spacing / 2,
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: spacing,
+                              vertical: spacing / 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF173B69).withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFF173B69).withOpacity(0.2),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.filter_alt,
+                                      size: iconSize - 4,
+                                      color: const Color(0xFF173B69),
+                                    ),
+                                    SizedBox(width: spacing / 2),
+                                    Text(
+                                      'Filter: ${_getCurrentDepartmentName()}',
+                                      style: TextStyle(
+                                        fontSize: fontSize * 0.9,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFF173B69),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: spacing / 2,
+                                    vertical: spacing / 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF173B69),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    '${_reportData.length} records',
+                                    style: TextStyle(
+                                      fontSize: fontSize * 0.85,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
                           // Summary Cards
                           Container(
                             padding: EdgeInsets.symmetric(
@@ -728,7 +807,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                       Text(
                                         _filterDepartment == 'all' 
                                             ? 'No data found' 
-                                            : 'No data found for this department',
+                                            : 'No data found for ${_getCurrentDepartmentName()}',
                                         style: TextStyle(
                                           color: Colors.grey,
                                           fontSize: fontSize,
