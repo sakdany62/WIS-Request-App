@@ -1,12 +1,14 @@
+// lib/screens/staff/dashboard.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/auth_provider.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import 'staff_home_screen.dart';
 import 'request_screen.dart';
-import 'settings_screen.dart';  // ✅ រក្សា Settings
+import 'settings_screen.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -18,6 +20,7 @@ class Dashboard extends StatefulWidget {
 class _DashboardState extends State<Dashboard> {
   int _currentIndex = 0;
   late final List<Widget> _pages;
+  bool _isViewingAsStaff = false;
 
   static const LinearGradient _gradient = LinearGradient(
     colors: [Color(0xFF173B69), Color(0xFF2A5F8F)],
@@ -31,8 +34,35 @@ class _DashboardState extends State<Dashboard> {
     _pages = [
       const StaffHomeScreen(),
       const RequestScreen(),
-      const SettingsScreen(),  // ✅ Settings នៅដដែល
+      const SettingsScreen(),
     ];
+    _checkViewMode();
+  }
+
+  Future<void> _checkViewMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isViewing = prefs.getBool('view_as_staff') ?? false;
+    if (mounted) {
+      setState(() {
+        _isViewingAsStaff = isViewing;
+      });
+    }
+  }
+
+  Future<void> _returnToManagerView() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('view_as_staff', false);
+    
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/manager-dashboard');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Returned to Manager view'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   @override
@@ -57,6 +87,17 @@ class _DashboardState extends State<Dashboard> {
           iconSize: iconSize,
           fontSize: fontSize,
         ),
+        // ✅ FAB តូចជាងមុន
+        floatingActionButton: _isViewingAsStaff
+            ? FloatingActionButton.small(
+                onPressed: _returnToManagerView,
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                tooltip: 'Switch back to Manager view',
+                child: const Icon(Icons.arrow_back, size: 20),
+              )
+            : null,
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
     );
   }
@@ -155,7 +196,7 @@ class _DashboardState extends State<Dashboard> {
                   ),
                   _buildNavItem(
                     2,
-                    Icons.settings_outlined,  // ✅ Settings Icon
+                    Icons.settings_outlined,
                     Icons.settings,
                     'Settings',
                     isMobile,

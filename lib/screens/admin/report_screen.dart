@@ -95,7 +95,7 @@ class _ReportScreenState extends State<ReportScreen> {
     _loadReport();
   }
 
-  // ==================== LOAD REPORT (កែប្រែ) ====================
+  // ==================== LOAD REPORT ====================
   Future<void> _loadReport() async {
     setState(() {
       _isLoading = true;
@@ -130,7 +130,6 @@ class _ReportScreenState extends State<ReportScreen> {
       final startTimestamp = Timestamp.fromDate(startDate);
       final endTimestamp = Timestamp.fromDate(endDate);
 
-      // ✅ យក where('departmentId') ចេញ ដើម្បីកុំឲ្យត្រូវការ Composite Index
       Query query = _firestore
           .collection('leave_requests')
           .where('createdAt', isGreaterThanOrEqualTo: startTimestamp)
@@ -162,7 +161,7 @@ class _ReportScreenState extends State<ReportScreen> {
         
         return {
           'id': doc.id,
-          'userName': d['userName'] ?? 'Unknown',
+          'userName': d['userName'] ?? d['fullName'] ?? 'Unknown', // ✅ អាន userName ឬ fullName
           'userEmail': d['userEmail'] ?? '',
           'department': department,
           'departmentId': departmentId,
@@ -179,7 +178,7 @@ class _ReportScreenState extends State<ReportScreen> {
         };
       }).toList();
 
-      // ✅ Filter by department ក្នុងកម្មវិធី (Client-side filtering)
+      // ✅ Filter by department (Client-side filtering)
       List<Map<String, dynamic>> filteredData = data;
       if (_filterDepartment != 'all') {
         filteredData = data.where((d) {
@@ -983,50 +982,77 @@ class _ReportCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row 1: Name + Department + Status
+            // ✅ Row 1: Name + Email (Vertical) | Department | Status
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // ✅ ផ្នែកឈ្មោះ និង Gmail (បញ្ឈរ)
                 Expanded(
-                  child: Text(
-                    data['userName'],
-                    style: TextStyle(
-                      fontSize: cardFontSize,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        data['userName'],
+                        style: TextStyle(
+                          fontSize: cardFontSize,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        data['userEmail'],
+                        style: TextStyle(
+                          fontSize: cardFontSize * 0.8,
+                          color: Colors.grey[600],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                if (hasDepartment && !isMobile)
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    margin: EdgeInsets.only(right: 4),
-                    decoration: BoxDecoration(
-                      color: _departmentColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: _departmentColor.withOpacity(0.3),
+                
+                // ✅ Department (កណ្តាល)
+                if (hasDepartment && !isMobile) ...[
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _departmentColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _departmentColor.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.business,
+                            size: 10,
+                            color: _departmentColor,
+                          ),
+                          const SizedBox(width: 2),
+                          Expanded(
+                            child: Text(
+                              department,
+                              style: TextStyle(
+                                fontSize: cardFontSize * 0.75,
+                                color: _departmentColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.business,
-                          size: 10,
-                          color: _departmentColor,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          department,
-                          style: TextStyle(
-                            fontSize: cardFontSize * 0.8,
-                            color: _departmentColor,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
                   ),
+                  SizedBox(width: spacing / 2),
+                ],
+                
+                // ✅ Status (ស្តាំ)
                 Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: isMobile ? 4 : 8,
@@ -1046,17 +1072,6 @@ class _ReportCard extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-            SizedBox(height: spacing / 4),
-
-            // Row 2: Email
-            Text(
-              data['userEmail'],
-              style: TextStyle(
-                fontSize: cardFontSize * 0.85,
-                color: Colors.grey[600],
-              ),
-              overflow: TextOverflow.ellipsis,
             ),
             SizedBox(height: spacing / 2),
 

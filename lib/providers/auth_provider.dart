@@ -1,6 +1,8 @@
+// lib/providers/auth_provider.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -74,16 +76,15 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // LOAD USER FROM FIRESTORE - ✅ FIXED: Use doc(userId)
+  // LOAD USER FROM FIRESTORE
   // ============================================================
   Future<void> _loadUserFromFirestore(String userId) async {
     try {
       print('🔄 Loading user data for: $userId');
       
-      // ✅ FIX: Use doc() with userId as document ID
       final docSnapshot = await _firestore
           .collection('users')
-          .doc(userId)  // Use userId as document ID
+          .doc(userId)
           .get();
       
       if (docSnapshot.exists) {
@@ -95,7 +96,6 @@ class AuthProvider extends ChangeNotifier {
         print('⚠️ User document not found for userId: $userId');
         _currentUser = null;
         _errorMessage = 'User profile not found. Please contact admin.';
-        // Don't create user automatically
       }
     } catch (e) {
       print('❌ Error loading user: $e');
@@ -136,7 +136,6 @@ class AuthProvider extends ChangeNotifier {
           return true;
         } else {
           _errorMessage = 'User account not properly configured. Please contact admin.';
-          // Sign out if user not found in Firestore
           await _auth.signOut();
           return false;
         }
@@ -166,6 +165,10 @@ class AuthProvider extends ChangeNotifier {
   // ============================================================
   Future<void> signOut() async {
     try {
+      // ✅ លុប view_as_staff mode ពេល logout
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('view_as_staff');
+      
       await _auth.signOut();
       _currentUser = null;
       _isInitialized = false;
@@ -194,7 +197,49 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // UPDATE USER IN FIRESTORE - ✅ FIXED: Use doc(userId)
+  // VIEW MODE METHODS
+  // ============================================================
+  
+  /// ពិនិត្យមើលថាតើកំពុង View as Staff ដែរឬទេ
+  Future<bool> isViewingAsStaff() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('view_as_staff') ?? false;
+    } catch (e) {
+      print('❌ Error checking view mode: $e');
+      return false;
+    }
+  }
+
+  /// លុប View Mode
+  Future<void> clearViewMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('view_as_staff');
+      print('✅ View mode cleared');
+    } catch (e) {
+      print('❌ Error clearing view mode: $e');
+    }
+  }
+
+  /// ទទួលបាន Route ត្រឹមត្រូវ (គិតពី View Mode)
+  Future<String> getDashboardRoute() async {
+    // ✅ ពិនិត្យ View Mode មុន - ប្រើឈ្មោះអថេរផ្សេង
+    final bool isViewing = await isViewingAsStaff();
+    if (isViewing) {
+      return '/staff-dashboard';
+    }
+    
+    // ✅ បើមិនមែន View Mode ប្រើ Role
+    if (isAdmin) return '/admin-dashboard';
+    if (isDirector) return '/director-dashboard';
+    if (isManager) return '/manager-dashboard';
+    if (isStaff) return '/dashboard';
+    return '/login';
+  }
+
+  // ============================================================
+  // UPDATE USER IN FIRESTORE
   // ============================================================
   Future<bool> updateUserInFirestore(Map<String, dynamic> data) async {
     if (_currentUser == null) {
@@ -203,7 +248,6 @@ class AuthProvider extends ChangeNotifier {
     }
 
     try {
-      // ✅ FIX: Use doc() with userId
       await _firestore
           .collection('users')
           .doc(_currentUser!.userId)
@@ -212,7 +256,6 @@ class AuthProvider extends ChangeNotifier {
             'updatedAt': FieldValue.serverTimestamp(),
           });
       
-      // Refresh user data
       await refreshUser();
       print('✅ User updated successfully');
       return true;
@@ -225,7 +268,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // GET USER BY ID - ✅ FIXED: Use doc(userId)
+  // GET USER BY ID
   // ============================================================
   Future<UserModel?> getUserById(String userId) async {
     try {
@@ -356,17 +399,6 @@ class AuthProvider extends ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
-  }
-
-  // ============================================================
-  // GET DASHBOARD ROUTE
-  // ============================================================
-  String getDashboardRoute() {
-    if (isAdmin) return '/admin-dashboard';
-    if (isDirector) return '/director-dashboard';
-    if (isManager) return '/manager-dashboard';
-    if (isStaff) return '/dashboard';
-    return '/login';
   }
 
   // ============================================================

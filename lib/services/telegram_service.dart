@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TelegramService {
   // ===== TELEGRAM CONFIGURATION =====
@@ -12,6 +13,39 @@ class TelegramService {
   static const String _managerChatId = '1273488926';
   static const String _adminChatId = '1273488926';
   static const String _baseUrl = 'https://api.telegram.org/bot$_botToken';
+
+  // ===== Check if user is viewing as staff =====
+  static Future<bool> _isViewingAsStaff() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('view_as_staff') ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ===== Check if user is Manager =====
+  static Future<bool> _isManager() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userId', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final data = querySnapshot.docs.first.data();
+        final roleId = data['roleId']?.toString() ?? '';
+        return roleId == '3';
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
 
   // ===== Get Staff Name from Firebase =====
   static Future<String> _getStaffName() async {
@@ -31,7 +65,6 @@ class TelegramService {
       }
       return user.displayName ?? user.email ?? 'Staff';
     } catch (e) {
-      print(' Error getting staff name: $e');
       return 'Staff';
     }
   }
@@ -54,7 +87,6 @@ class TelegramService {
       }
       return 'Employee';
     } catch (e) {
-      print(' Error getting staff position: $e');
       return 'Employee';
     }
   }
@@ -77,12 +109,11 @@ class TelegramService {
       }
       return 'N/A';
     } catch (e) {
-      print(' Error getting staff department: $e');
       return 'N/A';
     }
   }
 
-  // ===== Get Full Staff Info from Firebase (including department) =====
+  // ===== Get Full Staff Info from Firebase =====
   static Future<Map<String, String>> _getStaffInfo() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -98,9 +129,18 @@ class TelegramService {
 
       if (querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data();
+        
+        final bool isViewing = await _isViewingAsStaff();
+        final bool isManagerUser = await _isManager();
+        
+        String position = data['position'] ?? data['department'] ?? 'Employee';
+        if (isViewing && isManagerUser) {
+          position = 'Manager';
+        }
+        
         return {
           'name': data['fullName'] ?? data['name'] ?? user.displayName ?? user.email ?? 'Staff',
-          'position': data['position'] ?? data['department'] ?? 'Employee',
+          'position': position,
           'department': data['department'] ?? 'N/A',
         };
       }
@@ -110,12 +150,11 @@ class TelegramService {
         'department': 'N/A',
       };
     } catch (e) {
-      print(' Error getting staff info: $e');
       return {'name': 'Staff', 'position': 'Employee', 'department': 'N/A'};
     }
   }
 
-  // ===== Map permission type to display name =====
+  // ===== Map permission type =====
   static String _getPermissionTypeDisplay(String type) {
     final Map<String, String> typeMap = {
       'Sick': 'Sick Leave',
@@ -123,11 +162,6 @@ class TelegramService {
       'Vacation': 'Vacation',
       'Emergency': 'Emergency',
       'Other': 'Other',
-      'sick': 'Sick Leave',
-      'personal': 'Personal Issue',
-      'leave': 'Vacation',
-      'emergency': 'Emergency',
-      'other': 'Other',
     };
     return typeMap[type] ?? type;
   }
@@ -135,48 +169,31 @@ class TelegramService {
   // ===== Format status =====
   static String _formatStatus(String status) {
     switch (status.toLowerCase()) {
-      case 'pending':
-        return 'PENDING';
-      case 'approved':
-        return 'APPROVED';
-      case 'rejected':
-        return 'REJECTED';
-      default:
-        return status.toUpperCase();
+      case 'pending': return 'PENDING';
+      case 'approved': return 'APPROVED';
+      case 'rejected': return 'REJECTED';
+      default: return status.toUpperCase();
     }
   }
 
-  // ===== Get current Cambodia time (UTC+7) =====
-  static DateTime _getCambodiaTime() {
-    return DateTime.now().toUtc().add(const Duration(hours: 7));
-  }
-
-  // ===== Format time only (HH:MM AM/PM) Cambodia Time =====
+  // ===== Format time =====
   static String formatTimeOnlyAMPM([DateTime? time]) {
     final DateTime now = time ?? DateTime.now();
-    
-    // Convert to Cambodia time (UTC+7)
     final cambodiaTime = now.toUtc().add(const Duration(hours: 7));
     
     int hour = cambodiaTime.hour;
     final int minute = cambodiaTime.minute;
     final String period = hour >= 12 ? 'PM' : 'AM';
     
-    // Convert to 12-hour format
-    if (hour == 0) {
-      hour = 12;
-    } else if (hour > 12) {
-      hour = hour - 12;
-    }
+    if (hour == 0) hour = 12;
+    else if (hour > 12) hour = hour - 12;
     
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
-  // ===== Format date and time to AM/PM (Cambodia Time UTC+7) =====
+  // ===== Format date and time =====
   static String _formatDateTimeAMPM([DateTime? time]) {
     final DateTime now = time ?? DateTime.now();
-    
-    // Convert to Cambodia time (UTC+7)
     final cambodiaTime = now.toUtc().add(const Duration(hours: 7));
     
     final day = cambodiaTime.day.toString().padLeft(2, '0');
@@ -186,82 +203,35 @@ class TelegramService {
     final int minute = cambodiaTime.minute;
     final String period = hour >= 12 ? 'PM' : 'AM';
     
-    // Convert to 12-hour format
-    if (hour == 0) {
-      hour = 12;
-    } else if (hour > 12) {
-      hour = hour - 12;
-    }
+    if (hour == 0) hour = 12;
+    else if (hour > 12) hour = hour - 12;
     
     return '$day/$month/$year ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
-  // ===== Format submit time from details (supports both DateTime and String) =====
+  // ===== Format submit time =====
   static String _formatSubmitTime(dynamic submitTime) {
-    // If no submitTime, use current Cambodia time
-    if (submitTime == null) {
-      return formatTimeOnlyAMPM();
-    }
-    
-    // If it's a String, use it directly (already formatted)
-    if (submitTime is String) {
-      if (submitTime.isNotEmpty) {
-        return submitTime;
-      }
-      return formatTimeOnlyAMPM();
-    }
-    
-    // If it's a DateTime, convert to AM/PM
-    if (submitTime is DateTime) {
-      return formatTimeOnlyAMPM(submitTime);
-    }
-    
-    // Default: use current Cambodia time
+    if (submitTime == null) return formatTimeOnlyAMPM();
+    if (submitTime is String && submitTime.isNotEmpty) return submitTime;
+    if (submitTime is DateTime) return formatTimeOnlyAMPM(submitTime);
     return formatTimeOnlyAMPM();
   }
 
-  // ===== Send message to Group =====
-  static Future<bool> sendToGroup(String message) async {
-    return _sendMessage(_groupChatId, message);
-  }
-
-  // ===== Send message to Manager =====
-  static Future<bool> sendToManager(String message) async {
-    return _sendMessage(_managerChatId, message);
-  }
-
-  // ===== Send message to Admin =====
-  static Future<bool> sendToAdmin(String message) async {
-    return _sendMessage(_adminChatId, message);
-  }
-
-  // ===== Send message to Manager, Admin, AND Group =====
+  // ===== Send message =====
   static Future<bool> sendToAll(String message) async {
     try {
       bool managerSent = await _sendMessage(_managerChatId, message);
       bool adminSent = await _sendMessage(_adminChatId, message);
       bool groupSent = await _sendMessage(_groupChatId, message);
-      
-      print(' Manager: $managerSent, Admin: $adminSent, Group: $groupSent');
       return managerSent && adminSent && groupSent;
     } catch (e) {
-      print(' Telegram Error (sendToAll): $e');
       return false;
     }
   }
 
-  // ===== Send message to any Chat ID =====
-  static Future<bool> sendToChatId(String chatId, String message) async {
-    return _sendMessage(chatId, message);
-  }
-
-  // ===== Core send message function =====
+  // ===== Core send message =====
   static Future<bool> _sendMessage(String chatId, String message) async {
-    if (chatId.isEmpty || 
-        chatId == 'MANAGER_CHAT_ID' || 
-        chatId == 'ADMIN_CHAT_ID' ||
-        chatId == 'GROUP_CHAT_ID') {
-      print(' Chat ID is not set or invalid');
+    if (chatId.isEmpty || chatId == 'MANAGER_CHAT_ID' || chatId == 'ADMIN_CHAT_ID' || chatId == 'GROUP_CHAT_ID') {
       return false;
     }
 
@@ -276,57 +246,32 @@ class TelegramService {
           'disable_web_page_preview': true,
         }),
       );
-
-      if (response.statusCode == 200) {
-        print(' Message sent to Telegram successfully (Chat: $chatId)');
-        return true;
-      } else {
-        print(' Telegram Error: ${response.statusCode} - ${response.body}');
-        return false;
-      }
+      return response.statusCode == 200;
     } catch (e) {
-      print(' Telegram Exception: $e');
       return false;
     }
   }
 
-  // ===== Send message to User by Phone Number =====
+  // ===== Send to Phone Number =====
   static Future<bool> sendMessageToPhoneNumber({
     required String phoneNumber,
     required String message,
   }) async {
     try {
-      if (phoneNumber.isEmpty) {
-        print('Phone number is empty');
-        return false;
-      }
-
-      // Format phone number for Telegram (remove + and special chars)
-      String formattedPhone = phoneNumber.trim();
-      formattedPhone = formattedPhone.replaceAll(RegExp(r'[^0-9]'), '');
-      
-      // If starts with 0, change to 855
+      if (phoneNumber.isEmpty) return false;
+      String formattedPhone = phoneNumber.trim().replaceAll(RegExp(r'[^0-9]'), '');
       if (formattedPhone.startsWith('0')) {
         formattedPhone = '855${formattedPhone.substring(1)}';
-      }
-      // If no 855, add
-      else if (!formattedPhone.startsWith('855')) {
+      } else if (!formattedPhone.startsWith('855')) {
         formattedPhone = '855$formattedPhone';
       }
-      
-      final String chatId = formattedPhone;
-      
-      print('Sending Telegram to phone: $phoneNumber -> Chat ID: $chatId');
-      
-      return await _sendMessage(chatId, message);
-      
+      return await _sendMessage(formattedPhone, message);
     } catch (e) {
-      print('Error sending Telegram to phone: $e');
       return false;
     }
   }
 
-  // ===== Send User Credentials to User's Telegram =====
+  // ===== Send User Credentials =====
   static Future<bool> sendUserCredentialsToUser({
     required String fullName,
     required String username,
@@ -338,17 +283,9 @@ class TelegramService {
     required String position,
     required String department,
   }) async {
-    if (phoneNumber.isEmpty) {
-      print('No phone number provided, skipping Telegram');
-      return false;
-    }
+    if (phoneNumber.isEmpty) return false;
 
-    final roleNames = {
-      '1': 'Admin',
-      '2': 'Staff',
-      '3': 'Manager',
-    };
-    
+    final roleNames = {'1': 'Admin', '2': 'Staff', '3': 'Manager'};
     final String roleName = roleNames[roleId] ?? 'User';
     
     final String message = '''
@@ -369,14 +306,11 @@ IMPORTANT:
 - Keep this information safe and secure
 ''';
 
-    return await sendMessageToPhoneNumber(
-      phoneNumber: phoneNumber,
-      message: message,
-    );
+    return await sendMessageToPhoneNumber(phoneNumber: phoneNumber, message: message);
   }
 
-  // ===== Format permission request message (Synchronous) =====
-  static String formatPermissionRequestWithInfo({
+  // ===== FORMAT PERMISSION REQUEST MESSAGE =====
+  static Future<String> formatPermissionRequestWithInfo({
     required String staffName,
     required String staffPosition,
     required String staffDepartment,
@@ -384,20 +318,44 @@ IMPORTANT:
     required Map<String, dynamic> details,
     required String requestId,
     String status = 'pending',
-  }) {
+  }) async {
     String typeDisplay = _getPermissionTypeDisplay(permissionType);
     String formattedStatus = _formatStatus(status);
     String submitTime = _formatSubmitTime(details['submitTime']);
 
-    // យក reason ពី details ឬប្រើ permissionType
     String reasonText = details['reason'] ?? typeDisplay;
     String startDate = details['startDate'] ?? 'N/A';
     String endDate = details['endDate'] ?? 'N/A';
     String duration = details['duration']?.toString() ?? 'N/A';
 
+    final bool isViewing = await _isViewingAsStaff();
+    final bool isManagerUser = await _isManager();
+    
+    // ✅ If manager view as staff - remove position
+    if (isViewing && isManagerUser) {
+      return '''
+NEW PERMISSION REQUEST
+
+Request ID: $requestId
+Staff Name: $staffName
+Department: $staffDepartment
+Submit Time: $submitTime
+
+Details:
+ - Reason: $reasonText
+ - Start Date: $startDate
+ - End Date: $endDate
+ - Duration: $duration day
+
+Status: $formattedStatus
+    ''';
+    }
+
+    // ✅ Staff normal - show position
     return '''
 NEW PERMISSION REQUEST
 
+Request ID: $requestId
 Staff Name: $staffName
 Department: $staffDepartment
 Position: $staffPosition
@@ -408,7 +366,6 @@ Details:
  - End Date: $endDate
  - Duration: $duration day
 
- Request ID: $requestId
  Status: $formattedStatus
     ''';
   }
@@ -423,8 +380,6 @@ Details:
   }) {
     String formattedStatus = _formatStatus(status);
     String typeDisplay = _getPermissionTypeDisplay(permissionType);
-    
-    // Use Cambodia time for response
     String formattedTime = _formatDateTimeAMPM(respondedAt);
 
     return '''
@@ -446,7 +401,6 @@ Thank you for using the system!
   // ===== Send test message =====
   static Future<bool> sendTestMessage() async {
     final staffInfo = await _getStaffInfo();
-    // Use Cambodia time for test message
     final testMessage = '''
 TEST MESSAGE FROM PERMISSION SYSTEM
 
@@ -468,20 +422,13 @@ This is a test message sent to:
   // ===== Check Bot Status =====
   static Future<bool> checkBotStatus() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/getMe'),
-      );
+      final response = await http.get(Uri.parse('$_baseUrl/getMe'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['ok'] == true) {
-          print(' Bot is running: ${data['result']['username']}');
-          return true;
-        }
+        return data['ok'] == true;
       }
-      print('Bot is not running');
       return false;
     } catch (e) {
-      print('Error checking Bot status: $e');
       return false;
     }
   }

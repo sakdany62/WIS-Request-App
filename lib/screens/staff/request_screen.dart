@@ -6,11 +6,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/request_service.dart';
 import '../../services/telegram_service.dart';
+import '../../services/manager_telegram_service.dart';
 import '../../services/policy_service.dart';
 import 'package:permission_system/app_fonts.dart';
-import 'staff_home_screen.dart';
 import '../../utils/responsive.dart';
 
 class RequestScreen extends StatefulWidget {
@@ -36,25 +37,22 @@ class _RequestScreenState extends State<RequestScreen> {
   String _staffName = '';
   String _staffPosition = '';
   String _staffDepartment = '';
-  String _staffDepartmentId = ''; // ✅ បន្ថែម
+  String _staffDepartmentId = '';
+  String _staffEmail = '';
   String _managerName = '';
   String _managerId = '';
 
   OverlayEntry? _overlayEntry;
 
-  // ⏰ Submit time variables
   DateTime? _submitTime;
   String _submitTimeString = '';
 
-  // ✅ សម្រាប់ទុក Reason ពី Policy
   List<String> _allowedReasons = ['Sick', 'Personal issue', 'Vacation', 'Emergency', 'Other'];
   bool _isLoadingReasons = true;
   StreamSubscription<List<String>>? _reasonsSubscription;
 
-  // 🎨 ពណ៌ AppBar ដូច Settings
   static const Color appBarColor = Color(0xFF1A3B68);
 
-  // ✅ មុខងារបំប្លែង Department Name ទៅជា ID
   String _getDepartmentId(String deptName) {
     if (deptName.contains('IT')) return 'dept_it';
     if (deptName.contains('Education')) return 'dept_education';
@@ -70,11 +68,9 @@ class _RequestScreenState extends State<RequestScreen> {
     _listenToPolicyChanges();
   }
 
-  // ✅ ស្តាប់ការផ្លាស់ប្តូរ Real-time
   void _listenToPolicyChanges() {
     _reasonsSubscription = _policyService.streamAllowedReasons().listen(
       (reasons) {
-        print('🔄 Real-time update: Reasons changed to $reasons');
         if (mounted) {
           setState(() {
             _allowedReasons = reasons;
@@ -88,7 +84,6 @@ class _RequestScreenState extends State<RequestScreen> {
         }
       },
       onError: (error) {
-        print('❌ Error listening to policy changes: $error');
         if (mounted) {
           setState(() {
             _isLoadingReasons = false;
@@ -100,14 +95,9 @@ class _RequestScreenState extends State<RequestScreen> {
 
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      print('❌ No user logged in');
-      return;
-    }
+    if (user == null) return;
 
     try {
-      print('🔍 Looking for user with userId: ${user.uid}');
-      
       QuerySnapshot? querySnapshot;
       
       try {
@@ -116,12 +106,11 @@ class _RequestScreenState extends State<RequestScreen> {
             .where('userId', isEqualTo: user.uid)
             .get();
       } catch (e) {
-        print('⚠️ Error searching by userId: $e');
+        // ignore
       }
       
       if (querySnapshot == null || querySnapshot.docs.isEmpty) {
         if (user.email != null && user.email!.isNotEmpty) {
-          print('🔍 Trying to find by email: ${user.email}');
           querySnapshot = await FirebaseFirestore.instance
               .collection('users')
               .where('email', isEqualTo: user.email)
@@ -129,52 +118,28 @@ class _RequestScreenState extends State<RequestScreen> {
         }
       }
 
-      print('📄 Found ${querySnapshot?.docs.length ?? 0} documents');
-
       if (querySnapshot != null && querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data() as Map<String, dynamic>;
-        print(' User data: $data');
         
-        String name = data['fullName'] ?? 
-                      data['name'] ?? 
-                      data['displayName'] ?? 
-                      data['username'] ??
-                      user.displayName ?? 
-                      user.email ?? 
-                      'Staff';
-        
-        String position = data['position'] ?? 
-                          data['jobTitle'] ?? 
-                          data['role'] ?? 
-                          'Employee';
-        
-        String department = data['department'] ?? 
-                            data['dept'] ?? 
-                            data['division'] ?? 
-                            'N/A';
-        
-        // ✅ យក departmentId ពី user data
-        String departmentId = data['departmentId'] ?? 
-                              data['deptId'] ?? 
-                              _getDepartmentId(department);
+        String name = data['fullName'] ?? data['name'] ?? data['displayName'] ?? data['username'] ?? user.displayName ?? user.email ?? 'Staff';
+        String position = data['position'] ?? data['jobTitle'] ?? data['role'] ?? 'Employee';
+        String department = data['department'] ?? data['dept'] ?? data['division'] ?? 'N/A';
+        String email = data['email'] ?? user.email ?? '';
+        String departmentId = data['departmentId'] ?? data['deptId'] ?? _getDepartmentId(department);
         
         if (mounted) {
           setState(() {
             _staffName = name;
             _staffPosition = position;
             _staffDepartment = department;
-            _staffDepartmentId = departmentId; // ✅ រក្សាទុក
+            _staffDepartmentId = departmentId;
+            _staffEmail = email;
             _managerName = data['managerName'] ?? data['supervisor'] ?? 'Manager';
             _managerId = data['managerId'] ?? data['supervisorId'] ?? '';
           });
         }
-        print('👤 Staff: $_staffName, Position: $_staffPosition, Department: $_staffDepartment (ID: $_staffDepartmentId)');
-        print('👤 Manager: $_managerName');
       } else {
-        print('⚠️ No user document found for userId: ${user.uid}');
-        
-        String name = user.displayName ?? 
-                      (user.email != null ? user.email!.split('@').first : 'Staff');
+        String name = user.displayName ?? (user.email != null ? user.email!.split('@').first : 'Staff');
         
         if (mounted) {
           setState(() {
@@ -182,19 +147,18 @@ class _RequestScreenState extends State<RequestScreen> {
             _staffPosition = 'Employee';
             _staffDepartment = 'N/A';
             _staffDepartmentId = 'dept_unknown';
+            _staffEmail = user.email ?? '';
           });
         }
-        print('👤 Using Firebase Auth: $_staffName');
       }
     } catch (e) {
-      print('❌ Error loading user data: $e');
       if (mounted) {
         setState(() {
-          _staffName = user.displayName ?? 
-                      (user.email != null ? user.email!.split('@').first : 'Staff');
+          _staffName = user.displayName ?? (user.email != null ? user.email!.split('@').first : 'Staff');
           _staffPosition = 'Employee';
           _staffDepartment = 'N/A';
           _staffDepartmentId = 'dept_unknown';
+          _staffEmail = user.email ?? '';
         });
       }
     }
@@ -205,7 +169,6 @@ class _RequestScreenState extends State<RequestScreen> {
     return DateFormat('dd MMM yyyy').format(date);
   }
 
-  // ⏰ មុខងារបំប្លែងពេលវេលាទៅជា AM/PM (ម៉ោងកម្ពុជា UTC+7)
   String _formatTimeWithAMPM(DateTime time) {
     final cambodiaTime = time;
     
@@ -222,7 +185,6 @@ class _RequestScreenState extends State<RequestScreen> {
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
-  // ⏰ មុខងារយកពេលបច្ចុប្បន្នតាមម៉ោងកម្ពុជា
   DateTime _getCurrentCambodiaTime() {
     return DateTime.now().toUtc().add(const Duration(hours: 7));
   }
@@ -270,7 +232,6 @@ class _RequestScreenState extends State<RequestScreen> {
         _showSuccess('Image selected: $fileName');
       }
     } catch (e) {
-      print('❌ Error picking image: $e');
       _showError('Failed to pick image: $e');
     }
   }
@@ -308,9 +269,11 @@ class _RequestScreenState extends State<RequestScreen> {
     final String selectedReasonAtSubmit = selectedReason;
     final String otherReasonAtSubmit = otherController.text.trim();
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isSubmitting = true;
+      });
+    }
 
     try {
       String reasonToSend = selectedReasonAtSubmit;
@@ -320,9 +283,11 @@ class _RequestScreenState extends State<RequestScreen> {
         otherReasonToSend = otherReasonAtSubmit;
         if (otherReasonToSend.isEmpty) {
           _showError('Please specify a reason');
-          setState(() {
-            _isSubmitting = false;
-          });
+          if (mounted) {
+            setState(() {
+              _isSubmitting = false;
+            });
+          }
           return;
         }
         reasonToSend = 'Other';
@@ -334,7 +299,6 @@ class _RequestScreenState extends State<RequestScreen> {
 
       String? imageUrl;
       
-      // ✅ បញ្ជូន department និង departmentId ទៅ RequestService
       final result = await _requestService.submitRequestWithAutoApprove(
         startDate: formatDate(startDate),
         endDate: formatDate(endDate),
@@ -344,8 +308,10 @@ class _RequestScreenState extends State<RequestScreen> {
         fileUrl: null,
         imageUrl: imageUrl,
         submitTime: _submitTime,
-        department: _staffDepartment,      // ✅ បន្ថែម
-        departmentId: _staffDepartmentId,  // ✅ បន្ថែម
+        department: _staffDepartment,
+        departmentId: _staffDepartmentId,
+        userName: _staffName,
+        userEmail: _staffEmail.isNotEmpty ? _staffEmail : FirebaseAuth.instance.currentUser?.email ?? '',
       );
 
       await _sendTelegramNotification(
@@ -384,19 +350,11 @@ class _RequestScreenState extends State<RequestScreen> {
             _submitTimeString = '';
           });
         }
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            // StaffHomeScreenStateManager.refreshData();
-          }
-        });
       }
     } on FirebaseException catch (e) {
-      print('❌ Firebase Error: ${e.code} - ${e.message}');
       if (mounted) {
         if (e.code == 'permission-denied') {
-          _showError(
-              'You do not have permission to submit requests. Please contact Admin');
+          _showError('You do not have permission to submit requests. Please contact Admin');
         } else {
           _showError('System error: ${e.message}');
         }
@@ -405,7 +363,6 @@ class _RequestScreenState extends State<RequestScreen> {
         });
       }
     } catch (e) {
-      print('❌ Submit error: $e');
       if (mounted) {
         _showError('Error: ${e.toString().replaceFirst('Exception: ', '')}');
         setState(() {
@@ -435,25 +392,68 @@ class _RequestScreenState extends State<RequestScreen> {
              FirebaseAuth.instance.currentUser?.email?.split('@').first ?? 
              'Staff');
 
-      final message = TelegramService.formatPermissionRequestWithInfo(
-        staffName: displayName,
-        staffPosition: _staffPosition.isNotEmpty ? _staffPosition : 'Employee',
-        staffDepartment: _staffDepartment.isNotEmpty ? _staffDepartment : 'N/A',
-        permissionType: reasonText,
-        details: details,
-        requestId: requestId,
-        status: status,
-      );
-
-      final bool sent = await TelegramService.sendToAll(message);
-
-      if (sent) {
-        print(' Telegram notification sent successfully');
+      final bool isViewing = await _checkViewMode();
+      final bool isManager = await _checkIsManager();
+      
+      if (isViewing && isManager) {
+        final String message = await ManagerTelegramService.formatManagerViewRequest(
+          staffName: displayName,
+          staffDepartment: _staffDepartment.isNotEmpty ? _staffDepartment : 'N/A',
+          permissionType: reasonText,
+          details: details,
+          requestId: requestId,
+          status: status,
+        );
+        
+        if (message.isNotEmpty) {
+          await ManagerTelegramService.sendToAll(message);
+        }
       } else {
-        print('⚠️ Failed to send Telegram notification');
+        final String message = await TelegramService.formatPermissionRequestWithInfo(
+          staffName: displayName,
+          staffPosition: _staffPosition.isNotEmpty ? _staffPosition : 'Employee',
+          staffDepartment: _staffDepartment.isNotEmpty ? _staffDepartment : 'N/A',
+          permissionType: reasonText,
+          details: details,
+          requestId: requestId,
+          status: status,
+        );
+        
+        await TelegramService.sendToAll(message);
       }
     } catch (e) {
-      print('⚠️ Telegram error (non-critical): $e');
+      // ignore
+    }
+  }
+
+  Future<bool> _checkViewMode() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool('view_as_staff') ?? false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> _checkIsManager() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userId', isEqualTo: user.uid)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final data = querySnapshot.docs.first.data();
+        final roleId = data['roleId']?.toString() ?? '';
+        return roleId == '3';
+      }
+      return false;
+    } catch (e) {
+      return false;
     }
   }
 
@@ -501,11 +501,7 @@ class _RequestScreenState extends State<RequestScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    icon,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+                  Icon(icon, color: Colors.white, size: 24),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -525,11 +521,7 @@ class _RequestScreenState extends State<RequestScreen> {
                         color: Colors.white.withOpacity(0.2),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 18),
                     ),
                   ),
                 ],
@@ -573,7 +565,6 @@ class _RequestScreenState extends State<RequestScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ============ CUSTOM HEADER ============
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(
@@ -609,14 +600,12 @@ class _RequestScreenState extends State<RequestScreen> {
               ),
             ),
 
-            // ============ CONTENT ============
             Expanded(
               child: SingleChildScrollView(
                 padding: padding,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ============ CARD 1: SELECT DATE ============
                     Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(
@@ -638,11 +627,7 @@ class _RequestScreenState extends State<RequestScreen> {
                             
                             GestureDetector(
                               onTap: pickStartDate,
-                              child: _buildDateBox(
-                                context, 
-                                formatDate(startDate),
-                                spacing,
-                              ),
+                              child: _buildDateBox(context, formatDate(startDate), spacing),
                             ),
                             SizedBox(height: spacing * 1.5),
                             Container(
@@ -653,11 +638,7 @@ class _RequestScreenState extends State<RequestScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    Icons.calendar_today, 
-                                    color: Colors.green,
-                                    size: Responsive.iconSize(context, 20),
-                                  ),
+                                  Icon(Icons.calendar_today, color: Colors.green, size: Responsive.iconSize(context, 20)),
                                   SizedBox(width: spacing),
                                   Text(
                                     "Total Days: 1 day",
@@ -676,7 +657,6 @@ class _RequestScreenState extends State<RequestScreen> {
                     ),
                     SizedBox(height: spacing * 2.5),
 
-                    // ============ CARD 2: DOCUMENT REFERENCE ============
                     Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(
@@ -755,7 +735,6 @@ class _RequestScreenState extends State<RequestScreen> {
                     ),
                     SizedBox(height: spacing * 2.5),
 
-                    // ============ CARD 3: REASON FOR LEAVE ============
                     Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(
@@ -782,9 +761,7 @@ class _RequestScreenState extends State<RequestScreen> {
                                       child: SizedBox(
                                         height: 20,
                                         width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
+                                        child: CircularProgressIndicator(strokeWidth: 2),
                                       ),
                                     ),
                                   )
@@ -813,10 +790,7 @@ class _RequestScreenState extends State<RequestScreen> {
                                   SizedBox(height: spacing),
                                   Container(
                                     decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.blue.shade400,
-                                        width: 1.5,
-                                      ),
+                                      border: Border.all(color: Colors.blue.shade400, width: 1.5),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: TextField(
@@ -847,7 +821,6 @@ class _RequestScreenState extends State<RequestScreen> {
                     
                     SizedBox(height: spacing * 4),
 
-                    // ============ SUBMIT BUTTON ============
                     SizedBox(
                       width: double.infinity,
                       height: Responsive.buttonHeight(context),
@@ -873,10 +846,7 @@ class _RequestScreenState extends State<RequestScreen> {
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(
-                                    Icons.send, 
-                                    size: Responsive.iconSize(context, 20)
-                                  ),
+                                  Icon(Icons.send, size: Responsive.iconSize(context, 20)),
                                   SizedBox(width: spacing),
                                   Text(
                                     "Submit Request",
@@ -898,8 +868,6 @@ class _RequestScreenState extends State<RequestScreen> {
     );
   }
 
-  // ============ HELPER WIDGETS ============
-  
   Widget _buildDateBox(BuildContext context, String text, double spacing) {
     return Container(
       width: double.infinity,

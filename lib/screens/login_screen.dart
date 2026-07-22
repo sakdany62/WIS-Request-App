@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isLoading = false;
   bool obscurePassword = true;
   bool rememberMe = false;
+  String _errorMessage = ''; // ✅ បន្ថែមសម្រាប់ទុកសារកំហុស
 
   @override
   void initState() {
@@ -48,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.setString('admin_email', email);
       await prefs.setString('admin_password', password);
       await prefs.setString('admin_uid', uid);
-      print('✅ Admin credentials saved successfully');
+      print(' Admin credentials saved successfully');
     } catch (e) {
       print('❌ Error saving admin credentials: $e');
     }
@@ -70,11 +71,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
+    // ✅ លុបសារកំហុសចាស់
+    setState(() {
+      _errorMessage = '';
+    });
+
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
+    // ✅ ពិនិត្យមើលថាមានបំពេញទាំងអស់ឬទេ
     if (email.isEmpty || password.isEmpty) {
-      _showSnackBar('Please fill all fields', Colors.orange);
+      setState(() {
+        _errorMessage = 'Please fill all fields';
+      });
       return;
     }
 
@@ -93,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // ✅ ប្រសិនបើជា Admin រក្សាទុក Admin Credentials
           if (user.isAdmin) {
             await _saveAdminCredentials(email, password, user.userId);
-            print('✅ Admin credentials saved!');
+            print(' Admin credentials saved!');
           }
 
           String route;
@@ -111,9 +120,17 @@ class _LoginScreenState extends State<LoginScreen> {
             (route) => false,
           );
         }
+      } else {
+        // ✅ បង្ហាញសារកំហុសពី AuthProvider
+        final error = authProvider.errorMessage ?? 'Invalid email or password';
+        setState(() {
+          _errorMessage = error;
+        });
       }
     } catch (e) {
-      _showSnackBar('Login failed: ${e.toString()}', Colors.red);
+      setState(() {
+        _errorMessage = 'Login failed: ${e.toString()}';
+      });
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -151,7 +168,54 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 50),
+              const SizedBox(height: 20),
+
+              // ✅ បង្ហាញសារកំហុសនៅផ្នែកខាងលើ
+              if (_errorMessage.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        color: Colors.red.shade700,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _errorMessage,
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: AppFonts.md,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _errorMessage = '';
+                          });
+                        },
+                        child: Icon(
+                          Icons.close,
+                          color: Colors.red.shade400,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 30),
               Center(
                 child: Column(
                   children: [
@@ -186,6 +250,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 style: TextStyle(fontSize: AppFonts.md),
+                onChanged: (_) {
+                  // ✅ លុបសារកំហុសពេលអ្នកប្រើកំពុងវាយ
+                  if (_errorMessage.isNotEmpty) {
+                    setState(() {
+                      _errorMessage = '';
+                    });
+                  }
+                },
                 decoration: InputDecoration(
                   hintText: "Enter email",
                   hintStyle: TextStyle(fontSize: AppFonts.md),
@@ -202,6 +274,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscureText: obscurePassword,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _login(),
+                onChanged: (_) {
+                  // ✅ លុបសារកំហុសពេលអ្នកប្រើកំពុងវាយ
+                  if (_errorMessage.isNotEmpty) {
+                    setState(() {
+                      _errorMessage = '';
+                    });
+                  }
+                },
                 style: TextStyle(fontSize: AppFonts.md),
                 decoration: InputDecoration(
                   hintText: "Enter password",

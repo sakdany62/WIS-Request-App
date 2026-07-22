@@ -1,3 +1,4 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -11,7 +12,10 @@ import 'screens/forgot_password.dart';
 import 'screens/admin/create_user.dart';
 import 'providers/auth_provider.dart';
 import 'app_fonts.dart';
-import 'services/notification_permission_service.dart'; // បន្ថែម
+import 'services/notification_permission_service.dart';
+
+// ✅ Global navigator key for notifications
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +50,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Westland Permission App',
       debugShowCheckedModeBanner: false,
-      navigatorKey: navigatorKey, // បន្ថែម
+      navigatorKey: navigatorKey,
       theme: ThemeData(
         primaryColor: const Color(0xFF1A3B68),
         scaffoldBackgroundColor: const Color(0xFFF7F8FA),
@@ -96,6 +100,7 @@ class MyApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
         '/dashboard': (context) => const Dashboard(),
+        '/staff-dashboard': (context) => const Dashboard(), // ✅ បន្ថែម
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/manager-dashboard': (context) => const ManagerDashboard(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),

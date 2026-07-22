@@ -55,8 +55,10 @@ class RequestService {
     required String? fileUrl,
     required String? imageUrl,
     DateTime? submitTime,
-    String? department,     // ✅ បន្ថែម
-    String? departmentId,   // ✅ បន្ថែម
+    String? department,
+    String? departmentId,
+    String? userName,      // ✅ បន្ថែម
+    String? userEmail,     // ✅ បន្ថែម
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
@@ -67,16 +69,22 @@ class RequestService {
         .limit(1)
         .get();
 
-    String userName = user.email?.split('@').first ?? 'Staff';
-    String userEmail = user.email ?? '';
+    // ✅ ប្រើ userName និង userEmail ដែលបញ្ជូនមក
+    String finalUserName = userName ?? user.email?.split('@').first ?? 'Staff';
+    String finalUserEmail = userEmail ?? user.email ?? '';
     String userDepartment = department ?? '';
     String userDepartmentId = departmentId ?? '';
     String userRoleId = '2';
     
     if (userDoc.docs.isNotEmpty) {
       final data = userDoc.docs.first.data() as Map<String, dynamic>;
-      userName = data['fullName'] ?? data['username'] ?? userName;
-      userEmail = data['email'] ?? userEmail;
+      // ✅ ប្រើ userName ដែលបញ្ជូនមកមុន បើមិនមានទើបយកពី Firestore
+      if (userName == null || userName.isEmpty) {
+        finalUserName = data['fullName'] ?? data['username'] ?? finalUserName;
+      }
+      if (userEmail == null || userEmail.isEmpty) {
+        finalUserEmail = data['email'] ?? finalUserEmail;
+      }
       if (department == null || department.isEmpty) {
         userDepartment = data['department'] ?? '';
       }
@@ -86,7 +94,8 @@ class RequestService {
       userRoleId = data['roleId']?.toString() ?? '2';
     }
 
-    print('📝 Submitting request for: $userName');
+    print('📝 Submitting request for: $finalUserName');
+    print('📝 Email: $finalUserEmail');
     print('📝 Department: "$userDepartment"');
     print('📝 Department ID: "$userDepartmentId"');
     print('📝 Role: $userRoleId');
@@ -161,10 +170,10 @@ class RequestService {
 
     final requestData = {
       'userId': user.uid,
-      'userEmail': userEmail,
-      'userName': userName,
+      'userEmail': finalUserEmail,          // ✅ ប្រើ finalUserEmail
+      'userName': finalUserName,            // ✅ ប្រើ finalUserName
       'department': userDepartment,
-      'departmentId': userDepartmentId, // ✅ រក្សាទុក departmentId
+      'departmentId': userDepartmentId,
       'startDate': startDate,
       'endDate': endDate,
       'totalDays': totalDays,
@@ -201,7 +210,7 @@ class RequestService {
     
     await _sendNotificationToUser(
       userId: user.uid,
-      userEmail: userEmail,
+      userEmail: finalUserEmail,
       title: status == 'approved' ? 'Request Auto-Approved' : 'Request Needs Approval',
       message: autoMessage ?? 'Your request has been submitted successfully',
       type: status == 'approved' ? 'auto_approved' : 'submitted',

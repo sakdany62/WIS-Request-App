@@ -6,7 +6,7 @@ import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import 'manager_home_screen.dart';
 import 'all_permission_today.dart' as permission;
-import '../staff/settings_screen.dart'; 
+import 'manager_settings_screen.dart'; 
 
 class ManagerDashboard extends StatefulWidget {
   const ManagerDashboard({super.key});
@@ -31,7 +31,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     _pages = [
       const ManagerHomeScreen(),
       const permission.ListStaffScreen(),
-      const SettingsScreen(),  // ✅ Settings នៅដដែល
+      const ManagerSettingsScreen(), // ✅ ប្តូរទៅ Manager Settings
     ];
   }
 
@@ -155,7 +155,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
                   ),
                   _buildNavItem(
                     2,
-                    Icons.settings_outlined,  // ✅ Settings Icon
+                    Icons.settings_outlined,
                     Icons.settings,
                     'Settings',
                     isMobile,
