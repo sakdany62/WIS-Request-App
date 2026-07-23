@@ -6,8 +6,9 @@ import '../../app_fonts.dart';
 import '../../services/request_service.dart';
 import '../../services/user_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/profile_avatar.dart';
 import '../staff/notifications_screen.dart';
-import 'admin_profile_screen.dart';  // ✅ Admin Profile
+import 'admin_profile_screen.dart';
 import 'user_management_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   final RequestService _requestService = RequestService();
   final UserService _userService = UserService();
   String adminName = 'Admin User';
+  String? profileImageUrl;
   bool isLoading = true;
   String adminId = '';
   String? errorMessage;
@@ -98,6 +100,31 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     }
   }
 
+  // ✅ Method to refresh profile image after update
+  Future<void> _refreshProfileImage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        if (mounted) {
+          setState(() {
+            profileImageUrl = data['profileImageUrl'] ?? '';
+            adminName = data['fullName'] ?? data['username'] ?? 'Admin User';
+          });
+        }
+      }
+    } catch (e) {
+      print('❌ Error refreshing profile image: $e');
+    }
+  }
+
   Future<void> _loadAdminData() async {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -105,7 +132,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       try {
         final docSnapshot = await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)  // ✅ Use userId as document ID
+            .doc(user.uid)
             .get();
 
         if (docSnapshot.exists) {
@@ -113,6 +140,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           if (mounted) {
             setState(() {
               adminName = data['fullName'] ?? data['username'] ?? 'Admin User';
+              profileImageUrl = data['profileImageUrl'] ?? '';
               isLoading = false;
               errorMessage = null;
             });
@@ -268,7 +296,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final double gridWidth = screenWidth - horizontalPadding;
     final double itemWidth = (gridWidth - (gridSpacing * (crossAxisCount - 1))) / crossAxisCount;
     final double itemHeight = (gridHeight - (gridSpacing * (rowCount - 1))) / rowCount;
-    final double childAspectRatio = itemWidth / (itemHeight > 0 ? itemHeight : 1);
+    final double reducedItemHeight = itemHeight * 0.95;
+    final double childAspectRatio = itemWidth / (reducedItemHeight > 0 ? reducedItemHeight : 1);
 
     if (isLoading) {
       return const Scaffold(
@@ -326,7 +355,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(
@@ -342,9 +370,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
               child: _AdminUserHeader(
                 adminName: adminName,
+                adminId: adminId,
+                profileImageUrl: profileImageUrl,
                 isLoading: isLoading,
                 unreadCount: _unreadCount,
                 onNotificationPressed: _refreshUnreadCount,
+                onProfileUpdated: _refreshProfileImage, // ✅ Pass callback
                 useWhiteTheme: true,
                 isMobile: isMobile,
                 fontSize: fontSize,
@@ -352,13 +383,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 iconSize: iconSize,
               ),
             ),
-            
-            // Grid content
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
                   await _loadStats();
                   await _refreshUnreadCount();
+                  await _refreshProfileImage(); // ✅ Also refresh profile
                 },
                 child: SingleChildScrollView(
                   physics: const NeverScrollableScrollPhysics(),
@@ -406,7 +436,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           value: _stats['totalUsers']?.toString() ?? '0',
           color: const Color(0xFF173B69),
           type: 'users',
-          iconSize: iconSize,
+          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
           fontSize: fontSize,
           isMobile: isMobile,
         ),
@@ -416,7 +446,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           value: _stats['pendingRequests']?.toString() ?? '0',
           color: Colors.orange,
           type: 'pending',
-          iconSize: iconSize,
+          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
           fontSize: fontSize,
           isMobile: isMobile,
         ),
@@ -426,7 +456,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           value: _stats['todayRequests']?.toString() ?? '0',
           color: Colors.blue,
           type: 'today',
-          iconSize: iconSize,
+          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
           fontSize: fontSize,
           isMobile: isMobile,
         ),
@@ -436,7 +466,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           value: _stats['totalRequests']?.toString() ?? '0',
           color: Colors.green,
           type: 'total',
-          iconSize: iconSize,
+          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
           fontSize: fontSize,
           isMobile: isMobile,
         ),
@@ -446,7 +476,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           value: _stats['approvedToday']?.toString() ?? '0',
           color: Colors.purple,
           type: 'approved',
-          iconSize: iconSize,
+          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
           fontSize: fontSize,
           isMobile: isMobile,
         ),
@@ -456,7 +486,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           value: _stats['rejectedToday']?.toString() ?? '0',
           color: Colors.red,
           type: 'rejected',
-          iconSize: iconSize,
+          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
           fontSize: fontSize,
           isMobile: isMobile,
         ),
@@ -495,13 +525,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             Icon(
               icon,
               color: color,
-              size: isMobile ? iconSize - 6 : iconSize,
+              size: isMobile ? iconSize + 4 : iconSize + 10,
             ),
             SizedBox(height: isMobile ? 2 : 4),
             Text(
               value,
               style: TextStyle(
-                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
+                fontSize: isMobile ? fontSize + 4 : fontSize + 6,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -510,7 +540,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             Text(
               label,
               style: TextStyle(
-                fontSize: isMobile ? fontSize * 0.6 : fontSize,
+                fontSize: isMobile ? fontSize * 0.7 : fontSize + 2,
                 color: Colors.grey[600],
               ),
               textAlign: TextAlign.center,
@@ -533,6 +563,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       ).then((_) {
         _loadStats();
         _refreshUnreadCount();
+        _refreshProfileImage(); // ✅ Refresh profile after returning
       });
       return;
     }
@@ -548,6 +579,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     ).then((_) {
       _loadStats();
       _refreshUnreadCount();
+      _refreshProfileImage(); // ✅ Refresh profile after returning
     });
   }
 }
@@ -555,9 +587,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 // ==================== ADMIN USER HEADER ====================
 class _AdminUserHeader extends StatelessWidget {
   final String adminName;
+  final String? adminId;
+  final String? profileImageUrl;
   final bool isLoading;
   final int unreadCount;
   final VoidCallback? onNotificationPressed;
+  final VoidCallback? onProfileUpdated; // ✅ Add callback
   final bool useWhiteTheme;
   final bool isMobile;
   final double fontSize;
@@ -566,9 +601,12 @@ class _AdminUserHeader extends StatelessWidget {
 
   const _AdminUserHeader({
     required this.adminName,
+    this.adminId,
+    this.profileImageUrl,
     required this.isLoading,
     this.unreadCount = 0,
     this.onNotificationPressed,
+    this.onProfileUpdated, // ✅ Add callback
     this.useWhiteTheme = false,
     required this.isMobile,
     required this.fontSize,
@@ -581,26 +619,28 @@ class _AdminUserHeader extends StatelessWidget {
     final textColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
     final subTextColor = useWhiteTheme ? Colors.white70 : Colors.grey;
     final iconColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
-    final avatarBg = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
-    final avatarIcon = useWhiteTheme ? const Color(0xFF173B69) : Colors.white;
 
     return Row(
       children: [
-        // ✅ Avatar - Click to Admin Profile
-        GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
-          ),
-          child: CircleAvatar(
-            radius: isMobile ? 28 : 42,
-            backgroundColor: avatarBg,
-            child: Icon(
-              Icons.admin_panel_settings,
-              size: isMobile ? 28 : 42,
-              color: avatarIcon,
-            ),
-          ),
+        ProfileAvatar(
+          userId: adminId,
+          imageUrl: profileImageUrl,
+          name: adminName,
+          radius: isMobile ? 28 : 42,
+          backgroundColor: useWhiteTheme ? Colors.white : const Color(0xFF173B69),
+          textColor: useWhiteTheme ? const Color(0xFF173B69) : Colors.white,
+          onTap: () async {
+            // ✅ Wait for result from Profile Screen
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
+            );
+            
+            // ✅ If changes were made, call callback to refresh
+            if (result == true && onProfileUpdated != null) {
+              onProfileUpdated!();
+            }
+          },
         ),
         SizedBox(width: isMobile ? spacing : spacing * 1.5),
         Expanded(
@@ -638,7 +678,7 @@ class _AdminUserHeader extends StatelessWidget {
             ],
           ),
         ),
-        // Notification Bell
+        // ✅ Notification Bell with Badge
         Stack(
           children: [
             IconButton(
@@ -772,7 +812,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     try {
       final docSnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .doc(userId)  // ✅ Use userId as document ID
+          .doc(userId)
           .get();
 
       Map<String, dynamic> userData = {};
@@ -826,17 +866,13 @@ class _DetailListScreenState extends State<_DetailListScreen> {
           try {
             parsedDateTime = DateTime.parse(cleaned);
             isUTC = true;
-          } catch (e) {
-            // Ignore
-          }
+          } catch (e) {}
         }
         else if (cleaned.contains('T')) {
           try {
             parsedDateTime = DateTime.parse(cleaned);
             isUTC = false;
-          } catch (e) {
-            // Ignore
-          }
+          } catch (e) {}
         }
         else if (cleaned.contains(' ') && cleaned.contains('-')) {
           final parts = cleaned.split(' ');

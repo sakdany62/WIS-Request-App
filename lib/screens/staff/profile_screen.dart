@@ -1,13 +1,11 @@
-// ============================================================
-// lib/screens/staff/staff_profile_screen.dart
-// ============================================================
-import 'dart:async';
+// lib/screens/staff/profile_screen.dart (ឬ staff_profile_screen.dart)
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:cross_file/cross_file.dart';
+import 'package:permission_system/screens/staff/staff_home_screen.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 
@@ -25,16 +23,14 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
   String? errorMessage;
   String? profileImageUrl;
   final ImagePicker _imagePicker = ImagePicker();
-  StreamSubscription<DocumentSnapshot>? _userSubscription;
 
   @override
   void initState() {
     super.initState();
-    _listenToUserData();
+    _loadUserData();
   }
 
-  // 👇 ប្រើ Stream ដើម្បីស្តាប់ការផ្លាស់ប្តូរ Real-time
-  void _listenToUserData() {
+  Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     
     if (user == null) {
@@ -45,58 +41,53 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       return;
     }
     
-    setState(() {
-      isLoading = true;
-    });
-    
-    _userSubscription = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .snapshots()
-        .listen(
-      (docSnapshot) {
-        if (docSnapshot.exists) {
-          final data = docSnapshot.data()!;
-          print('🔄 Staff data updated: $data');
-          
-          setState(() {
-            userData = Map<String, dynamic>.from(data);
-            profileImageUrl = data['profileImageUrl'] ?? data['profileImage'] ?? '';
-            isLoading = false;
-            errorMessage = null;
-          });
-        } else {
-          setState(() {
-            errorMessage = 'Staff profile not found in database';
-            isLoading = false;
-          });
-        }
-      },
-      onError: (error) {
-        print('❌ Error listening to staff data: $error');
+    try {
+      print('🔍 Loading staff data for UID: ${user.uid}');
+      
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        print('✅ Staff data found: $data');
+        
         setState(() {
-          errorMessage = 'Failed to load staff data: $error';
+          userData = Map<String, dynamic>.from(data);
+          profileImageUrl = data['profileImageUrl'] ?? data['profileImage'] ?? '';
           isLoading = false;
         });
-      },
-    );
+      } else {
+        print('⚠️ No staff document found for UID: ${user.uid}');
+        setState(() {
+          errorMessage = 'Staff profile not found in database';
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading staff data: $e');
+      setState(() {
+        errorMessage = 'Failed to load staff data: $e';
+        isLoading = false;
+      });
+    }
   }
 
-  Future<void> _pickAndUploadImage() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      _showSnackBar('Please login first', Colors.red);
-      return;
-    }
-
+  // ✅ URL Dialog - យកគម្រូពី Manager
+  Future<void> _showUrlDialog() async {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
 
-    final choice = await showDialog<String>(
+    final TextEditingController urlController = TextEditingController();
+    urlController.text = profileImageUrl ?? '';
+
+    return showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Choose Image Source',
+          'Enter Image URL',
           style: TextStyle(
             fontSize: isMobile ? fontSize : fontSize + 2,
             fontWeight: FontWeight.bold,
@@ -105,21 +96,48 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF173B69)),
-              title: Text(
-                'Gallery',
-                style: TextStyle(fontSize: fontSize),
+            Text(
+              'Paste the URL of your profile image',
+              style: TextStyle(
+                fontSize: fontSize,
+                color: Colors.grey[600],
               ),
-              onTap: () => Navigator.pop(context, 'gallery'),
             ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF173B69)),
-              title: Text(
-                'Camera',
-                style: TextStyle(fontSize: fontSize),
+            SizedBox(height: spacing),
+            TextField(
+              controller: urlController,
+              decoration: InputDecoration(
+                hintText: 'https://example.com/profile.jpg',
+                hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: spacing * 1.5,
+                  vertical: isMobile ? 12 : 14,
+                ),
               ),
-              onTap: () => Navigator.pop(context, 'camera'),
+              style: TextStyle(fontSize: fontSize, color: Colors.black),
+              keyboardType: TextInputType.url,
+            ),
+            SizedBox(height: spacing / 2),
+            Text(
+              ' You can use images from: Facebook, Google Drive, etc.',
+              style: TextStyle(
+                fontSize: fontSize * 0.8,
+                color: Colors.blue[700],
+              ),
             ),
           ],
         ),
@@ -128,79 +146,52 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
+              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final url = urlController.text.trim();
+              if (url.isNotEmpty) {
+                await _updateProfileImageUrl(url);
+                Navigator.pop(context);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Please enter a valid URL',
+                      style: TextStyle(fontSize: fontSize),
+                    ),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF173B69),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Save',
               style: TextStyle(fontSize: fontSize),
             ),
           ),
         ],
       ),
     );
-
-    if (choice == null) return;
-
-    try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery,
-        maxWidth: 500,
-        maxHeight: 500,
-        imageQuality: 80,
-      );
-
-      if (image == null) return;
-
-      setState(() {
-        isUploading = true;
-      });
-
-      final String imageUrl = await _uploadImageToStorage(image, user.uid);
-      await _updateProfileImageUrl(imageUrl);
-
-      setState(() {
-        profileImageUrl = imageUrl;
-        userData?['profileImageUrl'] = imageUrl;
-        isUploading = false;
-      });
-
-      _showSnackBar('Profile image updated successfully!', Colors.green);
-    } catch (e) {
-      setState(() {
-        isUploading = false;
-      });
-      _showSnackBar('Error uploading image: $e', Colors.red);
-      print('❌ Image upload error: $e');
-    }
   }
 
-  Future<String> _uploadImageToStorage(XFile image, String userId) async {
-    try {
-      final bytes = await image.readAsBytes();
-      
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_images')
-          .child('$userId.jpg');
-
-      final uploadTask = storageRef.putData(
-        bytes,
-        SettableMetadata(
-          contentType: 'image/jpeg',
-          cacheControl: 'public,max-age=3600',
-        ),
-      );
-      
-      final snapshot = await uploadTask.whenComplete(() => {});
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      
-      print(' Image uploaded successfully: $downloadUrl');
-      return downloadUrl;
-    } catch (e) {
-      print('❌ Error uploading image: $e');
-      throw Exception('Failed to upload image: $e');
-    }
-  }
-
+  // ✅ Update Profile Image - យកគម្រូពី Manager
   Future<void> _updateProfileImageUrl(String imageUrl) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+
+    setState(() {
+      isUploading = true;
+    });
 
     try {
       await FirebaseFirestore.instance
@@ -211,13 +202,27 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             'updatedAt': FieldValue.serverTimestamp(),
           });
       
-      print(' database updated with profile image URL');
+      setState(() {
+        profileImageUrl = imageUrl;
+        userData?['profileImageUrl'] = imageUrl;
+        isUploading = false;
+      });
+
+      _showSnackBar(' Profile image updated successfully!', Colors.green);
+      
+      // ✅ បញ្ជូន true ត្រឡប់ទៅ Home
+      Navigator.pop(context, true);
+      
     } catch (e) {
-      print(' Error updating Firestore: $e');
-      throw Exception('Failed to update profile: $e');
+      setState(() {
+        isUploading = false;
+      });
+      _showSnackBar('❌ Error: $e', Colors.red);
+      print('❌ Error updating profile: $e');
     }
   }
 
+  // ✅ Delete Profile Image - យកគម្រូពី Manager
   Future<void> _deleteProfileImage() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -260,23 +265,11 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
 
     if (confirm != true) return;
 
+    setState(() {
+      isUploading = true;
+    });
+
     try {
-      setState(() {
-        isUploading = true;
-      });
-
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_images')
-          .child('${user.uid}.jpg');
-      
-      try {
-        await storageRef.delete();
-        print(' Image deleted from storage');
-      } catch (e) {
-        print('No image to delete or error: $e');
-      }
-
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -292,6 +285,10 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       });
 
       _showSnackBar('Profile image deleted successfully', Colors.orange);
+      
+      // ✅ បញ្ជូន true ត្រឡប់ទៅ Home
+      Navigator.pop(context, true);
+      
     } catch (e) {
       setState(() {
         isUploading = false;
@@ -310,6 +307,60 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         ),
         backgroundColor: color,
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // ✅ Show Image Picker Dialog - យកគម្រូពី Manager
+  Future<void> _showImagePickerDialog() async {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.link, color: const Color(0xFF173B69)),
+              title: Text(
+                'Enter Image URL',
+                style: TextStyle(fontSize: fontSize),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showUrlDialog();
+              },
+            ),
+            if (profileImageUrl != null && profileImageUrl!.isNotEmpty) ...[
+              const Divider(),
+              ListTile(
+                leading: Icon(Icons.delete, color: Colors.red),
+                title: Text(
+                  'Remove Photo',
+                  style: TextStyle(fontSize: fontSize, color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteProfileImage();
+                },
+              ),
+            ],
+            const Divider(),
+            ListTile(
+              leading: Icon(Icons.close, color: Colors.grey),
+              title: Text(
+                'Cancel',
+                style: TextStyle(fontSize: fontSize, color: Colors.grey),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -363,14 +414,10 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
   }
 
   @override
-  void dispose() {
-    _userSubscription?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 24);
 
     final user = FirebaseAuth.instance.currentUser;
@@ -427,7 +474,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                   isLoading = true;
                   errorMessage = null;
                 });
-                _listenToUserData();
+                _loadUserData();
               },
               child: Text(
                 'Retry',
@@ -477,6 +524,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     );
   }
 
+  // ✅ Profile Header - យកគម្រូពី Manager
   Widget _buildProfileHeader(User? user) {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -487,45 +535,50 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     final double cameraIconSize = isMobile ? 18 : 22;
     final double cameraPadding = isMobile ? 8 : 10;
 
+    String getInitials() {
+      final name = userData?['fullName'] ?? userData?['username'] ?? 'Staff';
+      if (name.isEmpty) return 'S';
+      final parts = name.split(' ');
+      if (parts.length >= 2) {
+        return parts[0][0].toUpperCase() + parts[1][0].toUpperCase();
+      }
+      return parts[0][0].toUpperCase();
+    }
+
     return Center(
       child: Column(
         children: [
           Stack(
             children: [
-              Container(
-                width: avatarSize,
-                height: avatarSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.blue,
-                  border: Border.all(color: Colors.blue, width: 4),
-                  image: (profileImageUrl != null && profileImageUrl!.isNotEmpty)
-                      ? DecorationImage(
-                          image: NetworkImage(profileImageUrl!),
-                          fit: BoxFit.cover,
-                          onError: (exception, stackTrace) {
-                            print('⚠️ Error loading image: $exception');
-                          },
+              GestureDetector(
+                onTap: isUploading ? null : _showImagePickerDialog,
+                child: CircleAvatar(
+                  radius: avatarSize / 2,
+                  backgroundColor: const Color(0xFF173B69),
+                  backgroundImage: (profileImageUrl != null && profileImageUrl!.isNotEmpty)
+                      ? NetworkImage(profileImageUrl!)
+                      : null,
+                  child: (profileImageUrl == null || profileImageUrl!.isEmpty)
+                      ? Text(
+                          getInitials(),
+                          style: TextStyle(
+                            fontSize: avatarIconSize * 0.6,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         )
                       : null,
                 ),
-                child: (profileImageUrl == null || profileImageUrl!.isEmpty)
-                    ? Icon(
-                        Icons.person,
-                        size: avatarIconSize,
-                        color: Colors.white,
-                      )
-                    : null,
               ),
               Positioned(
                 bottom: 0,
                 right: 0,
                 child: GestureDetector(
-                  onTap: isUploading ? null : _pickAndUploadImage,
+                  onTap: isUploading ? null : _showImagePickerDialog,
                   child: Container(
                     padding: EdgeInsets.all(cameraPadding),
                     decoration: BoxDecoration(
-                      color: Colors.blue,
+                      color: const Color(0xFF173B69),
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
                     ),
@@ -539,7 +592,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                             ),
                           )
                         : Icon(
-                            Icons.camera_alt,
+                            Icons.edit,
                             color: Colors.white,
                             size: cameraIconSize,
                           ),
@@ -549,37 +602,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             ],
           ),
           SizedBox(height: spacing * 1.5),
-          
-          if (profileImageUrl != null && profileImageUrl!.isNotEmpty)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton.icon(
-                  onPressed: isUploading ? null : _deleteProfileImage,
-                  icon: Icon(
-                    Icons.delete_outline,
-                    color: Colors.red,
-                    size: iconSize - 6,
-                  ),
-                  label: Text(
-                    'Remove Image',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                    ),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: spacing * 2,
-                      vertical: spacing,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          
-          SizedBox(height: spacing),
-          
           Text(
             userData?['fullName'] ?? userData?['username'] ?? 'Staff User',
             style: TextStyle(
@@ -602,14 +624,14 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
               vertical: spacing / 2,
             ),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
+              color: const Color(0xFF173B69).withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              ' Staff',
+              'Staff',
               style: TextStyle(
                 fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                color: Colors.blue,
+                color: const Color(0xFF173B69),
               ),
             ),
           ),
@@ -667,63 +689,70 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       ),
       child: Column(
         children: [
-          _InfoRow(
-            label: 'User ID',
-            value: _getValue('userId'),
+          _InfoRowStaff(
+            label: 'Employee ID',
+            value: _getValue('employeeId', 'userId'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowStaff(
             label: 'Username',
             value: _getValue('username'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowStaff(
             label: 'Full Name',
             value: _getValue('fullName'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowStaff(
             label: 'Email',
             value: _getValue('email'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowStaff(
             label: 'Phone',
             value: _getValue('phone'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowStaff(
             label: 'Department',
             value: _getValue('department'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowStaff(
             label: 'Position',
             value: _getValue('position'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowStaff(
+            label: 'Role',
+            value: 'Staff',
+            isMobile: isMobile,
+            fontSize: fontSize,
+          ),
+          _buildDivider(),
+          _InfoRowStaff(
             label: 'Status',
             value: _getValue('status'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
-          _InfoRow(
+          _InfoRowStaff(
             label: 'Member Since',
             value: _formatDate(userData?['createdAt']),
             isMobile: isMobile,
@@ -745,13 +774,13 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
   }
 }
 
-class _InfoRow extends StatelessWidget {
+class _InfoRowStaff extends StatelessWidget {
   final String label;
   final String value;
   final bool isMobile;
   final double fontSize;
 
-  const _InfoRow({
+  const _InfoRowStaff({
     required this.label,
     required this.value,
     required this.isMobile,

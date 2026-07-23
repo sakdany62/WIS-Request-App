@@ -45,6 +45,16 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     return _selectedRole == '2';
   }
 
+  // ✅ Check if position field should be disabled (read-only)
+  bool _isPositionReadOnly() {
+    return _selectedRole == '3'; // Manager role
+  }
+
+  // ✅ Get default position for Manager
+  String _getDefaultPosition() {
+    return 'Manager';
+  }
+
   // ==================== CHECK IF MANAGER EXISTS IN DEPARTMENT ====================
   Future<bool> _checkManagerExistsInDepartment(String departmentId) async {
     try {
@@ -246,7 +256,14 @@ IMPORTANT:
       final fullName = _fullNameController.text.trim();
       final username = _usernameController.text.trim();
       final phone = _phoneController.text.trim();
-      final position = _positionController.text.trim();
+      
+      // ✅ Get position: For Manager, use default "Manager", else use controller value
+      String position;
+      if (_selectedRole == '3') {
+        position = 'Manager';
+      } else {
+        position = _positionController.text.trim();
+      }
       
       // ពិនិត្យមើលថា Email មានហើយឬនៅ
       try {
@@ -316,7 +333,7 @@ IMPORTANT:
         'roleId': _selectedRole,
         'departmentId': _selectedDepartmentId.isEmpty ? null : _selectedDepartmentId,
         'department': departmentName.isEmpty ? null : departmentName,
-        'position': _showPositionField() ? position : null,
+        'position': position.isNotEmpty ? position : null,
         'status': _selectedStatus,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -745,6 +762,10 @@ IMPORTANT:
                       if (value != '2') {
                         _positionController.clear();
                       }
+                      // ✅ If role is Manager, set position to "Manager"
+                      if (value == '3') {
+                        _positionController.text = 'Manager';
+                      }
                     });
                   }
                 },
@@ -845,8 +866,8 @@ IMPORTANT:
                 SizedBox(height: spacing * 1.5),
               ],
 
-              // POSITION TEXTFIELD
-              if (_showPositionField()) ...[
+              // ✅ POSITION TEXTFIELD - With read-only for Manager
+              if (_showPositionField() || _isPositionReadOnly()) ...[
                 Text(
                   'Position',
                   style: TextStyle(
@@ -858,9 +879,17 @@ IMPORTANT:
                 SizedBox(height: spacing * 0.6),
                 TextFormField(
                   controller: _positionController,
+                  readOnly: _isPositionReadOnly(), // ✅ Disable editing for Manager
                   decoration: InputDecoration(
-                    hintText: 'Enter position (e.g. Teacher, Accountant, etc.)',
-                    hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                    hintText: _isPositionReadOnly() 
+                        ? 'Manager (Default)' 
+                        : 'Enter position (e.g. Teacher, Accountant, etc.)',
+                    hintStyle: TextStyle(
+                      fontSize: fontSize, 
+                      color: _isPositionReadOnly() 
+                          ? Colors.grey.shade600 
+                          : Colors.grey.shade400,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: Colors.grey, width: 1.0),
@@ -881,13 +910,31 @@ IMPORTANT:
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: Colors.red, width: 2.0),
                     ),
+                    // ✅ Add lock icon for Manager
+                    suffixIcon: _isPositionReadOnly()
+                        ? const Icon(Icons.lock, color: Colors.grey, size: 20)
+                        : null,
+                    // ✅ Different background for read-only
+                    filled: true,
+                    fillColor: _isPositionReadOnly() 
+                        ? Colors.grey.shade100 
+                        : Colors.white,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 12 : 14,
                     ),
                   ),
-                  style: TextStyle(fontSize: fontSize, color: Colors.black),
+                  style: TextStyle(
+                    fontSize: fontSize, 
+                    color: _isPositionReadOnly() 
+                        ? Colors.grey.shade700 
+                        : Colors.black,
+                  ),
                   validator: (value) {
+                    // ✅ For Manager, position is auto-set, so no validation needed
+                    if (_selectedRole == '3') {
+                      return null;
+                    }
                     if (_showPositionField() && (value?.isEmpty ?? true)) {
                       return 'Position is required for Staff';
                     }

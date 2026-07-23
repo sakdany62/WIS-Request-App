@@ -3,9 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/request_service.dart';
 import '../../services/telegram_service.dart';
-import '../../utils/responsive.dart'; 
+import '../../utils/responsive.dart';
+import '../../widgets/profile_avatar.dart';
 import '../staff/notifications_screen.dart';
-import 'manager_profile_screen.dart';  
+import 'manager_profile_screen.dart';
 import '../../app_fonts.dart';
 
 class ManagerHomeScreen extends StatefulWidget {
@@ -18,13 +19,13 @@ class ManagerHomeScreen extends StatefulWidget {
 class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   final RequestService _requestService = RequestService();
   String managerName = 'Manager User';
+  String? profileImageUrl;
   String managerDepartment = '';
   bool isLoading = true;
   String managerId = '';
   String? errorMessage;
   int _staffCount = 0;
   
-  // Statistics
   int _totalRequests = 0;
   int _pendingRequests = 0;
   int _approvedRequests = 0;
@@ -59,6 +60,31 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     await _loadStatistics();
   }
 
+  // ✅ Method to refresh profile image after update
+  Future<void> _refreshProfileImage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        if (mounted) {
+          setState(() {
+            profileImageUrl = data['profileImageUrl'] ?? '';
+            managerName = data['fullName'] ?? data['username'] ?? 'Manager User';
+          });
+        }
+      }
+    } catch (e) {
+      print('❌ Error refreshing profile image: $e');
+    }
+  }
+
   Future<void> _loadManagerData() async {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -74,6 +100,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
           if (mounted) {
             setState(() {
               managerName = data['fullName'] ?? data['username'] ?? 'Manager User';
+              profileImageUrl = data['profileImageUrl'] ?? '';
               managerDepartment = data['department'] ?? '';
               isLoading = false;
               errorMessage = null;
@@ -151,7 +178,6 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         final status = data['status'] ?? 'pending';
         final autoApprovedValue = data['autoApproved'] ?? false;
         
-        // 🔥 អាន totalDays ដោយសុវត្ថិភាព
         int days = 0;
         final daysValue = data['totalDays'];
         if (daysValue != null) {
@@ -194,11 +220,6 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
       print('📊 Statistics loaded: Total=$total, Pending=$pending, Approved=$approved, Rejected=$rejected');
     } catch (e) {
       print('❌ Error loading statistics: $e');
-      if (mounted) {
-        setState(() {
-          // Keep existing values or set to 0
-        });
-      }
     }
   }
 
@@ -489,7 +510,6 @@ Status: REJECTED
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(
@@ -505,6 +525,7 @@ Status: REJECTED
               ),
               child: _ManagerUserHeader(
                 managerName: managerName,
+                profileImageUrl: profileImageUrl,
                 isLoading: isLoading,
                 userId: managerId,
                 useWhiteTheme: true,
@@ -512,15 +533,16 @@ Status: REJECTED
                 fontSize: fontSize,
                 spacing: spacing,
                 iconSize: iconSize,
+                onProfileUpdated: _refreshProfileImage,
               ),
             ),
-            // Scrollable content
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
                   await _loadManagerData();
                   await _loadStaffCount();
                   await _loadStatistics();
+                  await _refreshProfileImage();
                 },
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -528,7 +550,6 @@ Status: REJECTED
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Department & staff count row
                       Row(
                         children: [
                           Container(
@@ -594,7 +615,6 @@ Status: REJECTED
                       ),
                       SizedBox(height: spacing * 2),
                       
-                      // Statistics Cards
                       Row(
                         children: [
                           _buildStatCard(
@@ -630,7 +650,6 @@ Status: REJECTED
                       
                       SizedBox(height: spacing),
                       
-                      // Auto Approved and Total Days
                       Row(
                         children: [
                           _buildStatCard(
@@ -655,7 +674,6 @@ Status: REJECTED
                       
                       SizedBox(height: spacing * 3),
                       
-                      // Pending Approvals Title
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -689,7 +707,6 @@ Status: REJECTED
                       ),
                       SizedBox(height: spacing * 1.5),
                       
-                      // Pending Requests List
                       StreamBuilder<QuerySnapshot>(
                         stream: _requestService
                             .getPendingRequestsForManager(managerDepartment),
@@ -863,6 +880,7 @@ Status: REJECTED
 // ================= MANAGER USER HEADER =================
 class _ManagerUserHeader extends StatelessWidget {
   final String managerName;
+  final String? profileImageUrl;
   final bool isLoading;
   final String userId;
   final bool useWhiteTheme;
@@ -870,9 +888,11 @@ class _ManagerUserHeader extends StatelessWidget {
   final double fontSize;
   final double spacing;
   final double iconSize;
+  final VoidCallback? onProfileUpdated;
 
   const _ManagerUserHeader({
     required this.managerName,
+    this.profileImageUrl,
     required this.isLoading,
     required this.userId,
     this.useWhiteTheme = false,
@@ -880,6 +900,7 @@ class _ManagerUserHeader extends StatelessWidget {
     required this.fontSize,
     required this.spacing,
     required this.iconSize,
+    this.onProfileUpdated,
   });
 
   @override
@@ -887,26 +908,25 @@ class _ManagerUserHeader extends StatelessWidget {
     final textColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
     final subTextColor = useWhiteTheme ? Colors.white70 : Colors.grey;
     final iconColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
-    final avatarBg = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
-    final avatarIcon = useWhiteTheme ? const Color(0xFF173B69) : Colors.white;
 
     return Row(
       children: [
-        // ✅ Avatar - Click to Manager Profile
-        GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const ManagerProfileScreen()),
-          ),
-          child: CircleAvatar(
-            radius: isMobile ? 30 : 40,
-            backgroundColor: avatarBg,
-            child: Icon(
-              Icons.manage_accounts,
-              size: isMobile ? 30 : 40,
-              color: avatarIcon,
-            ),
-          ),
+        ProfileAvatar(
+          userId: userId,
+          imageUrl: profileImageUrl,
+          name: managerName,
+          radius: isMobile ? 30 : 40,
+          backgroundColor: useWhiteTheme ? Colors.white : const Color(0xFF173B69),
+          textColor: useWhiteTheme ? const Color(0xFF173B69) : Colors.white,
+          onTap: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ManagerProfileScreen()),
+            );
+            if (result == true && onProfileUpdated != null) {
+              onProfileUpdated!();
+            }
+          },
         ),
         SizedBox(width: spacing * 1.5),
         Expanded(

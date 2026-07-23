@@ -38,7 +38,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  // ============ Mark all notifications as read ============
   Future<void> _markAllAsRead() async {
     if (userId == null) return;
 
@@ -98,7 +97,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  // ============ Mark a single notification as read ============
   Future<void> _markAsRead(String notificationId) async {
     await _requestService.markNotificationAsRead(notificationId);
   }
@@ -128,7 +126,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
         actions: [
-          // ============ Mark All as Read button ============
           IconButton(
             icon: const Icon(Icons.done_all),
             onPressed: _markAllAsRead,
@@ -193,7 +190,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             );
           }
 
-          // Count unread notifications
           final unreadCount = notifications.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             return data['isRead'] == false;
@@ -201,7 +197,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           return Column(
             children: [
-              // ============ Show unread count ============
               if (unreadCount > 0)
                 Container(
                   width: double.infinity,
@@ -238,11 +233,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       isRead: isRead,
                       type: data['type'] ?? 'general',
                       onTap: () async {
-                        // Mark as read
                         if (!isRead) {
                           await _markAsRead(notification.id);
                         }
-                        // If there is a requestId, we could navigate to details
                         if (data['requestId'] != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -304,6 +297,7 @@ class _NotificationItem extends StatelessWidget {
   final String type;
   final VoidCallback? onTap;
 
+  // ✅ យក const ចេញ ដើម្បីអាចប្តូរ fields បាន
   const _NotificationItem({
     required this.title,
     required this.message,
@@ -347,6 +341,9 @@ class _NotificationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       color: isRead ? Colors.white : const Color(0xFFE8F0FE),
@@ -354,22 +351,29 @@ class _NotificationItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: isRead ? Colors.grey.shade200 : const Color(0xFF173B69).withOpacity(0.3),
+          width: 1,
         ),
       ),
       child: ListTile(
         onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: _iconColor.withOpacity(0.2),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: _iconColor.withOpacity(0.15),
+            shape: BoxShape.circle,
+          ),
           child: Icon(
             _iconData,
             color: _iconColor,
+            size: isMobile ? 20 : 24,
           ),
         ),
         title: Text(
           title,
           style: TextStyle(
             fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
-            fontSize: AppFonts.md,
+            fontSize: isMobile ? fontSize : fontSize + 2,
           ),
         ),
         subtitle: Column(
@@ -378,7 +382,7 @@ class _NotificationItem extends StatelessWidget {
             Text(
               message,
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize * 0.85 : fontSize,
                 color: isRead ? Colors.grey[600] : Colors.grey[800],
               ),
               maxLines: 2,
@@ -388,7 +392,7 @@ class _NotificationItem extends StatelessWidget {
             Text(
               time,
               style: TextStyle(
-                fontSize: AppFonts.md,
+                fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.85,
                 color: isRead ? Colors.grey[400] : Colors.grey[500],
               ),
             ),
@@ -405,6 +409,7 @@ class _NotificationItem extends StatelessWidget {
                 ),
               ),
         isThreeLine: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     );
   }

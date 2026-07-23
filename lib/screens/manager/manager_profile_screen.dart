@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:cross_file/cross_file.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/profile_avatar.dart';
 
 class ManagerProfileScreen extends StatefulWidget {
   const ManagerProfileScreen({super.key});
@@ -20,12 +19,18 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
   bool isUploading = false;
   String? errorMessage;
   String? profileImageUrl;
-  final ImagePicker _imagePicker = ImagePicker();
+  final TextEditingController _urlController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+  }
+
+  @override
+  void dispose() {
+    _urlController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
@@ -72,21 +77,18 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     }
   }
 
-  Future<void> _pickAndUploadImage() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      _showSnackBar('Please login first', Colors.red);
-      return;
-    }
-
+  Future<void> _showUrlDialog() async {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
 
-    final choice = await showDialog<String>(
+    _urlController.text = profileImageUrl ?? '';
+
+    return showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Choose Image Source',
+          'Enter Image URL',
           style: TextStyle(
             fontSize: isMobile ? fontSize : fontSize + 2,
             fontWeight: FontWeight.bold,
@@ -95,21 +97,48 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF173B69)),
-              title: Text(
-                'Gallery',
-                style: TextStyle(fontSize: fontSize),
+            Text(
+              'Paste the URL of your profile image',
+              style: TextStyle(
+                fontSize: fontSize,
+                color: Colors.grey[600],
               ),
-              onTap: () => Navigator.pop(context, 'gallery'),
             ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt, color: Color(0xFF173B69)),
-              title: Text(
-                'Camera',
-                style: TextStyle(fontSize: fontSize),
+            SizedBox(height: spacing),
+            TextField(
+              controller: _urlController,
+              decoration: InputDecoration(
+                hintText: 'https://example.com/profile.jpg',
+                hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: spacing * 1.5,
+                  vertical: isMobile ? 12 : 14,
+                ),
               ),
-              onTap: () => Navigator.pop(context, 'camera'),
+              style: TextStyle(fontSize: fontSize, color: Colors.black),
+              keyboardType: TextInputType.url,
+            ),
+            SizedBox(height: spacing / 2),
+            Text(
+              ' You can use images from: Facebook, Google Drive, etc.',
+              style: TextStyle(
+                fontSize: fontSize * 0.8,
+                color: Colors.blue[700],
+              ),
             ),
           ],
         ),
@@ -118,79 +147,51 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
+              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final url = _urlController.text.trim();
+              if (url.isNotEmpty) {
+                await _updateProfileImageUrl(url);
+                Navigator.pop(context);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Please enter a valid URL',
+                      style: TextStyle(fontSize: fontSize),
+                    ),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF173B69),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Save',
               style: TextStyle(fontSize: fontSize),
             ),
           ),
         ],
       ),
     );
-
-    if (choice == null) return;
-
-    try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: choice == 'camera' ? ImageSource.camera : ImageSource.gallery,
-        maxWidth: 500,
-        maxHeight: 500,
-        imageQuality: 80,
-      );
-
-      if (image == null) return;
-
-      setState(() {
-        isUploading = true;
-      });
-
-      final String imageUrl = await _uploadImageToStorage(image, user.uid);
-      await _updateProfileImageUrl(imageUrl);
-
-      setState(() {
-        profileImageUrl = imageUrl;
-        userData?['profileImageUrl'] = imageUrl;
-        isUploading = false;
-      });
-
-      _showSnackBar('Profile image updated successfully!', Colors.green);
-    } catch (e) {
-      setState(() {
-        isUploading = false;
-      });
-      _showSnackBar('Error uploading image: $e', Colors.red);
-      print('❌ Image upload error: $e');
-    }
-  }
-
-  Future<String> _uploadImageToStorage(XFile image, String userId) async {
-    try {
-      final bytes = await image.readAsBytes();
-      
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_images')
-          .child('$userId.jpg');
-
-      final uploadTask = storageRef.putData(
-        bytes,
-        SettableMetadata(
-          contentType: 'image/jpeg',
-          cacheControl: 'public,max-age=3600',
-        ),
-      );
-      
-      final snapshot = await uploadTask.whenComplete(() => {});
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      
-      print('✅ Image uploaded successfully: $downloadUrl');
-      return downloadUrl;
-    } catch (e) {
-      print('❌ Error uploading image: $e');
-      throw Exception('Failed to upload image: $e');
-    }
   }
 
   Future<void> _updateProfileImageUrl(String imageUrl) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+
+    setState(() {
+      isUploading = true;
+    });
 
     try {
       await FirebaseFirestore.instance
@@ -201,10 +202,23 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             'updatedAt': FieldValue.serverTimestamp(),
           });
       
-      print('✅ Database updated with profile image URL');
+      setState(() {
+        profileImageUrl = imageUrl;
+        userData?['profileImageUrl'] = imageUrl;
+        isUploading = false;
+      });
+
+      _showSnackBar(' Profile image updated successfully!', Colors.green);
+      
+      // ✅ បញ្ជូន true ត្រឡប់ទៅ Home
+      Navigator.pop(context, true);
+      
     } catch (e) {
-      print('❌ Error updating Firestore: $e');
-      throw Exception('Failed to update profile: $e');
+      setState(() {
+        isUploading = false;
+      });
+      _showSnackBar('❌ Error: $e', Colors.red);
+      print('❌ Error updating profile: $e');
     }
   }
 
@@ -250,23 +264,11 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
 
     if (confirm != true) return;
 
+    setState(() {
+      isUploading = true;
+    });
+
     try {
-      setState(() {
-        isUploading = true;
-      });
-
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_images')
-          .child('${user.uid}.jpg');
-      
-      try {
-        await storageRef.delete();
-        print('✅ Image deleted from storage');
-      } catch (e) {
-        print('⚠️ No image to delete or error: $e');
-      }
-
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -282,6 +284,10 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       });
 
       _showSnackBar('Profile image deleted successfully', Colors.orange);
+      
+      // ✅ បញ្ជូន true ត្រឡប់ទៅ Home
+      Navigator.pop(context, true);
+      
     } catch (e) {
       setState(() {
         isUploading = false;
@@ -352,6 +358,59 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     );
   }
 
+  Future<void> _showImagePickerDialog() async {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.link, color: const Color(0xFF173B69)),
+              title: Text(
+                'Enter Image URL',
+                style: TextStyle(fontSize: fontSize),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showUrlDialog();
+              },
+            ),
+            if (profileImageUrl != null && profileImageUrl!.isNotEmpty) ...[
+              const Divider(),
+              ListTile(
+                leading: Icon(Icons.delete, color: Colors.red),
+                title: Text(
+                  'Remove Photo',
+                  style: TextStyle(fontSize: fontSize, color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteProfileImage();
+                },
+              ),
+            ],
+            const Divider(),
+            ListTile(
+              leading: Icon(Icons.close, color: Colors.grey),
+              title: Text(
+                'Cancel',
+                style: TextStyle(fontSize: fontSize, color: Colors.grey),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
@@ -372,7 +431,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: const Color(0xFF173B69), // ✅ ពណ៌ដូច Staff
+        backgroundColor: const Color(0xFF173B69),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -473,45 +532,50 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     final double cameraIconSize = isMobile ? 18 : 22;
     final double cameraPadding = isMobile ? 8 : 10;
 
+    String getInitials() {
+      final name = userData?['fullName'] ?? userData?['username'] ?? 'Manager';
+      if (name.isEmpty) return 'M';
+      final parts = name.split(' ');
+      if (parts.length >= 2) {
+        return parts[0][0].toUpperCase() + parts[1][0].toUpperCase();
+      }
+      return parts[0][0].toUpperCase();
+    }
+
     return Center(
       child: Column(
         children: [
           Stack(
             children: [
-              Container(
-                width: avatarSize,
-                height: avatarSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF173B69), // ✅ ពណ៌ដូច Staff
-                  border: Border.all(color: const Color(0xFF173B69), width: 4),
-                  image: (profileImageUrl != null && profileImageUrl!.isNotEmpty)
-                      ? DecorationImage(
-                          image: NetworkImage(profileImageUrl!),
-                          fit: BoxFit.cover,
-                          onError: (exception, stackTrace) {
-                            print('⚠️ Error loading image: $exception');
-                          },
+              GestureDetector(
+                onTap: isUploading ? null : _showImagePickerDialog,
+                child: CircleAvatar(
+                  radius: avatarSize / 2,
+                  backgroundColor: const Color(0xFF173B69),
+                  backgroundImage: (profileImageUrl != null && profileImageUrl!.isNotEmpty)
+                      ? CachedNetworkImageProvider(profileImageUrl!)
+                      : null,
+                  child: (profileImageUrl == null || profileImageUrl!.isEmpty)
+                      ? Text(
+                          getInitials(),
+                          style: TextStyle(
+                            fontSize: avatarIconSize * 0.6,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         )
                       : null,
                 ),
-                child: (profileImageUrl == null || profileImageUrl!.isEmpty)
-                    ? Icon(
-                        Icons.manage_accounts,
-                        size: avatarIconSize,
-                        color: Colors.white,
-                      )
-                    : null,
               ),
               Positioned(
                 bottom: 0,
                 right: 0,
                 child: GestureDetector(
-                  onTap: isUploading ? null : _pickAndUploadImage,
+                  onTap: isUploading ? null : _showImagePickerDialog,
                   child: Container(
                     padding: EdgeInsets.all(cameraPadding),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF173B69), // ✅ ពណ៌ដូច Staff
+                      color: const Color(0xFF173B69),
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
                     ),
@@ -525,7 +589,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                             ),
                           )
                         : Icon(
-                            Icons.camera_alt,
+                            Icons.edit,
                             color: Colors.white,
                             size: cameraIconSize,
                           ),
@@ -536,35 +600,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
           ),
           SizedBox(height: spacing * 1.5),
           
-          if (profileImageUrl != null && profileImageUrl!.isNotEmpty)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton.icon(
-                  onPressed: isUploading ? null : _deleteProfileImage,
-                  icon: Icon(
-                    Icons.delete_outline,
-                    color: Colors.red,
-                    size: iconSize - 6,
-                  ),
-                  label: Text(
-                    'Remove Image',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                    ),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: spacing * 2,
-                      vertical: spacing,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           
-          SizedBox(height: spacing),
           
           Text(
             userData?['fullName'] ?? userData?['username'] ?? 'Manager User',
@@ -588,14 +624,14 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
               vertical: spacing / 2,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFF173B69).withOpacity(0.1), // ✅ ពណ៌ដូច Staff
+              color: const Color(0xFF173B69).withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               'Manager',
               style: TextStyle(
                 fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                color: const Color(0xFF173B69), // ✅ ពណ៌ដូច Staff
+                color: const Color(0xFF173B69),
               ),
             ),
           ),

@@ -1,4 +1,3 @@
-// lib/screens/staff/list_staff_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
@@ -10,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:permission_system/app_fonts.dart';
 import '../../services/request_service.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/profile_avatar.dart';
 
 class TodayRequest {
   final String requestId;
@@ -130,10 +130,44 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   String _managerDepartment = '';
   bool _isManager = false;
 
+  final Map<String, String> _userNameCache = {};
+
   @override
   void initState() {
     super.initState();
     _checkManagerDepartment();
+  }
+
+  Future<String> _getUserFullName(String userId) async {
+    if (userId.isEmpty) return 'Unknown';
+    
+    try {
+      final docSnapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get();
+      
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data();
+        return data?['fullName'] ?? data?['username'] ?? 'Unknown';
+      }
+      return 'Unknown';
+    } catch (e) {
+      print('❌ Error fetching user name: $e');
+      return 'Unknown';
+    }
+  }
+
+  Future<String> _getUserFullNameCached(String userId) async {
+    if (userId.isEmpty) return 'Unknown';
+    
+    if (_userNameCache.containsKey(userId)) {
+      return _userNameCache[userId]!;
+    }
+    
+    final name = await _getUserFullName(userId);
+    _userNameCache[userId] = name;
+    return name;
   }
 
   String _formatSubmitTime(dynamic submitTime) {
@@ -250,26 +284,22 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
-  // 📅 បន្ថែមមុខងារគណនាថ្ងៃដំបូង និងថ្ងៃចុងក្រោយនៃសប្តាហ៍
   DateTime _getStartOfWeek(DateTime date) {
-    // គណនាថ្ងៃច័ន្ទ (Monday) នៃសប្តាហ៍
     int weekday = date.weekday;
-    int daysToSubtract = weekday - 1; // 1 = Monday
+    int daysToSubtract = weekday - 1;
     return DateTime(date.year, date.month, date.day - daysToSubtract);
   }
 
   DateTime _getEndOfWeek(DateTime date) {
-    // គណនាថ្ងៃអាទិត្យ (Sunday) នៃសប្តាហ៍
     DateTime startOfWeek = _getStartOfWeek(date);
     return DateTime(
       startOfWeek.year, 
       startOfWeek.month, 
       startOfWeek.day + 6,
-      23, 59, 59, 999, // ចប់នៅចុងថ្ងៃអាទិត្យ
+      23, 59, 59, 999,
     );
   }
 
-  // 📅 បន្ថែមមុខងារបង្ហាញថ្ងៃសប្តាហ៍
   String _getWeekLabel(DateTime date) {
     DateTime startOfWeek = _getStartOfWeek(date);
     DateTime endOfWeek = _getEndOfWeek(date);
@@ -357,7 +387,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           endDate = startDate.add(const Duration(days: 1));
           break;
         case 'weekly':
-          // 📅 គណនាសប្តាហ៍
           startDate = _getStartOfWeek(_selectedDate);
           endDate = _getEndOfWeek(_selectedDate).add(const Duration(milliseconds: 1));
           break;
@@ -405,6 +434,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         _allRequests = allRequests;
         _applyFilters();
         _isLoading = false;
+        _userNameCache.clear();
       });
       
       print('✅ Loaded ${_allRequests.length} requests');
@@ -495,10 +525,22 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         final submitTimeDisplay = _formatSubmitTime(r.submitTime);
         final createdAtDisplay = _formatToCambodiaTime(r.createdAt);
         
+        String fullName = r.staffName;
+        if (r.userId.isNotEmpty) {
+          final cachedName = _userNameCache[r.userId];
+          if (cachedName != null) {
+            fullName = cachedName;
+          } else {
+            final fetchedName = await _getUserFullName(r.userId);
+            _userNameCache[r.userId] = fetchedName;
+            fullName = fetchedName;
+          }
+        }
+        
         sheet.appendRow([
           (i + 1),
           r.requestId.substring(0, 8),
-          r.staffName,
+          fullName,
           r.userEmail,
           r.startDate,
           r.endDate,
@@ -660,7 +702,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           : SingleChildScrollView(
               child: Column(
                 children: [
-                  // Filter Section
                   Container(
                     padding: EdgeInsets.symmetric(
                       vertical: spacing * 2,
@@ -894,7 +935,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                     ),
                   ),
 
-                  // Summary Cards
                   Container(
                     padding: EdgeInsets.symmetric(
                       vertical: spacing,
@@ -941,7 +981,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                     ),
                   ),
 
-                  // Total Days Card
                   Container(
                     margin: EdgeInsets.symmetric(horizontal: spacing * 1.5),
                     padding: EdgeInsets.symmetric(
@@ -994,7 +1033,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
                   SizedBox(height: spacing),
 
-                  // List of Requests
                   filtered.isEmpty
                       ? Padding(
                           padding: EdgeInsets.all(spacing * 5),
@@ -1237,14 +1275,12 @@ class _RequestCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
+                ProfileAvatar(
+                  userId: request.userId,
+                  name: request.staffName,
                   radius: isMobile ? 14 : 16,
                   backgroundColor: _statusColor.withOpacity(0.2),
-                  child: Icon(
-                    _statusIcon,
-                    color: _statusColor,
-                    size: isMobile ? 14 : 16,
-                  ),
+                  textColor: _statusColor,
                 ),
                 SizedBox(width: spacing),
                 Expanded(

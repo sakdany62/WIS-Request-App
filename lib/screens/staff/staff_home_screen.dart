@@ -1,12 +1,13 @@
+// lib/screens/staff/staff_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notifications_screen.dart';
-import 'profile_screen.dart';  // ✅ Staff Profile
+import 'profile_screen.dart'; // ⚠️ ប្តូរទៅជាឈ្មោះឯកសាររបស់អ្នក (profile_screen.dart ឬ staff_profile_screen.dart)
 import 'package:permission_system/app_fonts.dart';
-import '../../utils/responsive.dart'; 
+import '../../utils/responsive.dart';
+import '../../widgets/profile_avatar.dart';
 
-// ✅ State Manager សម្រាប់គ្រប់គ្រង Refresh
 class StaffHomeScreenStateManager {
   static _StaffHomeScreenState? _instance;
   
@@ -34,7 +35,9 @@ class StaffHomeScreen extends StatefulWidget {
 
 class _StaffHomeScreenState extends State<StaffHomeScreen> {
   String userName = 'Staff User';
+  String? profileImageUrl;
   bool isLoading = true;
+  String userId = '';
   List<Map<String, dynamic>> leaveStatusList = [];
   List<Map<String, dynamic>> allLeaveStatusList = [];
   bool showAll = false;
@@ -70,14 +73,40 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     await _loadUserData();
   }
 
+  // ✅ Method សម្រាប់ refresh profile image (យកគម្រូពី Manager)
+  Future<void> _refreshProfileImage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data()!;
+        if (mounted) {
+          setState(() {
+            profileImageUrl = data['profileImageUrl'] ?? '';
+            userName = data['fullName'] ?? data['username'] ?? 'Staff User';
+          });
+        }
+      }
+    } catch (e) {
+      print('❌ Error refreshing profile image: $e');
+    }
+  }
+
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     
     if (user != null) {
+      userId = user.uid;
       try {
         final docSnapshot = await FirebaseFirestore.instance
             .collection('users')
-            .doc(user.uid)  // ✅ Use userId as document ID
+            .doc(user.uid)
             .get();
         
         if (docSnapshot.exists) {
@@ -85,6 +114,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
           if (mounted) {
             setState(() {
               userName = data['fullName'] ?? data['username'] ?? 'Staff User';
+              profileImageUrl = data['profileImageUrl'] ?? '';
               isLoading = false;
             });
           }
@@ -257,13 +287,16 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
           slivers: [
             SliverToBoxAdapter(
               child: _HeaderSection(
-                userName: userName, 
+                userName: userName,
+                userId: userId,
+                profileImageUrl: profileImageUrl,
                 isLoading: isLoading,
                 leaveStats: leaveStats,
                 isMobile: isMobile,
                 fontSize: fontSize,
                 spacing: spacing,
                 iconSize: iconSize,
+                onProfileUpdated: _refreshProfileImage,
               ),
             ),
             SliverToBoxAdapter(
@@ -290,28 +323,31 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
 // ================= HEADER SECTION =================
 class _HeaderSection extends StatelessWidget {
   final String userName;
+  final String userId;
+  final String? profileImageUrl;
   final bool isLoading;
   final Map<String, int> leaveStats;
   final bool isMobile;
   final double fontSize;
   final double spacing;
   final double iconSize;
+  final VoidCallback? onProfileUpdated;
 
   const _HeaderSection({
-    required this.userName, 
+    required this.userName,
+    required this.userId,
+    this.profileImageUrl,
     required this.isLoading,
     required this.leaveStats,
     required this.isMobile,
     required this.fontSize,
     required this.spacing,
     required this.iconSize,
+    this.onProfileUpdated,
   });
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final userId = user?.uid;
-
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
@@ -331,13 +367,15 @@ class _HeaderSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _UserHeader(
-            userName: userName, 
-            isLoading: isLoading,
+            userName: userName,
             userId: userId,
+            profileImageUrl: profileImageUrl,
+            isLoading: isLoading,
             isMobile: isMobile,
             fontSize: fontSize,
             spacing: spacing,
             iconSize: iconSize,
+            onProfileUpdated: onProfileUpdated,
           ),
           SizedBox(height: isMobile ? 16 : 20),
           Text(
@@ -513,42 +551,51 @@ class _BalanceCardSmall extends StatelessWidget {
 // ================= USER HEADER =================
 class _UserHeader extends StatelessWidget {
   final String userName;
+  final String userId;
+  final String? profileImageUrl;
   final bool isLoading;
-  final String? userId;
   final bool isMobile;
   final double fontSize;
   final double spacing;
   final double iconSize;
+  final VoidCallback? onProfileUpdated;
 
   const _UserHeader({
     required this.userName,
+    required this.userId,
+    this.profileImageUrl,
     required this.isLoading,
-    this.userId,
     required this.isMobile,
     required this.fontSize,
     required this.spacing,
     required this.iconSize,
+    this.onProfileUpdated,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // ✅ Avatar - Click to Staff Profile
-        GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const StaffProfileScreen()),
-          ),
-          child: CircleAvatar(
-            radius: isMobile ? 30 : 40,
-            backgroundColor: Colors.white24,
-            child: Icon(
-              Icons.person,
-              size: isMobile ? 30 : 40,
-              color: Colors.white,
-            ),
-          ),
+        // ✅ ប្រើ ProfileAvatar ដូចគ្នានឹង Manager Home
+        ProfileAvatar(
+          userId: userId,
+          imageUrl: profileImageUrl,
+          name: userName,
+          radius: isMobile ? 30 : 40,
+          backgroundColor: Colors.white24,
+          textColor: Colors.white,
+          onTap: () async {
+            // ✅ បើក StaffProfileScreen ហើយទទួលលទ្ធផល
+            final result = await Navigator.push(
+              context,
+              // ⚠️ យក const ចេញ បើមិនដល់ចេញ error
+              MaterialPageRoute(builder: (context) => StaffProfileScreen()),
+            );
+            // ✅ បើមានការផ្លាស់ប្តូរ (result == true) ហៅ callback ដើម្បី Refresh
+            if (result == true && onProfileUpdated != null) {
+              onProfileUpdated!();
+            }
+          },
         ),
         SizedBox(width: isMobile ? 12 : 16),
         Expanded(
@@ -597,34 +644,18 @@ class _UserHeader extends StatelessWidget {
 
 // ================= NOTIFICATION ICON WITH BADGE =================
 class _NotificationIconWithBadge extends StatelessWidget {
-  final String? userId;
+  final String userId;
   final bool isMobile;
   final double iconSize;
 
   const _NotificationIconWithBadge({
-    this.userId,
+    required this.userId,
     required this.isMobile,
     required this.iconSize,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (userId == null) {
-      return IconButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-        ),
-        icon: Icon(
-          Icons.notifications_none,
-          color: Colors.white,
-          size: isMobile ? iconSize : 28,
-        ),
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(),
-      );
-    }
-
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('notifications')
@@ -641,10 +672,12 @@ class _NotificationIconWithBadge extends StatelessWidget {
         return Stack(
           children: [
             IconButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+                );
+              },
               icon: Icon(
                 Icons.notifications_none,
                 color: Colors.white,

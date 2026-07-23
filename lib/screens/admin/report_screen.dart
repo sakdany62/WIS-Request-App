@@ -89,6 +89,42 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
+  // ✅ Helper: Get user full name from Firestore
+  Future<String> _getUserFullName(String userId) async {
+    if (userId.isEmpty) return 'Unknown';
+    
+    try {
+      final docSnapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .get();
+      
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data();
+        return data?['fullName'] ?? data?['username'] ?? 'Unknown';
+      }
+      return 'Unknown';
+    } catch (e) {
+      print('❌ Error fetching user name: $e');
+      return 'Unknown';
+    }
+  }
+
+  // ✅ Helper: Get user full name with caching
+  final Map<String, String> _userNameCache = {};
+  
+  Future<String> _getUserFullNameCached(String userId) async {
+    if (userId.isEmpty) return 'Unknown';
+    
+    if (_userNameCache.containsKey(userId)) {
+      return _userNameCache[userId]!;
+    }
+    
+    final name = await _getUserFullName(userId);
+    _userNameCache[userId] = name;
+    return name;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -161,7 +197,8 @@ class _ReportScreenState extends State<ReportScreen> {
         
         return {
           'id': doc.id,
-          'userName': d['userName'] ?? d['fullName'] ?? 'Unknown', // ✅ អាន userName ឬ fullName
+          'userId': d['userId'] ?? '',
+          'userName': d['userName'] ?? d['fullName'] ?? 'Unknown',
           'userEmail': d['userEmail'] ?? '',
           'department': department,
           'departmentId': departmentId,
@@ -204,6 +241,7 @@ class _ReportScreenState extends State<ReportScreen> {
         _reportData = filteredData;
         _summary = _calculateSummary(filteredData);
         _isLoading = false;
+        _userNameCache.clear(); // Clear cache when loading new data
       });
     } catch (e) {
       print('❌ Error loading report: $e');
@@ -271,9 +309,25 @@ class _ReportScreenState extends State<ReportScreen> {
         final r = _reportData[i];
         final String cambodiaTime = _formatToCambodiaTime(r['createdAt']);
         
+        // ✅ Get full name from user account
+        String fullName = r['userName'] ?? 'Unknown';
+        
+        // ✅ If we have userId, fetch the actual full name from users collection
+        if (r['userId'] != null && r['userId'].isNotEmpty) {
+          final cachedName = _userNameCache[r['userId']];
+          if (cachedName != null) {
+            fullName = cachedName;
+          } else {
+            // Fetch and cache
+            final fetchedName = await _getUserFullName(r['userId']);
+            _userNameCache[r['userId']] = fetchedName;
+            fullName = fetchedName;
+          }
+        }
+        
         sheet.appendRow([
           (i + 1),
-          r['userName'],
+          fullName, // ✅ Use full name from user account
           r['userEmail'],
           r['department'] ?? 'N/A',
           r['startDate'],

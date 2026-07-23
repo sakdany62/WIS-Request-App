@@ -1,6 +1,3 @@
-// ============================================================
-// lib/screens/admin/user_management_screen.dart
-// ============================================================
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +5,7 @@ import 'package:permission_system/app_fonts.dart';
 import '../../services/user_service.dart';
 import '../../models/user_model.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/profile_avatar.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -100,9 +98,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return role != '1' && role != '4';
   }
 
-  // 🔥 FIX: Allow both Staff and Manager to edit position
   bool _showPositionField(String role) {
-    return role == '2' || role == '3';  // Staff and Manager
+    return role == '2' || role == '3';
   }
 
   Future<void> _showEditDialog(UserModel user) async {
@@ -264,7 +261,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         if (value == '1') {
                           selectedDepartmentId = '';
                         }
-                        // 🔥 FIX: Keep position for both Staff and Manager
                         if (value != '2' && value != '3') {
                           positionController.clear();
                         } else {
@@ -825,14 +821,12 @@ class _UserCard extends StatelessWidget {
         padding: EdgeInsets.all(isMobile ? 10 : 12),
         child: Row(
           children: [
-            CircleAvatar(
+            ProfileAvatar(
+              userId: user.id,
+              name: user.fullName,
               radius: isMobile ? 22 : 30,
               backgroundColor: user.roleColor.withOpacity(0.2),
-              child: Icon(
-                Icons.person,
-                color: user.roleColor,
-                size: isMobile ? 22 : 30,
-              ),
+              textColor: user.roleColor,
             ),
             SizedBox(width: spacing * 1.5),
             Expanded(
