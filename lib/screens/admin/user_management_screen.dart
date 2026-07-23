@@ -100,8 +100,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return role != '1' && role != '4';
   }
 
+  // 🔥 FIX: Allow both Staff and Manager to edit position
   bool _showPositionField(String role) {
-    return role == '2';
+    return role == '2' || role == '3';  // Staff and Manager
   }
 
   Future<void> _showEditDialog(UserModel user) async {
@@ -263,7 +264,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         if (value == '1') {
                           selectedDepartmentId = '';
                         }
-                        if (value != '2') {
+                        // 🔥 FIX: Keep position for both Staff and Manager
+                        if (value != '2' && value != '3') {
                           positionController.clear();
                         } else {
                           positionController.text = _getPositionDisplay(user);
@@ -341,7 +343,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     decoration: InputDecoration(
                       labelText: 'Position',
                       labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-                      hintText: 'e.g. Teacher, Accountant, etc.',
+                      hintText: 'e.g. Teacher, Accountant, Manager, etc.',
                       hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -364,7 +366,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ),
                     validator: (value) {
                       if (_showPositionField(selectedRole) && (value?.isEmpty ?? true)) {
-                        return 'Position is required for Staff';
+                        return 'Position is required for Staff and Manager';
                       }
                       return null;
                     },
@@ -476,7 +478,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text(' User updated successfully'),
+                    content: Text('✅ User updated successfully'),
                     backgroundColor: Colors.green,
                   ),
                 );
@@ -527,14 +529,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              ' This will delete the user from Database.',
+              '⚠️ This will delete the user from Database.',
               style: TextStyle(
                 fontSize: fontSize * 0.85,
                 color: Colors.orange,
               ),
             ),
             Text(
-              ' Email: ${user.email}',
+              '📧 Email: ${user.email}',
               style: TextStyle(
                 fontSize: fontSize * 0.85,
                 color: Colors.grey[600],
@@ -555,7 +557,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: Text(
-              'Delete ',
+              'Delete',
               style: TextStyle(fontSize: fontSize),
             ),
           ),
@@ -580,7 +582,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('User deleted from Database'),
+            content: Text('✅ User deleted from Database'),
             backgroundColor: Colors.green,
           ),
         );
@@ -588,7 +590,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'To reuse email "${user.email}", delete from Database ',
+              '📌 To reuse email "${user.email}", delete from Database',
               style: TextStyle(fontSize: 12),
             ),
             backgroundColor: Colors.blue,
@@ -845,7 +847,6 @@ class _UserCard extends StatelessWidget {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  // 👇 បង្ហាញ User ID
                   Text(
                     'ID: ${user.userId}',
                     style: TextStyle(
@@ -895,7 +896,7 @@ class _UserCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            ' ${user.department}',
+                            '${user.department}',
                             style: TextStyle(
                               fontSize: isMobile ? fontSize * 0.8 : fontSize,
                               color: Colors.blue[700],
@@ -913,7 +914,7 @@ class _UserCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          ' ${getDisplayPosition()}',
+                          getDisplayPosition(),
                           style: TextStyle(
                             fontSize: isMobile ? fontSize * 0.8 : fontSize,
                             color: Colors.purple[700],

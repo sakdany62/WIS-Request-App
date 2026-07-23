@@ -14,36 +14,36 @@ class TelegramService {
   static const String _adminChatId = '1273488926';
   static const String _baseUrl = 'https://api.telegram.org/bot$_botToken';
 
-  // ===== Check if user is viewing as staff =====
-  static Future<bool> _isViewingAsStaff() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool('view_as_staff') ?? false;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // ===== Check if user is Manager =====
-  static Future<bool> _isManager() async {
+  // ===== Get Current User Data from Firebase =====
+  static Future<Map<String, dynamic>?> _getCurrentUserData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return false;
+      if (user == null) {
+        print('❌ No user logged in');
+        return null;
+      }
 
+      print('📧 Current user email: ${user.email}');
+      print('🆔 Current user UID: ${user.uid}');
+
+      // 🔥 FIX: ស្វែងរកដោយ email
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .where('userId', isEqualTo: user.uid)
+          .where('email', isEqualTo: user.email)
           .limit(1)
           .get();
 
       if (querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data();
-        final roleId = data['roleId']?.toString() ?? '';
-        return roleId == '3';
+        print('✅ User data found: $data');
+        return data;
       }
-      return false;
+
+      print('❌ No user document found for email: ${user.email}');
+      return null;
     } catch (e) {
-      return false;
+      print('❌ Error getting user data: $e');
+      return null;
     }
   }
 
@@ -53,14 +53,8 @@ class TelegramService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return 'Staff';
 
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        final data = querySnapshot.docs.first.data();
+      final data = await _getCurrentUserData();
+      if (data != null) {
         return data['fullName'] ?? data['name'] ?? user.displayName ?? user.email ?? 'Staff';
       }
       return user.displayName ?? user.email ?? 'Staff';
@@ -72,39 +66,41 @@ class TelegramService {
   // ===== Get Staff Position from Firebase =====
   static Future<String> _getStaffPosition() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return 'Employee';
-
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        final data = querySnapshot.docs.first.data();
-        return data['position'] ?? data['department'] ?? 'Employee';
+      final data = await _getCurrentUserData();
+      
+      print('📊 _getStaffPosition() called');
+      
+      if (data != null) {
+        final String roleId = data['roleId']?.toString() ?? '';
+        final String position = data['position'] ?? data['department'] ?? 'Employee';
+        
+        print('📌 roleId: "$roleId"');
+        print('📌 position from DB: "$position"');
+        
+        // 🔥 FIX: យក position ពី Database សម្រាប់តែ Staff (roleId = 2) ប៉ុណ្ណោះ
+        if (roleId == '2') {
+          print('✅ This is STAFF, returning position: "$position"');
+          return position;
+        }
+        
+        // 🔥 FIX: បើមិនមែន Staff → កំណត់ជា "Manager" ទាំងអស់
+        print('❌ This is NOT STAFF (roleId: "$roleId"), returning "Manager"');
+        return 'Manager';
       }
-      return 'Employee';
+      
+      print('❌ No data found, returning "Manager"');
+      return 'Manager';
     } catch (e) {
-      return 'Employee';
+      print('❌ Error in _getStaffPosition: $e, returning "Manager"');
+      return 'Manager';
     }
   }
 
   // ===== Get Staff Department from Firebase =====
   static Future<String> _getStaffDepartment() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return 'N/A';
-
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        final data = querySnapshot.docs.first.data();
+      final data = await _getCurrentUserData();
+      if (data != null) {
         return data['department'] ?? 'N/A';
       }
       return 'N/A';
@@ -118,23 +114,18 @@ class TelegramService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        return {'name': 'Staff', 'position': 'Employee', 'department': 'N/A'};
+        return {'name': 'Staff', 'position': 'Manager', 'department': 'N/A'};
       }
 
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        final data = querySnapshot.docs.first.data();
-        
-        final bool isViewing = await _isViewingAsStaff();
-        final bool isManagerUser = await _isManager();
-        
+      final data = await _getCurrentUserData();
+      if (data != null) {
+        final String roleId = data['roleId']?.toString() ?? '';
         String position = data['position'] ?? data['department'] ?? 'Employee';
-        if (isViewing && isManagerUser) {
+        
+        // 🔥 FIX: យក position ពី Database សម្រាប់តែ Staff (roleId = 2) ប៉ុណ្ណោះ
+        if (roleId == '2') {
+          position = position;
+        } else {
           position = 'Manager';
         }
         
@@ -146,11 +137,11 @@ class TelegramService {
       }
       return {
         'name': user.displayName ?? user.email ?? 'Staff',
-        'position': 'Employee',
+        'position': 'Manager',
         'department': 'N/A',
       };
     } catch (e) {
-      return {'name': 'Staff', 'position': 'Employee', 'department': 'N/A'};
+      return {'name': 'Staff', 'position': 'Manager', 'department': 'N/A'};
     }
   }
 
@@ -220,11 +211,21 @@ class TelegramService {
   // ===== Send message =====
   static Future<bool> sendToAll(String message) async {
     try {
-      bool managerSent = await _sendMessage(_managerChatId, message);
-      bool adminSent = await _sendMessage(_adminChatId, message);
-      bool groupSent = await _sendMessage(_groupChatId, message);
+      final String correctPosition = await _getStaffPosition();
+      
+      print('📤 Sending message with Position: "$correctPosition"');
+      
+      final RegExp positionRegex = RegExp(r'Position: .+');
+      String finalMessage = message.replaceAllMapped(positionRegex, (match) {
+        return 'Position: $correctPosition';
+      });
+      
+      bool managerSent = await _sendMessage(_managerChatId, finalMessage);
+      bool adminSent = await _sendMessage(_adminChatId, finalMessage);
+      bool groupSent = await _sendMessage(_groupChatId, finalMessage);
       return managerSent && adminSent && groupSent;
     } catch (e) {
+      print('❌ Error in sendToAll: $e');
       return false;
     }
   }
@@ -236,12 +237,21 @@ class TelegramService {
     }
 
     try {
+      String finalMessage = message;
+      final RegExp positionRegex = RegExp(r'Position: .+');
+      if (positionRegex.hasMatch(message)) {
+        final String correctPosition = await _getStaffPosition();
+        finalMessage = message.replaceAllMapped(positionRegex, (match) {
+          return 'Position: $correctPosition';
+        });
+      }
+      
       final response = await http.post(
         Uri.parse('$_baseUrl/sendMessage'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'chat_id': chatId,
-          'text': message,
+          'text': finalMessage,
           'parse_mode': 'HTML',
           'disable_web_page_preview': true,
         }),
@@ -328,19 +338,18 @@ IMPORTANT:
     String endDate = details['endDate'] ?? 'N/A';
     String duration = details['duration']?.toString() ?? 'N/A';
 
-    final bool isViewing = await _isViewingAsStaff();
-    final bool isManagerUser = await _isManager();
+    final String actualPosition = await _getStaffPosition();
     
-    // ✅ If manager view as staff - remove position
-    if (isViewing && isManagerUser) {
-      return '''
+    print('📝 Formatting permission request with Position: "$actualPosition"');
+    
+    return '''
 NEW PERMISSION REQUEST
 
 Request ID: $requestId
 Staff Name: $staffName
 Department: $staffDepartment
+Position: $actualPosition
 Submit Time: $submitTime
-
 Details:
  - Reason: $reasonText
  - Start Date: $startDate
@@ -348,25 +357,6 @@ Details:
  - Duration: $duration day
 
 Status: $formattedStatus
-    ''';
-    }
-
-    // ✅ Staff normal - show position
-    return '''
-NEW PERMISSION REQUEST
-
-Request ID: $requestId
-Staff Name: $staffName
-Department: $staffDepartment
-Position: $staffPosition
-Submit Time: $submitTime
-Details:
- - Reason: $reasonText
- - Start Date: $startDate
- - End Date: $endDate
- - Duration: $duration day
-
- Status: $formattedStatus
     ''';
   }
 
