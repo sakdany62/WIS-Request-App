@@ -494,6 +494,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
+  // ✅ បានបន្ថយកំពស់ card 5% ដោយប្រើ FractionallySizedBox
   Widget _buildStatCard({
     required IconData icon,
     required String label,
@@ -519,35 +520,39 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: color,
-              size: isMobile ? iconSize + 4 : iconSize + 10,
-            ),
-            SizedBox(height: isMobile ? 2 : 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: isMobile ? fontSize + 4 : fontSize + 6,
-                fontWeight: FontWeight.bold,
+        // ✅ រុំ Column ជាមួយ FractionallySizedBox ដើម្បីបន្ថយកំពស់ 5%
+        child: FractionallySizedBox(
+          heightFactor: 0.95, // បន្ថយកំពស់ 5%
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
                 color: color,
+                size: isMobile ? iconSize + 4 : iconSize + 10,
               ),
-            ),
-            SizedBox(height: isMobile ? 1 : 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: isMobile ? fontSize * 0.7 : fontSize + 2,
-                color: Colors.grey[600],
+              SizedBox(height: isMobile ? 2 : 4),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: isMobile ? fontSize + 4 : fontSize + 6,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+              SizedBox(height: isMobile ? 1 : 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: isMobile ? fontSize * 0.7 : fontSize + 2,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );

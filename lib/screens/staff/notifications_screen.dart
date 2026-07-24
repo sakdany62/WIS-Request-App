@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/request_service.dart';
 import 'package:permission_system/app_fonts.dart';
 import '../../utils/responsive.dart';
+import '../../services/telegram_service.dart'; // ✅ បន្ថែម import TelegramService
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -99,6 +100,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<void> _markAsRead(String notificationId) async {
     await _requestService.markNotificationAsRead(notificationId);
+  }
+
+  // ✅ បង្ហាញ Notification Detail Dialog និងសម្គាល់ថាបានអានដោយស្វ័យប្រវត្តិ
+  void _showNotificationDetail(Map<String, dynamic> data, String notificationId) {
+    final isRead = data['isRead'] ?? false;
+    final title = data['title'] ?? 'Notification';
+    final message = data['message'] ?? '';
+    final type = data['type'] ?? 'general';
+    final createdAt = data['createdAt'];
+    final requestId = data['requestId'];
+    final metadata = data['metadata'] as Map<String, dynamic>? ?? {};
+
+    // ✅ ប្រសិនបើមិនទាន់បានអាន សម្គាល់ថាបានអានដោយស្វ័យប្រវត្តិ
+    if (!isRead) {
+      _markAsRead(notificationId);
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: NotificationDetailDialog(
+          title: title,
+          message: message,
+          type: type,
+          createdAt: createdAt,
+          requestId: requestId,
+          metadata: metadata,
+          isRead: true,
+          notificationId: notificationId,
+          onMarkAsRead: null,
+        ),
+      ),
+    );
   }
 
   @override
@@ -232,21 +270,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       time: _formatTime(data['createdAt']),
                       isRead: isRead,
                       type: data['type'] ?? 'general',
-                      onTap: () async {
-                        if (!isRead) {
-                          await _markAsRead(notification.id);
-                        }
-                        if (data['requestId'] != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'View request details coming soon',
-                                style: TextStyle(fontSize: AppFonts.md),
-                              ),
-                              backgroundColor: Colors.blue,
-                            ),
-                          );
-                        }
+                      onTap: () {
+                        _showNotificationDetail(data, notification.id);
                       },
                     );
                   },
@@ -297,7 +322,6 @@ class _NotificationItem extends StatelessWidget {
   final String type;
   final VoidCallback? onTap;
 
-  // ✅ យក const ចេញ ដើម្បីអាចប្តូរ fields បាន
   const _NotificationItem({
     required this.title,
     required this.message,
@@ -410,6 +434,343 @@ class _NotificationItem extends StatelessWidget {
               ),
         isThreeLine: true,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+}
+
+// ==================== NOTIFICATION DETAIL DIALOG ====================
+class NotificationDetailDialog extends StatefulWidget {
+  final String title;
+  final String message;
+  final String type;
+  final dynamic createdAt;
+  final String? requestId;
+  final Map<String, dynamic> metadata;
+  final bool isRead;
+  final String notificationId;
+  final VoidCallback? onMarkAsRead;
+
+  const NotificationDetailDialog({
+    super.key,
+    required this.title,
+    required this.message,
+    required this.type,
+    this.createdAt,
+    this.requestId,
+    this.metadata = const {},
+    this.isRead = false,
+    required this.notificationId,
+    this.onMarkAsRead,
+  });
+
+  @override
+  State<NotificationDetailDialog> createState() => _NotificationDetailDialogState();
+}
+
+class _NotificationDetailDialogState extends State<NotificationDetailDialog> {
+  bool _isMarkingRead = false;
+
+  // ✅ ទ្រង់ទ្រាយពេលវេលាជា AM/PM តាមម៉ោងកម្ពុជា
+  String _formatDateTimeAMPM([DateTime? time]) {
+    final DateTime now = time ?? DateTime.now();
+    final cambodiaTime = now.toUtc().add(const Duration(hours: 7));
+    
+    final day = cambodiaTime.day.toString().padLeft(2, '0');
+    final month = cambodiaTime.month.toString().padLeft(2, '0');
+    final year = cambodiaTime.year;
+    int hour = cambodiaTime.hour;
+    final int minute = cambodiaTime.minute;
+    final String period = hour >= 12 ? 'PM' : 'AM';
+    
+    if (hour == 0) hour = 12;
+    else if (hour > 12) hour = hour - 12;
+    
+    return '$day/$month/$year ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
+  }
+
+  // ✅ ទ្រង់ទ្រាយពេលវេលា submit
+  String _formatSubmitTime(dynamic timestamp) {
+    if (timestamp == null) return _formatDateTimeAMPM();
+    
+    DateTime date;
+    if (timestamp is Timestamp) {
+      date = timestamp.toDate();
+    } else if (timestamp is DateTime) {
+      date = timestamp;
+    } else {
+      return _formatDateTimeAMPM();
+    }
+    
+    return _formatDateTimeAMPM(date);
+  }
+
+  // ✅ ទ្រង់ទ្រាយ status
+  String _formatStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending': return 'PENDING';
+      case 'approved': return 'APPROVED ✅';
+      case 'rejected': return 'REJECTED ❌';
+      default: return status.toUpperCase();
+    }
+  }
+
+  Color _getTypeColor(String type) {
+    switch (type) {
+      case 'request_approved':
+        return Colors.green;
+      case 'request_rejected':
+        return Colors.red;
+      case 'need_approval':
+        return Colors.orange;
+      case 'auto_approved':
+        return Colors.purple;
+      default:
+        return const Color(0xFF173B69);
+    }
+  }
+
+  IconData _getTypeIcon(String type) {
+    switch (type) {
+      case 'request_approved':
+        return Icons.check_circle;
+      case 'request_rejected':
+        return Icons.cancel;
+      case 'need_approval':
+        return Icons.warning;
+      case 'auto_approved':
+        return Icons.verified;
+      default:
+        return Icons.notifications_active;
+    }
+  }
+
+  String _getTypeLabel(String type) {
+    switch (type) {
+      case 'request_approved':
+        return 'Approved';
+      case 'request_rejected':
+        return 'Rejected';
+      case 'need_approval':
+        return 'Pending Approval';
+      case 'auto_approved':
+        return 'Auto Approved';
+      default:
+        return 'General';
+    }
+  }
+
+  // ✅ Widget សម្រាប់បង្ហាញព័ត៌មាន 1 ជួរ (គ្មាន icon)
+  Widget _buildInfoRow(String label, String value, {bool isBold = false}) {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: isMobile ? 100 : 120,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                color: Colors.grey[900],
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+
+    // ✅ ទាញយកទិន្នន័យពី metadata (ដែលជា data ទាំងមូល)
+    final Map<String, dynamic> data = widget.metadata;
+    
+    // ✅ ទាញយក Request ID
+    final String requestId = widget.requestId ?? 
+                             data['requestId']?.toString() ?? 
+                             'N/A';
+    
+    // ✅ ទាញយកឈ្មោះអ្នកអនុម័ត (approvedBy)
+    final String approvedBy = data['approvedBy']?.toString() ?? 'N/A';
+    
+    // ✅ ទាញយកឈ្មោះអ្នកស្នើសុំ (userEmail)
+    final String userEmail = data['userEmail']?.toString() ?? 'N/A';
+    
+    // ✅ ទាញយកចំនួនថ្ងៃ (totalDays)
+    final String totalDays = data['totalDays']?.toString() ?? '1';
+    
+    // ✅ ទាញយក Status
+    final String status = data['status']?.toString() ?? 
+                          widget.type.replaceFirst('request_', '') ?? 
+                          'pending';
+    final String formattedStatus = _formatStatus(status);
+    
+    // ✅ ទាញយក Submit Time - ពី createdAt
+    final String submitTime = _formatSubmitTime(widget.createdAt);
+    
+    // ✅ ទាញយក User ID
+    final String userId = data['userId']?.toString() ?? 'N/A';
+
+    return Container(
+      width: isMobile ? double.infinity : 500,
+      padding: EdgeInsets.all(spacing * 1.5),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ✅ Header with Icon and Status
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _getTypeColor(widget.type).withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _getTypeIcon(widget.type),
+                  color: _getTypeColor(widget.type),
+                  size: isMobile ? 28 : 32,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize + 4 : fontSize + 6,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF173B69),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _getTypeColor(widget.type).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _getTypeLabel(widget.type),
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.8,
+                              color: _getTypeColor(widget.type),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (!widget.isRead)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'UNREAD',
+                              style: TextStyle(
+                                fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.8,
+                                color: Colors.blue,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          const Divider(color: Colors.grey, thickness: 1),
+          const SizedBox(height: 12),
+          
+          // បង្ហាញព័ត៌មានទាំងអស់ 
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Request ID
+                _buildInfoRow('Request ID', requestId, isBold: true),                
+                // Total Days
+                _buildInfoRow('Total Days', '$totalDays day${int.parse(totalDays) > 1 ? 's' : ''}'),
+                
+                // Submit Time
+                _buildInfoRow('Submit Time', submitTime),
+                
+                // Message
+                _buildInfoRow('Message', widget.message),
+                
+                // Status
+                _buildInfoRow('Status', formattedStatus, isBold: true),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          const Divider(color: Colors.grey, thickness: 1),
+          const SizedBox(height: 12),
+          
+          //  Actions - Close Button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color(0xFF173B69),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Text(
+                  'Close',
+                  style: TextStyle(
+                    fontSize: isMobile ? fontSize : fontSize + 2,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
