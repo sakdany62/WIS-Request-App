@@ -31,7 +31,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     _pages = [
       const ManagerHomeScreen(),
       const permission.ListStaffScreen(),
-      const ManagerSettingsScreen(), // ✅ ប្តូរទៅ Manager Settings
+      const ManagerSettingsScreen(), 
     ];
   }
 

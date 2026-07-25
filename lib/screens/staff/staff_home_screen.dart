@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'notifications_screen.dart';
-import 'profile_screen.dart'; // ⚠️ ប្តូរទៅជាឈ្មោះឯកសាររបស់អ្នក (profile_screen.dart ឬ staff_profile_screen.dart)
+import 'profile_screen.dart';
 import 'package:permission_system/app_fonts.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/profile_avatar.dart';
@@ -73,7 +73,6 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     await _loadUserData();
   }
 
-  // ✅ Method សម្រាប់ refresh profile image (យកគម្រូពី Manager)
   Future<void> _refreshProfileImage() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -353,15 +352,15 @@ class _HeaderSection extends StatelessWidget {
       decoration: const BoxDecoration(
         color: Color(0xFF173B69),
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
+          bottomLeft: Radius.circular(28),
+          bottomRight: Radius.circular(28),
         ),
       ),
       padding: EdgeInsets.fromLTRB(
         isMobile ? 16 : 24,
-        isMobile ? 40 : 60,
+        isMobile ? 18 : 28,
         isMobile ? 16 : 24,
-        isMobile ? 24 : 40,
+        isMobile ? 4 : 6, // Keep same padding bottom to maintain bar length
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,80 +376,97 @@ class _HeaderSection extends StatelessWidget {
             iconSize: iconSize,
             onProfileUpdated: onProfileUpdated,
           ),
-          SizedBox(height: isMobile ? 16 : 20),
+          SizedBox(height: isMobile ? 18 : 22), // Increased more (was 14:18)
           Text(
             'Your Leave Balance',
             style: TextStyle(
               color: Colors.white,
-              fontSize: isMobile ? fontSize : fontSize + 2,
-              fontWeight: FontWeight.w600,
+              fontSize: isMobile ? fontSize + 1 : fontSize + 2,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
             ),
           ),
-          SizedBox(height: isMobile ? 8 : 12),
-          Row(
+          SizedBox(height: isMobile ? 8 : 10), // Increased more (was 6:8)
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 3,
+            crossAxisSpacing: isMobile ? 4 : 8,
+            mainAxisSpacing: isMobile ? 4 : 8,
+            childAspectRatio: 1.78,
             children: [
               _BalanceCard(
                 count: '${leaveStats['used'] ?? 0}',
                 type: 'USED',
-                total: '/${leaveStats['total'] ?? 24}',
+                total: '${leaveStats['total'] ?? 24}',
                 isMobile: isMobile,
                 fontSize: fontSize,
+                color: Colors.blue.shade400,
+                icon: Icons.check_circle_outline,
               ),
-              SizedBox(width: isMobile ? 6 : 12),
               _BalanceCard(
                 count: '${leaveStats['remaining'] ?? 0}',
                 type: 'REMAINING',
-                total: '/${leaveStats['total'] ?? 24}',
+                total: '${leaveStats['total'] ?? 24}',
                 isMobile: isMobile,
                 fontSize: fontSize,
+                color: Colors.green.shade400,
+                icon: Icons.assignment_turned_in,
               ),
-              SizedBox(width: isMobile ? 6 : 12),
               _BalanceCard(
                 count: '${leaveStats['autoApproved'] ?? 0}',
                 type: 'AUTO-APPROVED',
                 total: '',
                 isMobile: isMobile,
                 fontSize: fontSize,
+                color: Colors.purple.shade400,
+                icon: Icons.autorenew,
               ),
-            ],
-          ),
-          SizedBox(height: isMobile ? 8 : 12),
-          Row(
-            children: [
-              _BalanceCardSmall(
+              _BalanceCard(
                 count: '${leaveStats['pending'] ?? 0}',
                 type: 'PENDING',
+                total: '',
                 isMobile: isMobile,
                 fontSize: fontSize,
+                color: Colors.orange.shade400,
+                icon: Icons.hourglass_empty,
               ),
-              SizedBox(width: isMobile ? 4 : 8),
-              _BalanceCardSmall(
+              _BalanceCard(
                 count: '${leaveStats['approved'] ?? 0}',
                 type: 'APPROVED',
+                total: '',
                 isMobile: isMobile,
                 fontSize: fontSize,
+                color: Colors.teal.shade400,
+                icon: Icons.thumb_up_alt_outlined,
               ),
-              SizedBox(width: isMobile ? 4 : 8),
-              _BalanceCardSmall(
+              _BalanceCard(
                 count: '${leaveStats['rejected'] ?? 0}',
                 type: 'REJECTED',
+                total: '',
                 isMobile: isMobile,
                 fontSize: fontSize,
+                color: Colors.red.shade400,
+                icon: Icons.cancel_outlined,
               ),
             ],
           ),
+          SizedBox(height: isMobile ? 1 : 2),
         ],
       ),
     );
   }
 }
 
+// ================= BALANCE CARD =================
 class _BalanceCard extends StatelessWidget {
   final String count;
   final String type;
   final String total;
   final bool isMobile;
   final double fontSize;
+  final Color color;
+  final IconData icon;
 
   const _BalanceCard({
     required this.count,
@@ -458,89 +474,95 @@ class _BalanceCard extends StatelessWidget {
     required this.total,
     required this.isMobile,
     required this.fontSize,
+    required this.color,
+    required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    final double baseFontSize = isMobile ? fontSize * 0.75 : fontSize * 0.75;
+    final double increasedFontSize = baseFontSize * 1.1;
+    final double reducedPadding = isMobile ? 2 : 4;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Container(
-        padding: EdgeInsets.all(isMobile ? 8 : 12),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+        padding: EdgeInsets.symmetric(
+          vertical: reducedPadding,
+          horizontal: reducedPadding,
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withOpacity(0.12),
+              ),
+              padding: EdgeInsets.all(isMobile ? 3 : 5),
+              child: Icon(
+                icon,
+                color: color.withOpacity(0.85),
+                size: isMobile ? 17 : 23,
+              ),
+            ),
+            SizedBox(height: isMobile ? 3 : 5),
             Text(
               count,
               style: TextStyle(
-                color: Colors.white,
-                fontSize: isMobile ? fontSize : fontSize + 2,
+                color: color.withOpacity(0.9),
+                fontSize: isMobile ? increasedFontSize + 8 : increasedFontSize + 12,
                 fontWeight: FontWeight.bold,
+                height: 1.0,
               ),
             ),
-            SizedBox(height: isMobile ? 2 : 4),
             Text(
               type,
               style: TextStyle(
-                color: Colors.white70,
-                fontSize: isMobile ? fontSize * 0.7 : fontSize,
+                color: color.withOpacity(0.7),
+                fontSize: isMobile ? increasedFontSize * 0.65 : increasedFontSize * 0.7,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+                height: 1.0,
               ),
+              overflow: TextOverflow.ellipsis,
             ),
             if (total.isNotEmpty)
-              Text(
-                total,
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: isMobile ? fontSize * 0.6 : fontSize,
+              Container(
+                margin: EdgeInsets.only(top: isMobile ? 1 : 2),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 4 : 6,
+                  vertical: isMobile ? 0.5 : 1,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'of $total',
+                  style: TextStyle(
+                    color: color.withOpacity(0.5),
+                    fontSize: isMobile ? increasedFontSize * 0.4 : increasedFontSize * 0.45,
+                    fontWeight: FontWeight.w500,
+                    height: 1.0,
+                  ),
                 ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BalanceCardSmall extends StatelessWidget {
-  final String count;
-  final String type;
-  final bool isMobile;
-  final double fontSize;
-
-  const _BalanceCardSmall({
-    required this.count,
-    required this.type,
-    required this.isMobile,
-    required this.fontSize,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
-        ),
-        child: Column(
-          children: [
-            Text(
-              count,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: isMobile ? fontSize : fontSize + 2,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              type,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: isMobile ? fontSize * 0.6 : fontSize,
-              ),
-            ),
           ],
         ),
       ),
@@ -576,7 +598,6 @@ class _UserHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // ✅ ប្រើ ProfileAvatar ដូចគ្នានឹង Manager Home
         ProfileAvatar(
           userId: userId,
           imageUrl: profileImageUrl,
@@ -585,13 +606,10 @@ class _UserHeader extends StatelessWidget {
           backgroundColor: Colors.white24,
           textColor: Colors.white,
           onTap: () async {
-            // ✅ បើក StaffProfileScreen ហើយទទួលលទ្ធផល
             final result = await Navigator.push(
               context,
-              // ⚠️ យក const ចេញ បើមិនដល់ចេញ error
               MaterialPageRoute(builder: (context) => StaffProfileScreen()),
             );
-            // ✅ បើមានការផ្លាស់ប្តូរ (result == true) ហៅ callback ដើម្បី Refresh
             if (result == true && onProfileUpdated != null) {
               onProfileUpdated!();
             }
@@ -656,6 +674,11 @@ class _NotificationIconWithBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Increased icon size by 30%
+    final double notificationSize = isMobile ? iconSize * 1.3 : 28 * 1.3;
+    final double badgeSize = isMobile ? 18 : 24; // Larger badge
+    final double fontSize = isMobile ? 10 : 12; // Larger text
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('notifications')
@@ -681,30 +704,30 @@ class _NotificationIconWithBadge extends StatelessWidget {
               icon: Icon(
                 Icons.notifications_none,
                 color: Colors.white,
-                size: isMobile ? iconSize : 28,
+                size: notificationSize,
               ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
             if (unreadCount > 0)
               Positioned(
-                top: 2,
-                right: 2,
+                top: 0,
+                right: 0,
                 child: Container(
-                  padding: EdgeInsets.all(isMobile ? 2 : 4),
+                  padding: EdgeInsets.all(isMobile ? 3 : 5),
                   decoration: const BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
                   ),
                   constraints: BoxConstraints(
-                    minWidth: isMobile ? 14 : 18,
-                    minHeight: isMobile ? 14 : 18,
+                    minWidth: badgeSize,
+                    minHeight: badgeSize,
                   ),
                   child: Text(
                     unreadCount > 99 ? '99+' : '$unreadCount',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: isMobile ? 8 : 10,
+                      fontSize: fontSize,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,

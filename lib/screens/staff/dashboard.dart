@@ -57,7 +57,7 @@ class _DashboardState extends State<Dashboard> {
       Navigator.pushReplacementNamed(context, '/manager-dashboard');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Returned to Manager view'),
+          content: Text('Returned to Manager view'),
           backgroundColor: Colors.green,
           duration: Duration(seconds: 2),
         ),
@@ -87,7 +87,7 @@ class _DashboardState extends State<Dashboard> {
           iconSize: iconSize,
           fontSize: fontSize,
         ),
-        // ✅ FAB តូចជាងមុន
+        //  FAB តូចជាងមុន
         floatingActionButton: _isViewingAsStaff
             ? FloatingActionButton.small(
                 onPressed: _returnToManagerView,

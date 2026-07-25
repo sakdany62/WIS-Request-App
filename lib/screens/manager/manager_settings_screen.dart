@@ -9,8 +9,7 @@ import '../../utils/responsive.dart';
 import '../../services/terms_service.dart';
 import '../../services/warning_service.dart';
 import '../staff/warning_popup_settings_screen.dart';
-// ✅ ប្តូរ import ទៅកន្លែងដែលត្រឹមត្រូវ
-import '../staff/settings_screen.dart'; // ព្រោះ AboutScreen និង TermsConditionsScreen នៅក្នុង settings_screen.dart
+import '../staff/settings_screen.dart'; 
 import '../staff/dashboard.dart' as staff;
 
 class ManagerSettingsScreen extends StatefulWidget {
@@ -67,7 +66,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     
     if (_isViewingAsStaff) {
-      // ✅ ត្រឡប់ទៅមើលជា Manager វិញ
+      //  ត្រឡប់ទៅមើលជា Manager វិញ
       await prefs.setBool('view_as_staff', false);
       if (mounted) {
         setState(() {
@@ -75,7 +74,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
         });
       }
       
-      // ✅ ត្រឡប់ទៅ Manager Dashboard
+      //  ត្រឡប់ទៅ Manager Dashboard
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/manager-dashboard');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -87,7 +86,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
         );
       }
     } else {
-      // ✅ ប្តូរទៅមើលជា Staff
+      //  ប្តូរទៅមើលជា Staff
       await prefs.setBool('view_as_staff', true);
       if (mounted) {
         setState(() {
@@ -95,12 +94,12 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
         });
       }
       
-      // ✅ ទៅកាន់ Staff Dashboard
+      //  ទៅកាន់ Staff Dashboard
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/staff-dashboard');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Viewing as Staff (You can still approve/reject requests)'),
+            content: Text('Viewing as Staff'),
             backgroundColor: Colors.blue,
             duration: Duration(seconds: 3),
           ),
@@ -171,7 +170,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'You are viewing as Staff. You can still approve/reject requests.',
+                        'You are viewing as Staff.',
                         style: TextStyle(
                           fontSize: isMobile ? fontSize * 0.85 : AppFonts.md * 0.85,
                           color: Colors.orange.shade700,
@@ -188,9 +187,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
                 padding: padding,
                 child: Column(
                   children: [
-                    // ---------- Logout Button ----------
-                    _buildLogoutItem(context, isMobile, fontSize),
-                    SizedBox(height: spacing),
+                   
                     
                     // ---------- Other Settings Items ----------
                     ..._managerItems.map(
@@ -270,7 +267,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
             onPressed: () async {
               Navigator.pop(context);
               
-              // ✅ លុប view_as_staff mode ពេល logout
+              //  លុប view_as_staff mode ពេល logout
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('view_as_staff');
               
@@ -367,7 +364,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
         ),
         onTap: () {
           if (title == 'About App') {
-            // ✅ ប្រើ AboutScreen ពី settings_screen.dart
+            // ប្រើ AboutScreen ពី settings_screen.dart
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -375,7 +372,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
               ),
             );
           } else if (title == 'Terms & Conditions') {
-            // ✅ ប្រើ TermsConditionsScreen ពី settings_screen.dart
+            //  ប្រើ TermsConditionsScreen ពី settings_screen.dart
             Navigator.push(
               context,
               MaterialPageRoute(

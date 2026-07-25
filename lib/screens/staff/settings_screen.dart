@@ -99,9 +99,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: padding,
                 child: Column(
                   children: [
-                    // ---------- Logout Button ----------
-                    _buildLogoutItem(context, isMobile, fontSize),
-                    SizedBox(height: spacing),
+                   
                     
                     // ---------- Other Settings Items ----------
                     ..._allItems.map(
@@ -844,7 +842,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
-    final double logoSize = isMobile ? 90 : 120; // បន្ថយពី 120 -> 90 និង 160 -> 120
+    final double logoSize = isMobile ? 90 : 120; 
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -872,15 +870,14 @@ class AboutScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: isMobile ? 20 : 32), // បន្ថយបន្តិច
+            SizedBox(height: isMobile ? 20 : 32), 
             
-            // Logo with blue background - ដូច splash screen
             Center(
               child: Container(
                 width: logoSize,
                 height: logoSize,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF173B69), // ពណ៌ខៀវចាស់ដូច splash screen
+                  color: const Color(0xFF173B69), 
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
@@ -890,7 +887,7 @@ class AboutScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-                padding: EdgeInsets.all(isMobile ? 12 : 16), // បន្ថយ padding
+                padding: EdgeInsets.all(isMobile ? 12 : 16), 
                 child: Image.asset(
                   'assets/img/logo.png',
                   fit: BoxFit.contain,
@@ -898,7 +895,7 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             
-            SizedBox(height: isMobile ? 10 : 14), // បន្ថយបន្តិច
+            SizedBox(height: isMobile ? 10 : 14),
             
             Text(
               "Leave Request Mobile App",

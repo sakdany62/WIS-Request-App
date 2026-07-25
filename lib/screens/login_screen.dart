@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isLoading = false;
   bool obscurePassword = true;
   bool rememberMe = false;
-  String _errorMessage = ''; // ✅ បន្ថែមសម្រាប់ទុកសារកំហុស
+  String _errorMessage = ''; // ✅ សម្រាប់ទុកសារកំហុស
 
   @override
   void initState() {
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final user = authProvider.currentUser;
         if (user != null) {
-          // ✅ ប្រសិនបើជា Admin រក្សាទុក Admin Credentials
+          //  ប្រសិនបើជា Admin រក្សាទុក Admin Credentials
           if (user.isAdmin) {
             await _saveAdminCredentials(email, password, user.userId);
             print(' Admin credentials saved!');
@@ -121,30 +121,18 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
-        // ✅ បង្ហាញសារកំហុសពី AuthProvider
-        final error = authProvider.errorMessage ?? 'Invalid email or password';
+        //  បង្ហាញសារកំហុសតែមួយ
         setState(() {
-          _errorMessage = error;
+          _errorMessage = 'Please check your email and password again, then try logging again';
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Login failed: ${e.toString()}';
+        _errorMessage = 'Please check your email and password again, then try logging again';
       });
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
-  }
-
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: TextStyle(fontSize: AppFonts.md)),
-        backgroundColor: color,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-      ),
-    );
   }
 
   void _navigateToForgotPassword() {
@@ -170,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const SizedBox(height: 20),
 
-              // ✅ បង្ហាញសារកំហុសនៅផ្នែកខាងលើ
+              //  បង្ហាញសារកំហុសនៅផ្នែកខាងលើ
               if (_errorMessage.isNotEmpty)
                 Container(
                   width: double.infinity,
@@ -251,7 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 textInputAction: TextInputAction.next,
                 style: TextStyle(fontSize: AppFonts.md),
                 onChanged: (_) {
-                  // ✅ លុបសារកំហុសពេលអ្នកប្រើកំពុងវាយ
+                  //  លុបសារកំហុសពេលអ្នកប្រើកំពុងវាយ
                   if (_errorMessage.isNotEmpty) {
                     setState(() {
                       _errorMessage = '';
@@ -275,7 +263,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _login(),
                 onChanged: (_) {
-                  // ✅ លុបសារកំហុសពេលអ្នកប្រើកំពុងវាយ
+                  // លុបសារកំហុសពេលអ្នកប្រើកំពុងវាយ
                   if (_errorMessage.isNotEmpty) {
                     setState(() {
                       _errorMessage = '';

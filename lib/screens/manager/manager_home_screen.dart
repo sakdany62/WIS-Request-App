@@ -25,6 +25,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   String managerId = '';
   String? errorMessage;
   int _staffCount = 0;
+  List<Map<String, dynamic>> _staffList = [];
   
   int _totalRequests = 0;
   int _pendingRequests = 0;
@@ -144,14 +145,206 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
           .where('status', isEqualTo: 'Active')
           .get();
 
+      List<Map<String, dynamic>> staffList = [];
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        staffList.add({
+          'id': doc.id,
+          'name': data['fullName'] ?? data['username'] ?? 'Unknown',
+          'email': data['email'] ?? 'No email',
+          'profileImageUrl': data['profileImageUrl'] ?? '',
+          'status': data['status'] ?? 'Active',
+        });
+      }
+
       if (mounted) {
         setState(() {
           _staffCount = snapshot.docs.length;
+          _staffList = staffList;
         });
       }
     } catch (e) {
       print('Error loading staff count: $e');
     }
+  }
+
+  //  Show staff list dialog
+  void _showStaffListDialog() {
+    if (_staffList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No staff members found in your department'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Container(
+          width: isMobile ? double.infinity : 400,
+          padding: EdgeInsets.all(spacing * 1.5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Staff Members',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize + 2 : fontSize + 4,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spacing,
+                      vertical: spacing / 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$_staffCount Staff',
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.8 : fontSize,
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: spacing),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: spacing,
+                  vertical: spacing / 2,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.business,
+                      size: 16,
+                      color: Colors.blue[700],
+                    ),
+                    SizedBox(width: spacing / 2),
+                    Text(
+                      'Department: $managerDepartment',
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.8 : fontSize,
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: spacing * 1.5),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _staffList.length,
+                  separatorBuilder: (context, index) => Divider(
+                    height: spacing,
+                    color: Colors.grey.shade200,
+                  ),
+                  itemBuilder: (context, index) {
+                    final staff = _staffList[index];
+                    return Container(
+                      padding: EdgeInsets.symmetric(
+                        vertical: spacing / 1.5,
+                        horizontal: spacing / 2,
+                      ),
+                      child: Row(
+                        children: [
+                          ProfileAvatar(
+                            userId: staff['id'],
+                            imageUrl: staff['profileImageUrl'],
+                            name: staff['name'],
+                            radius: isMobile ? 20 : 25,
+                            backgroundColor: Colors.grey.shade200,
+                            textColor: const Color(0xFF173B69),
+                          ),
+                          SizedBox(width: spacing),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  staff['name'],
+                                  style: TextStyle(
+                                    fontSize: isMobile ? fontSize : fontSize + 1,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  staff['email'],
+                                  style: TextStyle(
+                                    fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.8,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: spacing / 1.5,
+                              vertical: spacing / 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Active',
+                              style: TextStyle(
+                                fontSize: isMobile ? fontSize * 0.65 : fontSize * 0.7,
+                                color: Colors.green[700],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: spacing),
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Close',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize : fontSize + 1,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _loadStatistics() async {
@@ -519,21 +712,26 @@ Status: REJECTED
               decoration: const BoxDecoration(
                 color: Color(0xFF173B69),
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
+                  bottomLeft: Radius.circular(28),
+                  bottomRight: Radius.circular(28),
                 ),
               ),
-              child: _ManagerUserHeader(
-                managerName: managerName,
-                profileImageUrl: profileImageUrl,
-                isLoading: isLoading,
-                userId: managerId,
-                useWhiteTheme: true,
-                isMobile: isMobile,
-                fontSize: fontSize,
-                spacing: spacing,
-                iconSize: iconSize,
-                onProfileUpdated: _refreshProfileImage,
+              child: Column(
+                children: [
+                  _ManagerUserHeader(
+                    managerName: managerName,
+                    profileImageUrl: profileImageUrl,
+                    isLoading: isLoading,
+                    userId: managerId,
+                    useWhiteTheme: true,
+                    isMobile: isMobile,
+                    fontSize: fontSize,
+                    spacing: spacing,
+                    iconSize: iconSize,
+                    onProfileUpdated: _refreshProfileImage,
+                  ),
+                  SizedBox(height: isMobile ? 4 : 6),
+                ],
               ),
             ),
             Expanded(
@@ -582,33 +780,46 @@ Status: REJECTED
                             ),
                           ),
                           const Spacer(),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: spacing * 1.5,
-                              vertical: spacing / 1.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.people,
-                                  size: iconSize - 8,
-                                  color: Colors.green[700],
+                          // ✅ Staff Count - Clickable to show staff list
+                          GestureDetector(
+                            onTap: _showStaffListDialog,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: spacing * 1.5,
+                                vertical: spacing / 1.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.green.withOpacity(0.3),
+                                  width: 1,
                                 ),
-                                SizedBox(width: spacing / 3),
-                                Text(
-                                  '$_staffCount Staff',
-                                  style: TextStyle(
-                                    fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.people,
+                                    size: iconSize - 8,
                                     color: Colors.green[700],
-                                    fontWeight: FontWeight.w500,
                                   ),
-                                ),
-                              ],
+                                  SizedBox(width: spacing / 3),
+                                  Text(
+                                    '$_staffCount Staff',
+                                    style: TextStyle(
+                                      fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                                      color: Colors.green[700],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.arrow_drop_down,
+                                    size: 16,
+                                    color: Colors.green[700],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -974,7 +1185,7 @@ class _ManagerUserHeader extends StatelessWidget {
   }
 }
 
-// ================= NOTIFICATION ICON WITH BADGE (Manager) =================
+// ================= NOTIFICATION ICON WITH BADGE (Manager) - 20% Larger =================
 class _NotificationIconWithBadgeManager extends StatelessWidget {
   final String userId;
   final Color iconColor;
@@ -990,6 +1201,11 @@ class _NotificationIconWithBadgeManager extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Increased icon size by 20%
+    final double notificationSize = isMobile ? (iconSize - 4) * 1.2 : iconSize * 1.2;
+    final double badgeSize = isMobile ? 18 : 22;
+    final double badgeFontSize = isMobile ? 9 : 11;
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('notifications')
@@ -1015,15 +1231,15 @@ class _NotificationIconWithBadgeManager extends StatelessWidget {
               icon: Icon(
                 Icons.notifications_none,
                 color: iconColor,
-                size: isMobile ? iconSize - 4 : iconSize,
+                size: notificationSize,
               ),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
             ),
             if (unreadCount > 0)
               Positioned(
-                top: 2,
-                right: 2,
+                top: 0,
+                right: 0,
                 child: Container(
                   padding: const EdgeInsets.all(3),
                   decoration: const BoxDecoration(
@@ -1031,14 +1247,14 @@ class _NotificationIconWithBadgeManager extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   constraints: BoxConstraints(
-                    minWidth: isMobile ? 14 : 18,
-                    minHeight: isMobile ? 14 : 18,
+                    minWidth: badgeSize,
+                    minHeight: badgeSize,
                   ),
                   child: Text(
                     unreadCount > 99 ? '99+' : '$unreadCount',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: isMobile ? 8 : 10,
+                      fontSize: badgeFontSize,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
