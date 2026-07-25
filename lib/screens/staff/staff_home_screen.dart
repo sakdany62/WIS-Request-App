@@ -347,112 +347,132 @@ class _HeaderSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFF173B69),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(28),
-          bottomRight: Radius.circular(28),
+    // Get screen height to calculate 40%
+    final screenHeight = MediaQuery.of(context).size.height;
+    final headerHeight = screenHeight * 0.47;
+
+    return SizedBox(
+      height: headerHeight,
+      child: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          color: Color(0xFF173B69),
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(28),
+            bottomRight: Radius.circular(28),
+          ),
         ),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        isMobile ? 16 : 24,
-        isMobile ? 18 : 28,
-        isMobile ? 16 : 24,
-        isMobile ? 4 : 6, // Keep same padding bottom to maintain bar length
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _UserHeader(
-            userName: userName,
-            userId: userId,
-            profileImageUrl: profileImageUrl,
-            isLoading: isLoading,
-            isMobile: isMobile,
-            fontSize: fontSize,
-            spacing: spacing,
-            iconSize: iconSize,
-            onProfileUpdated: onProfileUpdated,
-          ),
-          SizedBox(height: isMobile ? 18 : 22), // Increased more (was 14:18)
-          Text(
-            'Your Leave Balance',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: isMobile ? fontSize + 1 : fontSize + 2,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
+        padding: EdgeInsets.fromLTRB(
+          isMobile ? 16 : 24,
+          isMobile ? 18 : 28,
+          isMobile ? 16 : 24,
+          isMobile ? 16 : 22,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // User Header with more top padding to push profile down
+            _UserHeader(
+              userName: userName,
+              userId: userId,
+              profileImageUrl: profileImageUrl,
+              isLoading: isLoading,
+              isMobile: isMobile,
+              fontSize: fontSize,
+              spacing: spacing,
+              iconSize: iconSize,
+              onProfileUpdated: onProfileUpdated,
             ),
-          ),
-          SizedBox(height: isMobile ? 8 : 10), // Increased more (was 6:8)
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
-            crossAxisSpacing: isMobile ? 4 : 8,
-            mainAxisSpacing: isMobile ? 4 : 8,
-            childAspectRatio: 1.78,
-            children: [
-              _BalanceCard(
-                count: '${leaveStats['used'] ?? 0}',
-                type: 'USED',
-                total: '${leaveStats['total'] ?? 24}',
-                isMobile: isMobile,
-                fontSize: fontSize,
-                color: Colors.blue.shade400,
-                icon: Icons.check_circle_outline,
+            
+            // Increased space between user header and "Your Leave Balance"
+            SizedBox(height: isMobile ? 36 : 48),
+            
+            // Row with "Your Leave Balance" on the left
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Your Leave Balance',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: isMobile ? fontSize + 2 : fontSize + 4,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: isMobile ? 10 : 14),
+            
+            // Grid of balance cards
+            Expanded(
+              child: GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 3,
+                crossAxisSpacing: isMobile ? 4 : 8,
+                mainAxisSpacing: isMobile ? 4 : 8,
+                childAspectRatio: 1.78,
+                children: [
+                  _BalanceCard(
+                    count: '${leaveStats['used'] ?? 0}',
+                    type: 'USED',
+                    total: '${leaveStats['total'] ?? 24}',
+                    isMobile: isMobile,
+                    fontSize: fontSize,
+                    color: Colors.blue.shade400,
+                    icon: Icons.check_circle_outline,
+                  ),
+                  _BalanceCard(
+                    count: '${leaveStats['remaining'] ?? 0}',
+                    type: 'REMAINING',
+                    total: '${leaveStats['total'] ?? 24}',
+                    isMobile: isMobile,
+                    fontSize: fontSize,
+                    color: Colors.green.shade400,
+                    icon: Icons.assignment_turned_in,
+                  ),
+                  _BalanceCard(
+                    count: '${leaveStats['autoApproved'] ?? 0}',
+                    type: 'AUTO-APPROVED',
+                    total: '',
+                    isMobile: isMobile,
+                    fontSize: fontSize,
+                    color: Colors.purple.shade400,
+                    icon: Icons.autorenew,
+                  ),
+                  _BalanceCard(
+                    count: '${leaveStats['pending'] ?? 0}',
+                    type: 'PENDING',
+                    total: '',
+                    isMobile: isMobile,
+                    fontSize: fontSize,
+                    color: Colors.orange.shade400,
+                    icon: Icons.hourglass_empty,
+                  ),
+                  _BalanceCard(
+                    count: '${leaveStats['approved'] ?? 0}',
+                    type: 'APPROVED',
+                    total: '',
+                    isMobile: isMobile,
+                    fontSize: fontSize,
+                    color: Colors.teal.shade400,
+                    icon: Icons.thumb_up_alt_outlined,
+                  ),
+                  _BalanceCard(
+                    count: '${leaveStats['rejected'] ?? 0}',
+                    type: 'REJECTED',
+                    total: '',
+                    isMobile: isMobile,
+                    fontSize: fontSize,
+                    color: Colors.red.shade400,
+                    icon: Icons.cancel_outlined,
+                  ),
+                ],
               ),
-              _BalanceCard(
-                count: '${leaveStats['remaining'] ?? 0}',
-                type: 'REMAINING',
-                total: '${leaveStats['total'] ?? 24}',
-                isMobile: isMobile,
-                fontSize: fontSize,
-                color: Colors.green.shade400,
-                icon: Icons.assignment_turned_in,
-              ),
-              _BalanceCard(
-                count: '${leaveStats['autoApproved'] ?? 0}',
-                type: 'AUTO-APPROVED',
-                total: '',
-                isMobile: isMobile,
-                fontSize: fontSize,
-                color: Colors.purple.shade400,
-                icon: Icons.autorenew,
-              ),
-              _BalanceCard(
-                count: '${leaveStats['pending'] ?? 0}',
-                type: 'PENDING',
-                total: '',
-                isMobile: isMobile,
-                fontSize: fontSize,
-                color: Colors.orange.shade400,
-                icon: Icons.hourglass_empty,
-              ),
-              _BalanceCard(
-                count: '${leaveStats['approved'] ?? 0}',
-                type: 'APPROVED',
-                total: '',
-                isMobile: isMobile,
-                fontSize: fontSize,
-                color: Colors.teal.shade400,
-                icon: Icons.thumb_up_alt_outlined,
-              ),
-              _BalanceCard(
-                count: '${leaveStats['rejected'] ?? 0}',
-                type: 'REJECTED',
-                total: '',
-                isMobile: isMobile,
-                fontSize: fontSize,
-                color: Colors.red.shade400,
-                icon: Icons.cancel_outlined,
-              ),
-            ],
-          ),
-          SizedBox(height: isMobile ? 1 : 2),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -598,62 +618,72 @@ class _UserHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        ProfileAvatar(
-          userId: userId,
-          imageUrl: profileImageUrl,
-          name: userName,
-          radius: isMobile ? 30 : 40,
-          backgroundColor: Colors.white24,
-          textColor: Colors.white,
-          onTap: () async {
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => StaffProfileScreen()),
-            );
-            if (result == true && onProfileUpdated != null) {
-              onProfileUpdated!();
-            }
-          },
+        // Profile avatar with increased top padding to push it down more
+        Padding(
+          padding: EdgeInsets.only(top: isMobile ? 20 : 28),
+          child: ProfileAvatar(
+            userId: userId,
+            imageUrl: profileImageUrl,
+            name: userName,
+            radius: isMobile ? 30 : 40,
+            backgroundColor: Colors.white24,
+            textColor: Colors.white,
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => StaffProfileScreen()),
+              );
+              if (result == true && onProfileUpdated != null) {
+                onProfileUpdated!();
+              }
+            },
+          ),
         ),
         SizedBox(width: isMobile ? 12 : 16),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (isLoading)
-                SizedBox(
-                  height: isMobile ? 16 : 20,
-                  width: isMobile ? 16 : 20,
-                  child: const CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
+          child: Padding(
+            padding: EdgeInsets.only(top: isMobile ? 20 : 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isLoading)
+                  SizedBox(
+                    height: isMobile ? 16 : 20,
+                    width: isMobile ? 16 : 20,
+                    child: const CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                else
+                  Text(
+                    userName,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isMobile ? fontSize : fontSize + 2,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                )
-              else
+                SizedBox(height: isMobile ? 2 : 4),
                 Text(
-                  userName,
+                  'Staff',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: isMobile ? fontSize : fontSize + 2,
-                    fontWeight: FontWeight.bold,
+                    color: Colors.white70,
+                    fontSize: isMobile ? fontSize * 0.8 : fontSize,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-              SizedBox(height: isMobile ? 2 : 4),
-              Text(
-                'Staff',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: isMobile ? fontSize * 0.8 : fontSize,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-        _NotificationIconWithBadge(
-          userId: userId,
-          isMobile: isMobile,
-          iconSize: iconSize,
+        Padding(
+          padding: EdgeInsets.only(top: isMobile ? 20 : 28),
+          child: _NotificationIconWithBadge(
+            userId: userId,
+            isMobile: isMobile,
+            iconSize: iconSize,
+          ),
         ),
       ],
     );
@@ -674,10 +704,9 @@ class _NotificationIconWithBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Increased icon size by 30%
     final double notificationSize = isMobile ? iconSize * 1.3 : 28 * 1.3;
-    final double badgeSize = isMobile ? 18 : 24; // Larger badge
-    final double fontSize = isMobile ? 10 : 12; // Larger text
+    final double badgeSize = isMobile ? 18 : 24;
+    final double fontSize = isMobile ? 10 : 12;
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -943,5 +972,5 @@ class LeaveStatusCard extends StatelessWidget {
         ],
       ),
     );
-  }
+  } 
 }
