@@ -348,7 +348,7 @@ class _HeaderSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final headerHeight = screenHeight * 0.45;
+    final headerHeight = screenHeight * 0.43;
 
     return SizedBox(
       height: headerHeight,
@@ -384,7 +384,7 @@ class _HeaderSection extends StatelessWidget {
             ),
             
             // Increased space between user header and "Your Leave Balance"
-            SizedBox(height: isMobile ? 28 : 40),
+            SizedBox(height: isMobile ? 24 : 36),
             
             // Row with "Your Leave Balance" on the left
             Row(
