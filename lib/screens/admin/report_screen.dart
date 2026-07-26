@@ -34,7 +34,7 @@ class _ReportScreenState extends State<ReportScreen> {
     {'id': 'dept_service', 'name': 'Service Department'},
   ];
 
-  // 📅 បន្ថែមមុខងារគណនាថ្ងៃដំបូង និងថ្ងៃចុងក្រោយនៃសប្តាហ៍
+  //  មុខងារគណនាថ្ងៃដំបូង និងថ្ងៃចុងក្រោយនៃសប្តាហ៍
   DateTime _getStartOfWeek(DateTime date) {
     int weekday = date.weekday;
     int daysToSubtract = weekday - 1;
@@ -89,7 +89,7 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  // ✅ Helper: Get user full name from Firestore
+  //  Helper: Get user full name from Firestore
   Future<String> _getUserFullName(String userId) async {
     if (userId.isEmpty) return 'Unknown';
     
@@ -105,12 +105,12 @@ class _ReportScreenState extends State<ReportScreen> {
       }
       return 'Unknown';
     } catch (e) {
-      print('❌ Error fetching user name: $e');
+      print(' Error fetching user name: $e');
       return 'Unknown';
     }
   }
 
-  // ✅ Helper: Get user full name with caching
+  //  Helper: Get user full name with caching
   final Map<String, String> _userNameCache = {};
   
   Future<String> _getUserFullNameCached(String userId) async {
@@ -174,8 +174,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
       final querySnapshot = await query.get();
 
-      print('📊 Total documents: ${querySnapshot.docs.length}');
-      print('🔍 Filter department: $_filterDepartment');
+      print(' Total documents: ${querySnapshot.docs.length}');
+      print(' Filter department: $_filterDepartment');
 
       final data = querySnapshot.docs.map((doc) {
         final d = doc.data() as Map<String, dynamic>;
@@ -215,7 +215,7 @@ class _ReportScreenState extends State<ReportScreen> {
         };
       }).toList();
 
-      // ✅ Filter by department (Client-side filtering)
+      //  Filter by department (Client-side filtering)
       List<Map<String, dynamic>> filteredData = data;
       if (_filterDepartment != 'all') {
         filteredData = data.where((d) {
@@ -234,7 +234,7 @@ class _ReportScreenState extends State<ReportScreen> {
         }).toList();
       }
 
-      print('📊 Filtered data count: ${filteredData.length}');
+      print(' Filtered data count: ${filteredData.length}');
 
       setState(() {
         _allReportData = data;
@@ -244,7 +244,7 @@ class _ReportScreenState extends State<ReportScreen> {
         _userNameCache.clear(); // Clear cache when loading new data
       });
     } catch (e) {
-      print('❌ Error loading report: $e');
+      print(' Error loading report: $e');
       setState(() {
         _isLoading = false;
         _reportData = [];
@@ -309,10 +309,10 @@ class _ReportScreenState extends State<ReportScreen> {
         final r = _reportData[i];
         final String cambodiaTime = _formatToCambodiaTime(r['createdAt']);
         
-        // ✅ Get full name from user account
+        //  Get full name from user account
         String fullName = r['userName'] ?? 'Unknown';
         
-        // ✅ If we have userId, fetch the actual full name from users collection
+        //  If we have userId, fetch the actual full name from users collection
         if (r['userId'] != null && r['userId'].isNotEmpty) {
           final cachedName = _userNameCache[r['userId']];
           if (cachedName != null) {
@@ -327,7 +327,7 @@ class _ReportScreenState extends State<ReportScreen> {
         
         sheet.appendRow([
           (i + 1),
-          fullName, // ✅ Use full name from user account
+          fullName, //  Use full name from user account
           r['userEmail'],
           r['department'] ?? 'N/A',
           r['startDate'],
@@ -369,7 +369,7 @@ class _ReportScreenState extends State<ReportScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ Exported: $fileName'),
+              content: Text(' Exported: $fileName'),
               backgroundColor: Colors.green,
             ),
           );
@@ -415,7 +415,7 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  // ✅ Get current department name for display
+  // Get current department name for display
   String _getCurrentDepartmentName() {
     if (_filterDepartment == 'all') {
       return 'All Departments';
@@ -490,7 +490,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   : SingleChildScrollView(
                       child: Column(
                         children: [
-                          // ✅ Filter Section
+                          //  Filter Section
                           Container(
                             padding: EdgeInsets.symmetric(
                               vertical: spacing * 2,
@@ -689,7 +689,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             ),
                           ),
 
-                          // ✅ Department Filter Info
+                          // Department Filter Info
                           Container(
                             margin: EdgeInsets.symmetric(
                               horizontal: spacing,
@@ -1013,7 +1013,7 @@ class _ReportCard extends StatelessWidget {
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
       
     } catch (e) {
-      print('❌ Error formatting timestamp: $e');
+      print(' Error formatting timestamp: $e');
       return 'N/A';
     }
   }
@@ -1036,11 +1036,10 @@ class _ReportCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✅ Row 1: Name + Email (Vertical) | Department | Status
+            //  Row 1: Name + Email (Vertical) | Department | Status
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // ✅ ផ្នែកឈ្មោះ និង Gmail (បញ្ឈរ)
                 Expanded(
                   flex: 2,
                   child: Column(
@@ -1066,7 +1065,7 @@ class _ReportCard extends StatelessWidget {
                   ),
                 ),
                 
-                // ✅ Department (កណ្តាល)
+                //  Department 
                 if (hasDepartment && !isMobile) ...[
                   Expanded(
                     flex: 1,
@@ -1106,7 +1105,7 @@ class _ReportCard extends StatelessWidget {
                   SizedBox(width: spacing / 2),
                 ],
                 
-                // ✅ Status (ស្តាំ)
+                // Status 
                 Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: isMobile ? 4 : 8,

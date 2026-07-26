@@ -30,7 +30,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
   String _selectedTab = 'all';
   late TabController _tabController;
 
-  // ✅ Multiple real-time listeners
+  // Multiple real-time listeners
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _readStatusSubscription;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _usersSubscription;
 
@@ -40,7 +40,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
     _tabController = TabController(length: 3, vsync: this);
     _loadStats();
     
-    // ✅ Listen to terms_read_status changes
+    //  Listen to terms_read_status changes
     _readStatusSubscription = FirebaseFirestore.instance
         .collection('terms_read_status')
         .where('termsId', isEqualTo: widget.termsId)
@@ -49,7 +49,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
           _loadStats();
         });
     
-    // ✅ Listen to users changes (when staff status or role changes)
+    //  Listen to users changes (when staff status or role changes)
     _usersSubscription = FirebaseFirestore.instance
         .collection('users')
         .snapshots()
@@ -92,7 +92,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
     }
   }
 
-  // ✅ កែប្រែមុខងារ _formatDate ដើម្បីបង្ហាញម៉ោងកម្ពុជាជាមួយ AM/PM
+  //  កែប្រែមុខងារ _formatDate ដើម្បីបង្ហាញម៉ោងកម្ពុជាជាមួយ AM/PM
   String _formatDate(dynamic timestamp) {
     if (timestamp == null) return 'Not read yet';
     try {
@@ -106,10 +106,10 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
         return timestamp.toString();
       }
       
-      // ✅ បំប្លែងទៅម៉ោងកម្ពុជា (UTC+7)
+      //  បំប្លែងទៅម៉ោងកម្ពុជា (UTC+7)
       final cambodiaTime = dateTime.toUtc().add(const Duration(hours: 7));
       
-      // ✅ ប្រើ DateFormat ដើម្បីបង្ហាញម៉ោងជាមួយ AM/PM
+      //  ប្រើ DateFormat ដើម្បីបង្ហាញម៉ោងជាមួយ AM/PM
       return DateFormat('dd MMM yyyy, hh:mm a').format(cambodiaTime);
     } catch (e) {
       return 'Invalid date';
@@ -445,7 +445,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
                   itemBuilder: (context, index) {
                     final staff = displayList[index];
                     
-                    // ✅ Check if staff has read based on 'readAt' field
+                    //  Check if staff has read based on 'readAt' field
                     final isRead = staff.containsKey('readAt') && staff['readAt'] != null;
                     final status = staff['status'] ?? 'Active';
                     final isActive = status.toLowerCase() == 'active';
@@ -483,7 +483,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            // ✅ Show read status badge with real-time status
+                            //  Show read status badge with real-time status
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -534,7 +534,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
                               spacing: spacing / 2,
                               runSpacing: spacing / 2,
                               children: [
-                                // ✅ Role Badge (Staff/Manager)
+                                //  Role Badge (Staff/Manager)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 6,
@@ -576,7 +576,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
                                     ],
                                   ),
                                 ),
-                                // ✅ Department
+                                //  Department
                                 if (staff['department'] != null && staff['department'] != 'N/A' && staff['department'] != '')
                                   Container(
                                     padding: const EdgeInsets.symmetric(

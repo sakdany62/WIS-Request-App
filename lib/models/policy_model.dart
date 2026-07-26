@@ -23,7 +23,7 @@ class PolicyModel {
   final String secondRequestMessage;
   final String thirdRequestMessage;
 
-  // ✅ បន្ថែម field ថ្មី
+
   final bool allowCustomReason;
   final int? maxCustomReasonLength; // កំណត់ប្រវែងអតិបរមា
 
@@ -57,8 +57,8 @@ class PolicyModel {
     this.firstRequestMessage = "You have 1 day of leave remaining!",
     this.secondRequestMessage = "You have no more leave days remaining!",
     this.thirdRequestMessage = "Your request is pending Admin approval",
-    this.allowCustomReason = false, // ✅ Default false
-    this.maxCustomReasonLength = 255, // ✅ Default 255 characters
+    this.allowCustomReason = false, // Default false
+    this.maxCustomReasonLength = 255, //  Default 255 characters
     this.enableNotifications = true,
     this.notificationTitle = "Leave Request Notification",
     this.notificationBody = "Your leave request has been processed",
@@ -91,7 +91,7 @@ class PolicyModel {
       secondRequestMessage: data['secondRequestMessage'] ?? "You have no more leave days remaining!",
       thirdRequestMessage: data['thirdRequestMessage'] ?? "Your request is pending Admin approval",
       
-      // ✅ អាន allowCustomReason ពី Firestore
+      //  អាន allowCustomReason ពី Firestore
       allowCustomReason: data['allowCustomReason'] ?? false,
       maxCustomReasonLength: data['maxCustomReasonLength'] ?? 255,
       
@@ -127,7 +127,7 @@ class PolicyModel {
       'secondRequestMessage': secondRequestMessage,
       'thirdRequestMessage': thirdRequestMessage,
       
-      // ✅ រក្សាទុក allowCustomReason ទៅ Firestore
+      //  រក្សាទុក allowCustomReason ទៅ Firestore
       'allowCustomReason': allowCustomReason,
       'maxCustomReasonLength': maxCustomReasonLength,
       
@@ -142,9 +142,6 @@ class PolicyModel {
     };
   }
 
-  // ============================================================
-  // ✅ បន្ថែម method សម្រាប់ពិនិត្យ Custom Reason
-  // ============================================================
   
   /// ពិនិត្យថាតើ reason ត្រូវបានអនុញ្ញាតឬទេ
   bool isReasonAllowed(String reason) {

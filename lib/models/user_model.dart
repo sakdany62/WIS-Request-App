@@ -1,13 +1,11 @@
-// ============================================================
 // 1. lib/models/user_model.dart
-// ============================================================
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class UserModel {
   final String id;
   final String userId;
-  final int userIdInt; // 👈 បន្ថែមសម្រាប់តម្រៀប
+  final int userIdInt; //  បន្ថែមសម្រាប់តម្រៀប
   final String roleId;
   final String fullName;
   final String phone;
@@ -43,11 +41,9 @@ class UserModel {
     this.updatedAt,
   });
 
-  // ============================================================
   // FACTORY FROM FIRESTORE
-  // ============================================================
   factory UserModel.fromFirestore(Map<String, dynamic> data, String documentId) {
-    // 🔥 អាន userIdInt ដោយសុវត្ថិភាព
+    //  អាន userIdInt ដោយសុវត្ថិភាព
     int userIdInt = 0;
     final userIdIntValue = data['userIdInt'];
     if (userIdIntValue != null) {
@@ -86,9 +82,8 @@ class UserModel {
     );
   }
 
-  // ============================================================
-  // TO MAP
-  // ============================================================
+
+  // TO MAP 
   Map<String, dynamic> toMap() {
     return {
       'userId': userId,
@@ -112,18 +107,14 @@ class UserModel {
     };
   }
 
-  // ============================================================
   // ROLE CHECKERS
-  // ============================================================
   bool get isAdmin => roleId == '1';
   bool get isDirector => roleId == '4';
   bool get isManager => roleId == '3';
   bool get isStaff => roleId == '2';
   bool get isHead => roleId == '4';
 
-  // ============================================================
   // ROLE NAME
-  // ============================================================
   String get roleName {
     switch (roleId) {
       case '1':
@@ -139,9 +130,7 @@ class UserModel {
     }
   }
 
-  // ============================================================
   // ROLE TYPE (for routing)
-  // ============================================================
   String getRoleType() {
     if (isAdmin) return 'admin';
     if (isDirector) return 'director';
@@ -149,9 +138,7 @@ class UserModel {
     return 'staff';
   }
 
-  // ============================================================
   // ROLE COLOR
-  // ============================================================
   Color get roleColor {
     switch (roleId) {
       case '1':
@@ -167,9 +154,7 @@ class UserModel {
     }
   }
 
-  // ============================================================
   // STATUS
-  // ============================================================
   bool get isActive => status.toLowerCase() == 'active';
   
   String get statusText {
@@ -190,9 +175,8 @@ class UserModel {
     }
   }
 
-  // ============================================================
+
   // DEPARTMENT
-  // ============================================================
   bool isInSameDepartment(String? otherDepartment) {
     if (department == null || otherDepartment == null) return false;
     return department == otherDepartment;
@@ -202,9 +186,7 @@ class UserModel {
     return department ?? 'No Department';
   }
 
-  // ============================================================
   // PROFILE IMAGE
-  // ============================================================
   String get profileImageUrlWithFallback {
     return profileImageUrl ?? profileImage ?? '';
   }
@@ -214,9 +196,7 @@ class UserModel {
     return image != null && image.isNotEmpty;
   }
 
-  // ============================================================
   // COPY WITH
-  // ============================================================
   UserModel copyWith({
     String? id,
     String? userId,
@@ -257,17 +237,13 @@ class UserModel {
     );
   }
 
-  // ============================================================
   // TO STRING
-  // ============================================================
   @override
   String toString() {
     return 'UserModel(id: $id, userId: $userId, fullName: $fullName, roleId: $roleId, email: $email)';
   }
 
-  // ============================================================
   // EQUALITY
-  // ============================================================
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;

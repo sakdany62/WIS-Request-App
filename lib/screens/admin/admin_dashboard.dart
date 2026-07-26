@@ -5,7 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import 'admin_home_screen.dart';
-import 'admin_setting.dart';  // ✅ Settings
+import 'admin_setting.dart';  
 import 'report_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -31,7 +31,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _pages = const [
       AdminHomeScreen(),
       ReportScreen(),
-      AdminSettingsScreen(),  // ✅ Settings នៅដដែល
+      AdminSettingsScreen(),  
     ];
   }
 
@@ -155,7 +155,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                   _buildNavItem(
                     2,
-                    Icons.settings_outlined,  // ✅ Settings Icon
+                    Icons.settings_outlined,  //  Settings Icon
                     Icons.settings,
                     'Settings',
                     isMobile,

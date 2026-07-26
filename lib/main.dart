@@ -1,5 +1,5 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
@@ -20,6 +20,15 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // ✅ កំណត់ Status Bar
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+    ),
+  );
+  
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -30,7 +39,12 @@ void main() async {
   }
   
   // ដំឡើង notifications
-  await NotificationPermissionService.initializeNotifications();
+  try {
+    await NotificationPermissionService.initializeNotifications();
+    print('✅ Notifications initialized');
+  } catch (e) {
+    print('❌ Notification initialization error: $e');
+  }
   
   runApp(
     MultiProvider(
@@ -100,7 +114,7 @@ class MyApp extends StatelessWidget {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
         '/dashboard': (context) => const Dashboard(),
-        '/staff-dashboard': (context) => const Dashboard(), // ✅ បន្ថែម
+        '/staff-dashboard': (context) => const Dashboard(),
         '/admin-dashboard': (context) => const AdminDashboard(),
         '/manager-dashboard': (context) => const ManagerDashboard(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),

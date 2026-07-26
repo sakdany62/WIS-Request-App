@@ -14,9 +14,7 @@ class AuthProvider extends ChangeNotifier {
   bool _isInitialized = false;
   String? _errorMessage;
 
-  // ============================================================
   // GETTERS
-  // ============================================================
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   bool get isInitialized => _isInitialized;
@@ -32,9 +30,7 @@ class AuthProvider extends ChangeNotifier {
   String? get userFullName => _currentUser?.fullName;
   String? get userEmail => _currentUser?.email;
 
-  // ============================================================
   // CONSTRUCTOR
-  // ============================================================
   AuthProvider() {
     _auth.authStateChanges().listen((User? user) async {
       if (user != null) {
@@ -48,9 +44,7 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  // ============================================================
   // INITIALIZE APP
-  // ============================================================
   Future<void> initializeApp() async {
     if (_isInitialized) return;
     
@@ -66,7 +60,7 @@ class AuthProvider extends ChangeNotifier {
         _isInitialized = true;
       }
     } catch (e) {
-      print('❌ Error initializing app: $e');
+      print(' Error initializing app: $e');
       _errorMessage = 'Failed to initialize app: $e';
     } finally {
       _isLoading = false;
@@ -75,12 +69,10 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ============================================================
   // LOAD USER FROM FIRESTORE
-  // ============================================================
   Future<void> _loadUserFromFirestore(String userId) async {
     try {
-      print('🔄 Loading user data for: $userId');
+      print(' Loading user data for: $userId');
       
       final docSnapshot = await _firestore
           .collection('users')
@@ -91,23 +83,21 @@ class AuthProvider extends ChangeNotifier {
         final data = docSnapshot.data()!;
         _currentUser = UserModel.fromFirestore(data, docSnapshot.id);
         _errorMessage = null;
-        print('✅ User loaded: ${_currentUser?.fullName}, Role: ${_currentUser?.roleId}');
+        print(' User loaded: ${_currentUser?.fullName}, Role: ${_currentUser?.roleId}');
       } else {
-        print('⚠️ User document not found for userId: $userId');
+        print(' User document not found for userId: $userId');
         _currentUser = null;
         _errorMessage = 'User profile not found. Please contact admin.';
       }
     } catch (e) {
-      print('❌ Error loading user: $e');
+      print(' Error loading user: $e');
       _currentUser = null;
       _errorMessage = 'Failed to load user data';
     }
     notifyListeners();
   }
 
-  // ============================================================
   // SIGN IN
-  // ============================================================
   Future<bool> signIn(String email, String password) async {
     _isLoading = true;
     _errorMessage = null;
@@ -132,7 +122,7 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         
         if (_currentUser != null) {
-          print('✅ Sign in successful: ${_currentUser!.fullName}');
+          print(' Sign in successful: ${_currentUser!.fullName}');
           return true;
         } else {
           _errorMessage = 'User account not properly configured. Please contact admin.';
@@ -146,13 +136,13 @@ class AuthProvider extends ChangeNotifier {
       return false;
       
     } on FirebaseAuthException catch (e) {
-      print('❌ Firebase Auth Error: ${e.code}');
+      print(' Firebase Auth Error: ${e.code}');
       _errorMessage = _handleAuthError(e);
       _isLoading = false;
       notifyListeners();
       return false;
     } catch (e) {
-      print('❌ Login error: $e');
+      print(' Login error: $e');
       _errorMessage = 'An unexpected error occurred. Please try again.';
       _isLoading = false;
       notifyListeners();
@@ -160,12 +150,10 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ============================================================
   // SIGN OUT
-  // ============================================================
   Future<void> signOut() async {
     try {
-      // ✅ លុប view_as_staff mode ពេល logout
+      //  លុប view_as_staff mode ពេល logout
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('view_as_staff');
       
@@ -174,17 +162,15 @@ class AuthProvider extends ChangeNotifier {
       _isInitialized = false;
       _errorMessage = null;
       notifyListeners();
-      print('✅ User signed out successfully');
+      print(' User signed out successfully');
     } catch (e) {
-      print('❌ Sign out error: $e');
+      print(' Sign out error: $e');
       _errorMessage = 'Failed to sign out';
       notifyListeners();
     }
   }
 
-  // ============================================================
   // REFRESH USER
-  // ============================================================
   Future<void> refreshUser() async {
     if (_currentUser != null) {
       await _loadUserFromFirestore(_currentUser!.userId);
@@ -195,10 +181,6 @@ class AuthProvider extends ChangeNotifier {
       }
     }
   }
-
-  // ============================================================
-  // VIEW MODE METHODS
-  // ============================================================
   
   /// ពិនិត្យមើលថាតើកំពុង View as Staff ដែរឬទេ
   Future<bool> isViewingAsStaff() async {
@@ -216,21 +198,21 @@ class AuthProvider extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('view_as_staff');
-      print('✅ View mode cleared');
+      print(' View mode cleared');
     } catch (e) {
-      print('❌ Error clearing view mode: $e');
+      print(' Error clearing view mode: $e');
     }
   }
 
   /// ទទួលបាន Route ត្រឹមត្រូវ (គិតពី View Mode)
   Future<String> getDashboardRoute() async {
-    // ✅ ពិនិត្យ View Mode មុន - ប្រើឈ្មោះអថេរផ្សេង
+    //  ពិនិត្យ View Mode មុន - ប្រើឈ្មោះអថេរផ្សេង
     final bool isViewing = await isViewingAsStaff();
     if (isViewing) {
       return '/staff-dashboard';
     }
     
-    // ✅ បើមិនមែន View Mode ប្រើ Role
+    //  បើមិនមែន View Mode ប្រើ Role
     if (isAdmin) return '/admin-dashboard';
     if (isDirector) return '/director-dashboard';
     if (isManager) return '/manager-dashboard';
@@ -238,9 +220,7 @@ class AuthProvider extends ChangeNotifier {
     return '/login';
   }
 
-  // ============================================================
   // UPDATE USER IN FIRESTORE
-  // ============================================================
   Future<bool> updateUserInFirestore(Map<String, dynamic> data) async {
     if (_currentUser == null) {
       _errorMessage = 'No user logged in';
@@ -257,19 +237,17 @@ class AuthProvider extends ChangeNotifier {
           });
       
       await refreshUser();
-      print('✅ User updated successfully');
+      print(' User updated successfully');
       return true;
       
     } catch (e) {
-      print('❌ Error updating user: $e');
+      print(' Error updating user: $e');
       _errorMessage = 'Failed to update user: $e';
       return false;
     }
   }
 
-  // ============================================================
   // GET USER BY ID
-  // ============================================================
   Future<UserModel?> getUserById(String userId) async {
     try {
       final docSnapshot = await _firestore
@@ -283,14 +261,12 @@ class AuthProvider extends ChangeNotifier {
       }
       return null;
     } catch (e) {
-      print('❌ Error getting user: $e');
+      print(' Error getting user: $e');
       return null;
     }
   }
 
-  // ============================================================
   // GET ALL USERS
-  // ============================================================
   Future<List<UserModel>> getAllUsers() async {
     try {
       final querySnapshot = await _firestore
@@ -305,14 +281,12 @@ class AuthProvider extends ChangeNotifier {
         );
       }).toList();
     } catch (e) {
-      print('❌ Error getting users: $e');
+      print(' Error getting users: $e');
       return [];
     }
   }
 
-  // ============================================================
   // GET USERS BY ROLE
-  // ============================================================
   Future<List<UserModel>> getUsersByRole(String roleId) async {
     try {
       final querySnapshot = await _firestore
@@ -328,14 +302,12 @@ class AuthProvider extends ChangeNotifier {
         );
       }).toList();
     } catch (e) {
-      print('❌ Error getting users by role: $e');
+      print(' Error getting users by role: $e');
       return [];
     }
   }
 
-  // ============================================================
   // CHECK EMAIL EXISTS
-  // ============================================================
   Future<bool> checkEmailExists(String email) async {
     try {
       List<String> methods = await _auth.fetchSignInMethodsForEmail(
@@ -343,33 +315,29 @@ class AuthProvider extends ChangeNotifier {
       );
       return methods.isNotEmpty;
     } catch (e) {
-      print('❌ Check email error: $e');
+      print(' Check email error: $e');
       return false;
     }
   }
 
-  // ============================================================
   // SEND PASSWORD RESET EMAIL
-  // ============================================================
   Future<bool> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
-      print('✅ Password reset email sent to $email');
+      print(' Password reset email sent to $email');
       return true;
     } on FirebaseAuthException catch (e) {
-      print('❌ Password reset error: ${e.code}');
+      print(' Password reset error: ${e.code}');
       _errorMessage = _handleAuthError(e);
       return false;
     } catch (e) {
-      print('❌ Unexpected error: $e');
+      print(' Unexpected error: $e');
       _errorMessage = 'Failed to send reset email';
       return false;
     }
   }
 
-  // ============================================================
   // HANDLE AUTH ERRORS
-  // ============================================================
   String _handleAuthError(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
@@ -393,17 +361,13 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ============================================================
   // CLEAR ERROR MESSAGE
-  // ============================================================
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 
-  // ============================================================
   // DISPOSE
-  // ============================================================
   @override
   void dispose() {
     super.dispose();

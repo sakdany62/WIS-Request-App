@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// 👇 Adjust the import path to your AppFonts class
 import 'package:permission_system/app_fonts.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {

@@ -96,11 +96,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         });
       }
     } catch (e) {
-      print('❌ Error refreshing unread count: $e');
+      print(' Error refreshing unread count: $e');
     }
   }
 
-  // ✅ Method to refresh profile image after update
+  //  Method to refresh profile image after update
   Future<void> _refreshProfileImage() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -121,7 +121,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         }
       }
     } catch (e) {
-      print('❌ Error refreshing profile image: $e');
+      print(' Error refreshing profile image: $e');
     }
   }
 
@@ -375,7 +375,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 isLoading: isLoading,
                 unreadCount: _unreadCount,
                 onNotificationPressed: _refreshUnreadCount,
-                onProfileUpdated: _refreshProfileImage, // ✅ Pass callback
+                onProfileUpdated: _refreshProfileImage, //  Pass callback
                 useWhiteTheme: true,
                 isMobile: isMobile,
                 fontSize: fontSize,
@@ -388,7 +388,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 onRefresh: () async {
                   await _loadStats();
                   await _refreshUnreadCount();
-                  await _refreshProfileImage(); // ✅ Also refresh profile
+                  await _refreshProfileImage(); //  Also refresh profile
                 },
                 child: SingleChildScrollView(
                   physics: const NeverScrollableScrollPhysics(),
@@ -494,7 +494,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  // ✅ បានបន្ថយកំពស់ card 5% ដោយប្រើ FractionallySizedBox
   Widget _buildStatCard({
     required IconData icon,
     required String label,
@@ -520,9 +519,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ),
           ],
         ),
-        // ✅ រុំ Column ជាមួយ FractionallySizedBox ដើម្បីបន្ថយកំពស់ 5%
         child: FractionallySizedBox(
-          heightFactor: 0.95, // បន្ថយកំពស់ 5%
+          heightFactor: 0.95, 
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -568,7 +566,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       ).then((_) {
         _loadStats();
         _refreshUnreadCount();
-        _refreshProfileImage(); // ✅ Refresh profile after returning
+        _refreshProfileImage(); //  Refresh profile after returning
       });
       return;
     }
@@ -584,7 +582,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     ).then((_) {
       _loadStats();
       _refreshUnreadCount();
-      _refreshProfileImage(); // ✅ Refresh profile after returning
+      _refreshProfileImage(); //  Refresh profile after returning
     });
   }
 }
@@ -597,7 +595,7 @@ class _AdminUserHeader extends StatelessWidget {
   final bool isLoading;
   final int unreadCount;
   final VoidCallback? onNotificationPressed;
-  final VoidCallback? onProfileUpdated; // ✅ Add callback
+  final VoidCallback? onProfileUpdated; // Add callback
   final bool useWhiteTheme;
   final bool isMobile;
   final double fontSize;
@@ -611,7 +609,7 @@ class _AdminUserHeader extends StatelessWidget {
     required this.isLoading,
     this.unreadCount = 0,
     this.onNotificationPressed,
-    this.onProfileUpdated, // ✅ Add callback
+    this.onProfileUpdated, // Add callback
     this.useWhiteTheme = false,
     required this.isMobile,
     required this.fontSize,
@@ -635,13 +633,13 @@ class _AdminUserHeader extends StatelessWidget {
           backgroundColor: useWhiteTheme ? Colors.white : const Color(0xFF173B69),
           textColor: useWhiteTheme ? const Color(0xFF173B69) : Colors.white,
           onTap: () async {
-            // ✅ Wait for result from Profile Screen
+            //  Wait for result from Profile Screen
             final result = await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
             );
             
-            // ✅ If changes were made, call callback to refresh
+            //  If changes were made, call callback to refresh
             if (result == true && onProfileUpdated != null) {
               onProfileUpdated!();
             }
@@ -683,7 +681,7 @@ class _AdminUserHeader extends StatelessWidget {
             ],
           ),
         ),
-        // ✅ Notification Bell with Badge
+        //  Notification Bell with Badge
         Stack(
           children: [
             IconButton(
@@ -837,7 +835,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
       _userCache[userId] = userData;
       return userData;
     } catch (e) {
-      print('❌ Error fetching user data for $userId: $e');
+      print(' Error fetching user data for $userId: $e');
       return {
         'fullName': 'Unknown',
         'email': 'N/A',
@@ -960,7 +958,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
       return '$year-$month-$day $hour:${minute.toString().padLeft(2, '0')}$period';
       
     } catch (e) {
-      print('❌ Error formatting submitTime: $e');
+      print(' Error formatting submitTime: $e');
       return 'N/A';
     }
   }

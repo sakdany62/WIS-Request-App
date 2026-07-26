@@ -12,9 +12,7 @@ class ThemeProvider extends ChangeNotifier {
     _loadThemePreference();
   }
 
-  // ============================================================
-  // ⏰ Load theme preference from SharedPreferences
-  // ============================================================
+  //  Load theme preference from SharedPreferences
   Future<void> _loadThemePreference() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -28,20 +26,18 @@ class ThemeProvider extends ChangeNotifier {
     }
   }
 
-  // ============================================================
-  // ⏰ Save theme preference to SharedPreferences
+  //  Save theme preference to SharedPreferences
   // ============================================================
   Future<void> _saveThemePreference(bool value) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_darkModeKey, value);
     } catch (e) {
-      print('❌ Error saving theme preference: $e');
+      print(' Error saving theme preference: $e');
     }
   }
 
-  // ============================================================
-  // ⏰ Toggle theme
+  //  Toggle theme
   // ============================================================
   Future<void> toggleTheme() async {
     _isDarkMode = !_isDarkMode;
@@ -49,8 +45,7 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============================================================
-  // ⏰ Set dark mode
+  //  Set dark mode
   // ============================================================
   Future<void> setDarkMode(bool value) async {
     if (_isDarkMode != value) {
@@ -60,8 +55,7 @@ class ThemeProvider extends ChangeNotifier {
     }
   }
 
-  // ============================================================
-  // ⏰ Light Theme
+  //  Light Theme
   // ============================================================
   ThemeData get lightTheme {
     return ThemeData(
@@ -131,8 +125,7 @@ class ThemeProvider extends ChangeNotifier {
     );
   }
 
-  // ============================================================
-  // ⏰ Dark Theme
+  //  Dark Theme
   // ============================================================
   ThemeData get darkTheme {
     return ThemeData(

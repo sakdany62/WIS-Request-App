@@ -61,7 +61,6 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     await _loadStatistics();
   }
 
-  // ✅ Method to refresh profile image after update
   Future<void> _refreshProfileImage() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -168,7 +167,6 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     }
   }
 
-  //  Show staff list dialog
   void _showStaffListDialog() {
     if (_staffList.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -780,7 +778,6 @@ Status: REJECTED
                             ),
                           ),
                           const Spacer(),
-                          // ✅ Staff Count - Clickable to show staff list
                           GestureDetector(
                             onTap: _showStaffListDialog,
                             child: Container(
@@ -826,6 +823,7 @@ Status: REJECTED
                       ),
                       SizedBox(height: spacing * 2),
                       
+                      // ✅ Row 1: Total, Pending, Approved
                       Row(
                         children: [
                           _buildStatCard(
@@ -849,6 +847,14 @@ Status: REJECTED
                             isMobile: isMobile,
                             fontSize: fontSize,
                           ),
+                        ],
+                      ),
+                      
+                      SizedBox(height: spacing),
+                      
+                      // ✅ Row 2: Rejected, Auto Approved, Total Days
+                      Row(
+                        children: [
                           _buildStatCard(
                             label: 'Rejected',
                             value: '$_rejectedRequests',
@@ -856,13 +862,6 @@ Status: REJECTED
                             isMobile: isMobile,
                             fontSize: fontSize,
                           ),
-                        ],
-                      ),
-                      
-                      SizedBox(height: spacing),
-                      
-                      Row(
-                        children: [
                           _buildStatCard(
                             label: 'Auto Approved',
                             value: '$_autoApprovedRequests',
@@ -876,9 +875,6 @@ Status: REJECTED
                             color: Colors.teal,
                             isMobile: isMobile,
                             fontSize: fontSize,
-                          ),
-                          const Expanded(
-                            child: SizedBox(),
                           ),
                         ],
                       ),
@@ -1030,6 +1026,7 @@ Status: REJECTED
     );
   }
 
+  // ✅ កែប្រែ _buildStatCard ឱ្យមានទំហំស្មើគ្នា
   Widget _buildStatCard({
     required String label,
     required String value,
@@ -1041,8 +1038,8 @@ Status: REJECTED
       child: Container(
         margin: EdgeInsets.symmetric(horizontal: 2),
         padding: EdgeInsets.symmetric(
-          vertical: isMobile ? 6 : 8,
-          horizontal: 2,
+          vertical: isMobile ? 8 : 12,
+          horizontal: 4,
         ),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
@@ -1050,21 +1047,24 @@ Status: REJECTED
           border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               value,
               style: TextStyle(
-                fontSize: isMobile ? fontSize : fontSize + 2,
+                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
             ),
+            SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
-                fontSize: isMobile ? fontSize * 0.7 : fontSize,
+                fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.8,
                 color: Colors.grey[600],
               ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -1185,7 +1185,7 @@ class _ManagerUserHeader extends StatelessWidget {
   }
 }
 
-// ================= NOTIFICATION ICON WITH BADGE (Manager) - 20% Larger =================
+// ================= NOTIFICATION ICON WITH BADGE =================
 class _NotificationIconWithBadgeManager extends StatelessWidget {
   final String userId;
   final Color iconColor;
@@ -1201,7 +1201,6 @@ class _NotificationIconWithBadgeManager extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Increased icon size by 20%
     final double notificationSize = isMobile ? (iconSize - 4) * 1.2 : iconSize * 1.2;
     final double badgeSize = isMobile ? 18 : 22;
     final double badgeFontSize = isMobile ? 9 : 11;

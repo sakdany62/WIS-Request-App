@@ -45,7 +45,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     }
     
     try {
-      print('🔍 Loading admin data for UID: ${user.uid}');
+      print(' Loading admin data for UID: ${user.uid}');
       
       final docSnapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -54,7 +54,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
-        print('✅ Admin data found: $data');
+        print(' Admin data found: $data');
         
         setState(() {
           userData = Map<String, dynamic>.from(data);
@@ -62,14 +62,14 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
           isLoading = false;
         });
       } else {
-        print('⚠️ No admin document found for UID: ${user.uid}');
+        print(' No admin document found for UID: ${user.uid}');
         setState(() {
           errorMessage = 'Admin profile not found in database';
           isLoading = false;
         });
       }
     } catch (e) {
-      print('❌ Error loading admin data: $e');
+      print(' Error loading admin data: $e');
       setState(() {
         errorMessage = 'Failed to load admin data: $e';
         isLoading = false;
@@ -134,7 +134,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             ),
             SizedBox(height: spacing / 2),
             Text(
-              ' You can use images from: Facebook, Google Internet, etc.',
+              ' You can use images from: Facebook, Google,Internet, etc.',
               style: TextStyle(
                 fontSize: fontSize * 0.8,
                 color: Colors.blue[700],
@@ -217,8 +217,8 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       setState(() {
         isUploading = false;
       });
-      _showSnackBar('❌ Error: $e', Colors.red);
-      print('❌ Error updating profile: $e');
+      _showSnackBar(' Error: $e', Colors.red);
+      print(' Error updating profile: $e');
     }
   }
 
@@ -293,7 +293,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
         isUploading = false;
       });
       _showSnackBar('Error deleting image: $e', Colors.red);
-      print('❌ Image deletion error: $e');
+      print(' Image deletion error: $e');
     }
   }
 

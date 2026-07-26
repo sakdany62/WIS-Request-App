@@ -45,12 +45,12 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     return _selectedRole == '2';
   }
 
-  // ✅ Check if position field should be disabled (read-only)
+  //  Check if position field should be disabled (read-only)
   bool _isPositionReadOnly() {
     return _selectedRole == '3'; // Manager role
   }
 
-  // ✅ Get default position for Manager
+  //  Get default position for Manager
   String _getDefaultPosition() {
     return 'Manager';
   }
@@ -71,7 +71,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       
       return snapshot.docs.isNotEmpty;
     } catch (e) {
-      print('❌ Error checking manager exists in department: $e');
+      print(' Error checking manager exists in department: $e');
       return false;
     }
   }
@@ -98,7 +98,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       
       return result;
     } catch (e) {
-      print('❌ Error generating user number: $e');
+      print(' Error generating user number: $e');
       return DateTime.now().millisecondsSinceEpoch ~/ 1000;
     }
   }
@@ -158,17 +158,17 @@ IMPORTANT:
 - Keep this information safe and secure
 ''';
 
-      // 🔥 ផ្ញើទៅ Group, Admin, Manager
+      //  ផ្ញើទៅ Group, Admin, Manager
       final bool sent = await TelegramService.sendToAll(message);
       
       if (sent) {
         print(' Telegram sent to Group/Admin/Manager');
       } else {
-        print('⚠️ Failed to send Telegram');
+        print(' Failed to send Telegram');
       }
       
     } catch (e) {
-      print('❌ Error sending Telegram: $e');
+      print(' Error sending Telegram: $e');
     }
   }
 
@@ -257,7 +257,7 @@ IMPORTANT:
       final username = _usernameController.text.trim();
       final phone = _phoneController.text.trim();
       
-      // ✅ Get position: For Manager, use default "Manager", else use controller value
+      //  Get position: For Manager, use default "Manager", else use controller value
       String position;
       if (_selectedRole == '3') {
         position = 'Manager';
@@ -396,7 +396,7 @@ IMPORTANT:
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ $message'),
+            content: Text(' $message'),
             backgroundColor: Colors.red,
           ),
         );
@@ -405,7 +405,7 @@ IMPORTANT:
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error: $e'),
+            content: Text(' Error: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -762,7 +762,7 @@ IMPORTANT:
                       if (value != '2') {
                         _positionController.clear();
                       }
-                      // ✅ If role is Manager, set position to "Manager"
+                      //  If role is Manager, set position to "Manager"
                       if (value == '3') {
                         _positionController.text = 'Manager';
                       }
@@ -866,7 +866,7 @@ IMPORTANT:
                 SizedBox(height: spacing * 1.5),
               ],
 
-              // ✅ POSITION TEXTFIELD - With read-only for Manager
+              //  POSITION TEXTFIELD - With read-only for Manager
               if (_showPositionField() || _isPositionReadOnly()) ...[
                 Text(
                   'Position',
@@ -879,7 +879,7 @@ IMPORTANT:
                 SizedBox(height: spacing * 0.6),
                 TextFormField(
                   controller: _positionController,
-                  readOnly: _isPositionReadOnly(), // ✅ Disable editing for Manager
+                  readOnly: _isPositionReadOnly(), //  Disable editing for Manager
                   decoration: InputDecoration(
                     hintText: _isPositionReadOnly() 
                         ? 'Manager (Default)' 
@@ -910,11 +910,11 @@ IMPORTANT:
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: Colors.red, width: 2.0),
                     ),
-                    // ✅ Add lock icon for Manager
+                    //  Add lock icon for Manager
                     suffixIcon: _isPositionReadOnly()
                         ? const Icon(Icons.lock, color: Colors.grey, size: 20)
                         : null,
-                    // ✅ Different background for read-only
+                    //  Different background for read-only
                     filled: true,
                     fillColor: _isPositionReadOnly() 
                         ? Colors.grey.shade100 
@@ -931,7 +931,7 @@ IMPORTANT:
                         : Colors.black,
                   ),
                   validator: (value) {
-                    // ✅ For Manager, position is auto-set, so no validation needed
+                    //  For Manager, position is auto-set, so no validation needed
                     if (_selectedRole == '3') {
                       return null;
                     }

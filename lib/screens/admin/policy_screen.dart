@@ -221,7 +221,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
     });
   }
 
-  // ✅ Helper method to build bordered card
+  //  Helper method to build bordered card
   Widget _buildBorderedCard({
     required Widget child,
     double? elevation,
@@ -241,7 +241,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ប្រើ Responsive
+    //  ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -286,7 +286,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ✅ General Settings Card with Border
+                    // General Settings Card with Border
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -354,7 +354,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                     
                     SizedBox(height: spacing * 2),
                     
-                    // ✅ Leave Limits Card with Border
+                    //  Leave Limits Card with Border
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -409,7 +409,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                     
                     SizedBox(height: spacing * 2),
                     
-                    // ✅ Advance Notice Card with Border
+                    // Advance Notice Card with Border
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -464,7 +464,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                     
                     SizedBox(height: spacing * 2),
                     
-                    // ✅ Allowed Reasons Card with Border
+                    //  Allowed Reasons Card with Border
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -526,7 +526,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                     
                     SizedBox(height: spacing * 2),
                     
-                    // ✅ Auto Approve Settings Card with Border
+                    //  Auto Approve Settings Card with Border
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -644,7 +644,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                     
                     SizedBox(height: spacing * 2),
                     
-                    // ✅ Additional Settings Card with Border
+                    //  Additional Settings Card with Border
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -682,8 +682,8 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                    
-                    // ✅ Notification Settings Card with Border
+                  
+                    //  Notification Settings Card with Border
                     SizedBox(height: spacing * 2),
                     _buildBorderedCard(
                       child: Padding(

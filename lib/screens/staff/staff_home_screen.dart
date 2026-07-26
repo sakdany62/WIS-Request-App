@@ -269,7 +269,8 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14);
+    //   fontSize
+    final double fontSize = Responsive.fontSize(context, 14) * 1.05;
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 24);
 
@@ -370,7 +371,6 @@ class _HeaderSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User Header with more top padding to push profile down
             _UserHeader(
               userName: userName,
               userId: userId,
@@ -383,10 +383,8 @@ class _HeaderSection extends StatelessWidget {
               onProfileUpdated: onProfileUpdated,
             ),
             
-            // Increased space between user header and "Your Leave Balance"
             SizedBox(height: isMobile ? 24 : 36),
             
-            // Row with "Your Leave Balance" on the left
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -401,9 +399,8 @@ class _HeaderSection extends StatelessWidget {
                 ),
               ],
             ),
-            SizedBox(height: isMobile ? 6 : 10),
+            SizedBox(height: isMobile ? 4 : 8),
             
-            // Grid of balance cards
             Expanded(
               child: GridView.count(
                 shrinkWrap: true,
@@ -499,7 +496,8 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double baseFontSize = isMobile ? fontSize * 0.75 : fontSize * 0.75;
+    // ✅ បន្ថែម 5% ទៅ baseFontSize
+    final double baseFontSize = (isMobile ? fontSize * 0.75 : fontSize * 0.75) * 1.05;
     final double increasedFontSize = baseFontSize * 1.1;
     final double reducedPadding = isMobile ? 2 : 4;
 
@@ -537,7 +535,7 @@ class _BalanceCard extends StatelessWidget {
               child: Icon(
                 icon,
                 color: color.withOpacity(0.85),
-                size: isMobile ? 17 : 23,
+                size: (isMobile ? 17 : 23) * 1.05, // ✅ បន្ថែម 5%
               ),
             ),
             SizedBox(height: isMobile ? 3 : 5),
@@ -545,7 +543,7 @@ class _BalanceCard extends StatelessWidget {
               count,
               style: TextStyle(
                 color: color.withOpacity(0.9),
-                fontSize: isMobile ? increasedFontSize + 8 : increasedFontSize + 12,
+                fontSize: (isMobile ? increasedFontSize + 8 : increasedFontSize + 12) * 1.05, // ✅ បន្ថែម 5%
                 fontWeight: FontWeight.bold,
                 height: 1.0,
               ),
@@ -554,7 +552,7 @@ class _BalanceCard extends StatelessWidget {
               type,
               style: TextStyle(
                 color: color.withOpacity(0.7),
-                fontSize: isMobile ? increasedFontSize * 0.65 : increasedFontSize * 0.7,
+                fontSize: (isMobile ? increasedFontSize * 0.65 : increasedFontSize * 0.7) * 1.05, // ✅ បន្ថែម 5%
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.3,
                 height: 1.0,
@@ -576,7 +574,7 @@ class _BalanceCard extends StatelessWidget {
                   'of $total',
                   style: TextStyle(
                     color: color.withOpacity(0.5),
-                    fontSize: isMobile ? increasedFontSize * 0.4 : increasedFontSize * 0.45,
+                    fontSize: (isMobile ? increasedFontSize * 0.4 : increasedFontSize * 0.45) * 1.05, // ✅ បន្ថែម 5%
                     fontWeight: FontWeight.w500,
                     height: 1.0,
                   ),
@@ -617,14 +615,13 @@ class _UserHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        // Profile avatar with increased top padding to push it down more
         Padding(
           padding: EdgeInsets.only(top: isMobile ? 20 : 28),
           child: ProfileAvatar(
             userId: userId,
             imageUrl: profileImageUrl,
             name: userName,
-            radius: isMobile ? 30 : 40,
+            radius: (isMobile ? 30 : 40) * 1.05, // ✅ បន្ថែម 5%
             backgroundColor: Colors.white24,
             textColor: Colors.white,
             onTap: () async {
@@ -659,7 +656,7 @@ class _UserHeader extends StatelessWidget {
                     userName,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: isMobile ? fontSize : fontSize + 2,
+                      fontSize: (isMobile ? fontSize : fontSize + 2) * 1.05, // ✅ បន្ថែម 5%
                       fontWeight: FontWeight.bold,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -669,7 +666,7 @@ class _UserHeader extends StatelessWidget {
                   'Staff',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: isMobile ? fontSize * 0.8 : fontSize,
+                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05, // ✅ បន្ថែម 5%
                   ),
                 ),
               ],
@@ -703,9 +700,10 @@ class _NotificationIconWithBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double notificationSize = isMobile ? iconSize * 1.3 : 28 * 1.3;
-    final double badgeSize = isMobile ? 18 : 24;
-    final double fontSize = isMobile ? 10 : 12;
+    // ✅ បន្ថែម 5% ទៅ notificationSize
+    final double notificationSize = (isMobile ? iconSize * 1.3 : 28 * 1.3) * 1.05;
+    final double badgeSize = (isMobile ? 18 : 24) * 1.05; // ✅ បន្ថែម 5%
+    final double fontSize = (isMobile ? 10 : 12) * 1.05; // ✅ បន្ថែម 5%
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -801,7 +799,7 @@ class _LeaveStatusSection extends StatelessWidget {
             child: Text(
               'Leave Status',
               style: TextStyle(
-                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
+                fontSize: (isMobile ? fontSize + 2 : fontSize + 4) * 1.05, // ✅ បន្ថែម 5%
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -815,7 +813,7 @@ class _LeaveStatusSection extends StatelessWidget {
                   'No leave requests yet',
                   style: TextStyle(
                     color: Colors.grey,
-                    fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                    fontSize: (isMobile ? fontSize * 0.85 : fontSize) * 1.05, // ✅ បន្ថែម 5%
                   ),
                 ),
               ),
@@ -850,14 +848,14 @@ class _LeaveStatusSection extends StatelessWidget {
                     Text(
                       showAll ? 'Show Less' : 'See More',
                       style: TextStyle(
-                        fontSize: isMobile ? fontSize : fontSize + 2,
+                        fontSize: (isMobile ? fontSize : fontSize + 2) * 1.05, // ✅ បន្ថែម 5%
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     SizedBox(width: isMobile ? 2 : 4),
                     Icon(
                       showAll ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                      size: isMobile ? 16 : 20,
+                      size: (isMobile ? 16 : 20) * 1.05, // ✅ បន្ថែម 5%
                     ),
                   ],
                 ),
@@ -925,14 +923,14 @@ class LeaveStatusCard extends StatelessWidget {
                   month,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: isMobile ? fontSize * 0.8 : fontSize,
+                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05, // ✅ បន្ថែម 5%
                     color: const Color(0xFF173B69),
                   ),
                 ),
                 Text(
                   date,
                   style: TextStyle(
-                    fontSize: isMobile ? fontSize * 0.8 : fontSize,
+                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05, // ✅ បន្ថែម 5%
                     color: const Color(0xFF173B69),
                   ),
                 ),
@@ -944,7 +942,7 @@ class LeaveStatusCard extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                fontSize: (isMobile ? fontSize * 0.85 : fontSize) * 1.05, // ✅ បន្ថែម 5%
                 fontWeight: FontWeight.w500,
               ),
               overflow: TextOverflow.ellipsis,
@@ -964,7 +962,7 @@ class LeaveStatusCard extends StatelessWidget {
               style: TextStyle(
                 color: statusColor,
                 fontWeight: FontWeight.bold,
-                fontSize: isMobile ? fontSize * 0.7 : fontSize,
+                fontSize: (isMobile ? fontSize * 0.7 : fontSize) * 1.05, // ✅ បន្ថែម 5%
               ),
             ),
           ),

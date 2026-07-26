@@ -27,7 +27,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
   int _currentTabIndex = 0;
 
   final List<String> _severityOptions = ['info', 'warning', 'critical'];
-  final List<String> _audienceOptions = ['all', 'staff', 'manager', 'admin'];
+  final List<String> _audienceOptions = ['all'];
 
   @override
   void initState() {
@@ -687,7 +687,6 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                   final severity = data['severity'] ?? 'info';
                   final color = _getSeverityColor(severity);
                   
-                  // ✅ REMOVED: readBy and readCount logic
 
                   return Card(
                     margin: EdgeInsets.only(bottom: spacing),
@@ -760,7 +759,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                                 isActive ? Colors.green.shade50 : Colors.red.shade50,
                                 isActive ? Colors.green.shade700 : Colors.red.shade700,
                               ),
-                              // ✅ REMOVED: Read count chip
+                              //  REMOVED: Read count chip
                             ],
                           ),
                         ],

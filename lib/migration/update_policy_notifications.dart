@@ -49,10 +49,10 @@ class PolicyMigration {
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
-          print('✅ Updated policy: ${doc.id} - ${data['name'] ?? 'Unnamed'}');
+          print(' Updated policy: ${doc.id} - ${data['name'] ?? 'Unnamed'}');
           updatedCount++;
         } catch (e) {
-          print('❌ Error updating policy ${doc.id}: $e');
+          print(' Error updating policy ${doc.id}: $e');
           errorCount++;
         }
       }
@@ -61,12 +61,12 @@ class PolicyMigration {
       print('Migration completed successfully!');
       print('========================================');
       print('Total policies: ${snapshot.docs.length}');
-      print('✅ Updated: $updatedCount');
-      print('⏭️ Skipped: $skippedCount');
-      print('❌ Errors: $errorCount');
+      print(' Updated: $updatedCount');
+      print('⏭ Skipped: $skippedCount');
+      print(' Errors: $errorCount');
       print('========================================');
     } catch (e) {
-      print('❌ Fatal error during migration: $e');
+      print(' Fatal error during migration: $e');
       rethrow;
     }
   }
@@ -103,9 +103,9 @@ class PolicyMigration {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      print('✅ Updated policy: $policyId');
+      print(' Updated policy: $policyId');
     } catch (e) {
-      print('❌ Error updating policy $policyId: $e');
+      print(' Error updating policy $policyId: $e');
       rethrow;
     }
   }
@@ -127,9 +127,9 @@ class PolicyMigration {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      print('✅ Removed notification settings from policy: $policyId');
+      print(' Removed notification settings from policy: $policyId');
     } catch (e) {
-      print('❌ Error removing notification settings: $e');
+      print(' Error removing notification settings: $e');
       rethrow;
     }
   }
@@ -152,9 +152,9 @@ class PolicyMigration {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      print('✅ Added notification settings to new policy: $policyId');
+      print(' Added notification settings to new policy: $policyId');
     } catch (e) {
-      print('❌ Error adding notification settings: $e');
+      print(' Error adding notification settings: $e');
       rethrow;
     }
   }
@@ -170,7 +170,7 @@ Future<void> runMigration() async {
     final migration = PolicyMigration();
     await migration.updateExistingPolicies();
   } catch (e) {
-    print('❌ Migration failed: $e');
+    print(' Migration failed: $e');
     rethrow;
   }
 }
@@ -181,7 +181,7 @@ Future<void> runSinglePolicyMigration(String policyId) async {
     final migration = PolicyMigration();
     await migration.updateSinglePolicy(policyId);
   } catch (e) {
-    print('❌ Single policy migration failed: $e');
+    print(' Single policy migration failed: $e');
     rethrow;
   }
 }
@@ -192,7 +192,7 @@ Future<void> runRemoveNotificationSettings(String policyId) async {
     final migration = PolicyMigration();
     await migration.removeNotificationSettings(policyId);
   } catch (e) {
-    print('❌ Remove notification settings failed: $e');
+    print(' Remove notification settings failed: $e');
     rethrow;
   }
 }
@@ -203,7 +203,7 @@ Future<void> runAddNotificationSettingsToNewPolicy(String policyId) async {
     final migration = PolicyMigration();
     await migration.addNotificationSettingsToNewPolicy(policyId);
   } catch (e) {
-    print('❌ Add notification settings failed: $e');
+    print(' Add notification settings failed: $e');
     rethrow;
   }
 }

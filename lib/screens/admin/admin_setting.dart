@@ -138,7 +138,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
 
                     SizedBox(height: spacing * 2),
 
-                    // Warning Management Card - ✅ កែប្រែនេះ
+                    // Warning Management Card
                     _buildSettingsCard(
                       icon: Icons.warning_amber_rounded,
                       title: 'Warning Management',
@@ -152,7 +152,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => warning.WarningManagementScreen(), // ✅ លុប const ចេញ
+                            builder: (context) => warning.WarningManagementScreen(), 
                           ),
                         );
                       },

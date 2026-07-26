@@ -19,14 +19,14 @@ class TelegramService {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        print('❌ No user logged in');
+        print(' No user logged in');
         return null;
       }
 
-      print('📧 Current user email: ${user.email}');
-      print('🆔 Current user UID: ${user.uid}');
+      print(' Current user email: ${user.email}');
+      print(' Current user UID: ${user.uid}');
 
-      // 🔥 FIX: ស្វែងរកដោយ email
+      // ស្វែងរកដោយ email
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: user.email)
@@ -35,14 +35,14 @@ class TelegramService {
 
       if (querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data();
-        print('✅ User data found: $data');
+        print(' User data found: $data');
         return data;
       }
 
-      print('❌ No user document found for email: ${user.email}');
+      print(' No user document found for email: ${user.email}');
       return null;
     } catch (e) {
-      print('❌ Error getting user data: $e');
+      print(' Error getting user data: $e');
       return null;
     }
   }
@@ -68,30 +68,28 @@ class TelegramService {
     try {
       final data = await _getCurrentUserData();
       
-      print('📊 _getStaffPosition() called');
+      print(' _getStaffPosition() called');
       
       if (data != null) {
         final String roleId = data['roleId']?.toString() ?? '';
         final String position = data['position'] ?? data['department'] ?? 'Employee';
         
-        print('📌 roleId: "$roleId"');
-        print('📌 position from DB: "$position"');
+        print(' roleId: "$roleId"');
+        print(' position from DB: "$position"');
         
-        // 🔥 FIX: យក position ពី Database សម្រាប់តែ Staff (roleId = 2) ប៉ុណ្ណោះ
         if (roleId == '2') {
-          print('✅ This is STAFF, returning position: "$position"');
+          print(' This is STAFF, returning position: "$position"');
           return position;
         }
-        
-        // 🔥 FIX: បើមិនមែន Staff → កំណត់ជា "Manager" ទាំងអស់
-        print('❌ This is NOT STAFF (roleId: "$roleId"), returning "Manager"');
+      
+        print(' This is NOT STAFF (roleId: "$roleId"), returning "Manager"');
         return 'Manager';
       }
       
-      print('❌ No data found, returning "Manager"');
+      print(' No data found, returning "Manager"');
       return 'Manager';
     } catch (e) {
-      print('❌ Error in _getStaffPosition: $e, returning "Manager"');
+      print(' Error in _getStaffPosition: $e, returning "Manager"');
       return 'Manager';
     }
   }
@@ -122,7 +120,6 @@ class TelegramService {
         final String roleId = data['roleId']?.toString() ?? '';
         String position = data['position'] ?? data['department'] ?? 'Employee';
         
-        // 🔥 FIX: យក position ពី Database សម្រាប់តែ Staff (roleId = 2) ប៉ុណ្ណោះ
         if (roleId == '2') {
           position = position;
         } else {
@@ -213,7 +210,7 @@ class TelegramService {
     try {
       final String correctPosition = await _getStaffPosition();
       
-      print('📤 Sending message with Position: "$correctPosition"');
+      print(' Sending message with Position: "$correctPosition"');
       
       final RegExp positionRegex = RegExp(r'Position: .+');
       String finalMessage = message.replaceAllMapped(positionRegex, (match) {
@@ -225,7 +222,7 @@ class TelegramService {
       bool groupSent = await _sendMessage(_groupChatId, finalMessage);
       return managerSent && adminSent && groupSent;
     } catch (e) {
-      print('❌ Error in sendToAll: $e');
+      print(' Error in sendToAll: $e');
       return false;
     }
   }
@@ -340,7 +337,7 @@ IMPORTANT:
 
     final String actualPosition = await _getStaffPosition();
     
-    print('📝 Formatting permission request with Position: "$actualPosition"');
+    print(' Formatting permission request with Position: "$actualPosition"');
     
     return '''
 NEW PERMISSION REQUEST

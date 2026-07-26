@@ -24,7 +24,7 @@
     <application
         android:label="WIS Leave"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon"
+        android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true">
         
         <!-- Notification Receivers - បន្ថែម android:exported -->

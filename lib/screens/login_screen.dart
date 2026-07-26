@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isLoading = false;
   bool obscurePassword = true;
   bool rememberMe = false;
-  String _errorMessage = ''; // ✅ សម្រាប់ទុកសារកំហុស
+  String _errorMessage = ''; //  សម្រាប់ទុកសារកំហុស
 
   @override
   void initState() {
@@ -38,11 +38,11 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     } catch (e) {
-      print('❌ Error loading saved credentials: $e');
+      print(' Error loading saved credentials: $e');
     }
   }
 
-  // ✅ រក្សាទុក Admin Credentials (សម្រាប់ Auto Re-login)
+  //  រក្សាទុក Admin Credentials (សម្រាប់ Auto Re-login)
   Future<void> _saveAdminCredentials(String email, String password, String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await prefs.setString('admin_uid', uid);
       print(' Admin credentials saved successfully');
     } catch (e) {
-      print('❌ Error saving admin credentials: $e');
+      print(' Error saving admin credentials: $e');
     }
   }
 
@@ -66,12 +66,12 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setBool('remember_me', false);
       }
     } catch (e) {
-      print('❌ Error saving credentials: $e');
+      print(' Error saving credentials: $e');
     }
   }
 
   Future<void> _login() async {
-    // ✅ លុបសារកំហុសចាស់
+    //  លុបសារកំហុសចាស់
     setState(() {
       _errorMessage = '';
     });
@@ -79,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
-    // ✅ ពិនិត្យមើលថាមានបំពេញទាំងអស់ឬទេ
+    //  ពិនិត្យមើលថាមានបំពេញទាំងអស់ឬទេ
     if (email.isEmpty || password.isEmpty) {
       setState(() {
         _errorMessage = 'Please fill all fields';

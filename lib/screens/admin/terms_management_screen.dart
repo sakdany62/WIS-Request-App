@@ -63,10 +63,10 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
         print(' Loaded terms: ${terms['title']} (ID: ${terms['id']})');
       } else {
         setState(() => _isLoading = false);
-        print('ℹ️ No terms found');
+        print(' No terms found');
       }
     } catch (e) {
-      print('❌ Error loading terms: $e');
+      print(' Error loading terms: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -210,13 +210,13 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
         _showSnackBar('Terms & Conditions created successfully!', Colors.green);
       }
       
-      // ✅ Get the current terms ID after save
+      //  Get the current terms ID after save
       final currentTerms = await TermsService.getCurrentTerms();
       if (currentTerms != null) {
         termsId = currentTerms['id'];
       }
       
-      // ✅ Send notification to all staff
+      //  Send notification to all staff
       if (termsId != null) {
         await NotificationService.sendNotificationToAllStaff(
           title: notificationTitle,

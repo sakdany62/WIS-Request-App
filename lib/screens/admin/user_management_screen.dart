@@ -56,7 +56,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('❌ Error loading users: $e');
+      print(' Error loading users: $e');
       setState(() {
         _isLoading = false;
       });
@@ -474,7 +474,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('✅ User updated successfully'),
+                    content: Text(' User updated successfully'),
                     backgroundColor: Colors.green,
                   ),
                 );
@@ -483,7 +483,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('❌ Error: $e'),
+                    content: Text(' Error: $e'),
                     backgroundColor: Colors.red,
                     duration: const Duration(seconds: 3),
                   ),
@@ -525,14 +525,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              '⚠️ This will delete the user from Database.',
+              ' This will delete the user from Database.',
               style: TextStyle(
                 fontSize: fontSize * 0.85,
                 color: Colors.orange,
               ),
             ),
             Text(
-              '📧 Email: ${user.email}',
+              ' Email: ${user.email}',
               style: TextStyle(
                 fontSize: fontSize * 0.85,
                 color: Colors.grey[600],
@@ -578,7 +578,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ User deleted from Database'),
+            content: Text(' User deleted from Database'),
             backgroundColor: Colors.green,
           ),
         );
@@ -586,7 +586,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '📌 To reuse email "${user.email}", delete from Database',
+              'To reuse email "${user.email}", delete from Database',
               style: TextStyle(fontSize: 12),
             ),
             backgroundColor: Colors.blue,
@@ -598,7 +598,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error: $e'),
+            content: Text(' Error: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),

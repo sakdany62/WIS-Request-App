@@ -1,6 +1,7 @@
 // lib/screens/staff/request_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ បន្ថែមសម្រាប់ Status Bar
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -64,8 +65,35 @@ class _RequestScreenState extends State<RequestScreen> {
   @override
   void initState() {
     super.initState();
+    
+    // ✅ កំណត់ Status Bar ឱ្យថ្លា និងអក្សរពណ៌ស
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+    );
+    
     _loadUserData();
     _listenToPolicyChanges();
+  }
+
+  @override
+  void dispose() {
+    // ✅ ស្តារ Status Bar មកដើមវិញ
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+    );
+    
+    _reasonsSubscription?.cancel();
+    _hideOverlayMessage();
+    otherController.dispose();
+    super.dispose();
   }
 
   void _listenToPolicyChanges() {
@@ -545,14 +573,6 @@ class _RequestScreenState extends State<RequestScreen> {
   }
 
   @override
-  void dispose() {
-    _reasonsSubscription?.cancel();
-    _hideOverlayMessage();
-    otherController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -561,15 +581,18 @@ class _RequestScreenState extends State<RequestScreen> {
     final EdgeInsets padding = Responsive.padding(context);
 
     return Scaffold(
+      extendBodyBehindAppBar: true, // ✅ ឱ្យមាតិកាគ្របដណ្តប់ដល់ Status Bar
       backgroundColor: const Color(0xFFF7F8FA),
       body: SafeArea(
         child: Column(
           children: [
             Container(
               width: double.infinity,
-              padding: EdgeInsets.symmetric(
-                vertical: isMobile ? 14 : 20,
-                horizontal: isMobile ? 12 : 24,
+              padding: EdgeInsets.only(
+                top: isMobile ? 8 : 12, // ✅ padding សម្រាប់ Status Bar
+                bottom: isMobile ? 14 : 20,
+                left: isMobile ? 12 : 24,
+                right: isMobile ? 12 : 24,
               ),
               decoration: const BoxDecoration(
                 color: Color(0xFF1A3B68),
@@ -596,6 +619,7 @@ class _RequestScreenState extends State<RequestScreen> {
                       fontSize: isMobile ? fontSize + 2 : fontSize + 6,
                     ),
                   ),
+                  SizedBox(height: isMobile ? 4 : 8), // ✅ បន្ថែម space ខាងក្រោម
                 ],
               ),
             ),
