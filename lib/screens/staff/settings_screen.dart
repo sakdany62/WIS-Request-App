@@ -907,7 +907,7 @@ class AboutScreen extends StatelessWidget {
             ),
             SizedBox(height: isMobile ? 4 : 6),
             Text(
-              "Version 1.0.0",
+              "Version 1.0.1",
               style: TextStyle(
                 fontSize: isMobile ? fontSize * 0.85 : AppFonts.md,
                 color: Colors.grey,

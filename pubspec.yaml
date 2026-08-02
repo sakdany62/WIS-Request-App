@@ -60,37 +60,37 @@ flutter:
   assets:
     - assets/images/
     - assets/img/
-    - assets/icon/  # ✅ បន្ថែមនេះ (សំខាន់ណាស់)
+    - assets/icon/  
 
-# ✅ កែប្រែផ្នែកនេះ
+
 flutter_launcher_icons:
-  android: true  # ✅ ប្តូរពី "launcher_icon" មក true
+  android: true  
   ios: true
   image_path: "assets/icon/app_icon.png"
   
-  # ✅ សម្រាប់ Android Adaptive Icon - បង្ហាញ 100%
+ 
   adaptive_icon_background: "#173B69"
   adaptive_icon_foreground: "assets/icon/app_icon.png"
-  adaptive_icon_padding: 0  # ✅ បន្ថែមនេះ
+  adaptive_icon_padding: 0  
   
-  # ✅ សម្រាប់ iOS - បង្ហាញ 100%
-  remove_alpha_ios: false  # ✅ ប្តូរពី true មក false
-  ios_content_mode: scaleAspectFill  # ✅ បន្ថែមនេះ
+
+  remove_alpha_ios: false  
+  ios_content_mode: scaleAspectFill 
   
-  # ✅ សម្រាប់ Web
+  #  សម្រាប់ Web
   web:
     generate: true
     image_path: "assets/icon/app_icon.png"
-    background_color: "#173B69"  # ✅ ប្តូរពី #FFFFFF
+    background_color: "#173B69"  
     theme_color: "#173B69"
   
-  # ✅ សម្រាប់ Windows
+  #  សម្រាប់ Windows
   windows:
     generate: true
     image_path: "assets/icon/app_icon.png"
-    icon_size: 48  # ✅ ប្តូរពី 10
+    icon_size: 48  
   
-  # ✅ សម្រាប់ macOS
+  #  សម្រាប់ macOS
   macos:
     generate: true
     image_path: "assets/icon/app_icon.png"
