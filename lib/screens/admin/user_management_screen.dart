@@ -1,3 +1,4 @@
+// lib/screens/admin/user_management_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,17 +23,63 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   List<UserModel> _users = [];
   String _filterDepartment = 'all';
 
-  final List<Map<String, String>> _departments = [
-    {'id': 'dept_it', 'name': 'IT Department'},
-    {'id': 'dept_education', 'name': 'Education Department'},
-    {'id': 'dept_administration', 'name': 'Administration Department'},
-    {'id': 'dept_service', 'name': 'Service Department'},
-  ];
+  // ===== DEPARTMENT LIST (Loaded from Firestore) =====
+  List<Map<String, String>> _departments = [];
 
   @override
   void initState() {
     super.initState();
     _loadUsers();
+    _loadDepartments();
+  }
+
+  // ===== LOAD DEPARTMENTS FROM FIRESTORE =====
+  Future<void> _loadDepartments() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('departments')
+          .orderBy('name')
+          .get();
+
+      final List<Map<String, String>> loadedDepartments = [];
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        loadedDepartments.add({
+          'id': doc.id,
+          'name': data['name']?.toString() ?? 'Unnamed',
+        });
+      }
+
+      // If no departments in Firestore, use defaults
+      if (loadedDepartments.isEmpty) {
+        setState(() {
+          _departments = _getDefaultDepartments();
+        });
+        return;
+      }
+
+      setState(() {
+        _departments = loadedDepartments;
+      });
+      
+      print('✅ Loaded ${_departments.length} departments from Firestore');
+    } catch (e) {
+      print('❌ Error loading departments: $e');
+      setState(() {
+        _departments = _getDefaultDepartments();
+      });
+    }
+  }
+
+  // ===== GET DEFAULT DEPARTMENTS =====
+  List<Map<String, String>> _getDefaultDepartments() {
+    return [
+      {'id': 'dept_it', 'name': 'IT Department'},
+      {'id': 'dept_education', 'name': 'Education Department'},
+      {'id': 'dept_administration', 'name': 'Administration Department'},
+      {'id': 'dept_service', 'name': 'Service Department'},
+    ];
   }
 
   Future<void> _loadUsers() async {
@@ -56,7 +103,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print(' Error loading users: $e');
+      print('❌ Error loading users: $e');
       setState(() {
         _isLoading = false;
       });
@@ -102,6 +149,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return role == '2' || role == '3';
   }
 
+  // ===== SHOW EDIT DIALOG =====
   Future<void> _showEditDialog(UserModel user) async {
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: user.fullName);
@@ -120,390 +168,403 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Edit User: ${user.username}',
-          style: TextStyle(
-            fontSize: isMobile ? fontSize : fontSize + 2,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameController,
-                  decoration: InputDecoration(
-                    labelText: 'Full Name',
-                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text(
+              'Edit User: ${user.username}',
+              style: TextStyle(
+                fontSize: isMobile ? fontSize : fontSize + 2,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        labelText: 'Full Name',
+                        labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: spacing * 1.5,
+                          vertical: isMobile ? 12 : 14,
+                        ),
+                      ),
+                      validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+                      style: TextStyle(fontSize: fontSize, color: Colors.black),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: spacing * 1.5,
-                      vertical: isMobile ? 12 : 14,
-                    ),
-                  ),
-                  validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
-                  style: TextStyle(fontSize: fontSize, color: Colors.black),
-                ),
-                SizedBox(height: spacing * 1.5),
+                    SizedBox(height: spacing * 1.5),
 
-                TextFormField(
-                  controller: emailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    TextFormField(
+                      controller: emailController,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: spacing * 1.5,
+                          vertical: isMobile ? 12 : 14,
+                        ),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value?.isEmpty ?? true) return 'Required';
+                        if (!value!.contains('@')) return 'Invalid email';
+                        return null;
+                      },
+                      style: TextStyle(fontSize: fontSize, color: Colors.black),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: spacing * 1.5,
-                      vertical: isMobile ? 12 : 14,
-                    ),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value?.isEmpty ?? true) return 'Required';
-                    if (!value!.contains('@')) return 'Invalid email';
-                    return null;
-                  },
-                  style: TextStyle(fontSize: fontSize, color: Colors.black),
-                ),
-                SizedBox(height: spacing * 1.5),
+                    SizedBox(height: spacing * 1.5),
 
-                TextFormField(
-                  controller: phoneController,
-                  decoration: InputDecoration(
-                    labelText: 'Phone',
-                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    TextFormField(
+                      controller: phoneController,
+                      decoration: InputDecoration(
+                        labelText: 'Phone',
+                        labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: spacing * 1.5,
+                          vertical: isMobile ? 12 : 14,
+                        ),
+                      ),
+                      style: TextStyle(fontSize: fontSize, color: Colors.black),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: spacing * 1.5,
-                      vertical: isMobile ? 12 : 14,
-                    ),
-                  ),
-                  style: TextStyle(fontSize: fontSize, color: Colors.black),
-                ),
-                SizedBox(height: spacing * 1.5),
+                    SizedBox(height: spacing * 1.5),
 
-                DropdownButtonFormField<String>(
-                  value: selectedRole,
-                  decoration: InputDecoration(
-                    labelText: 'Role',
-                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: spacing * 1.5,
-                      vertical: isMobile ? 6 : 8,
-                    ),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: '1', child: Text('👑 Admin')),
-                    DropdownMenuItem(value: '2', child: Text(' Staff')),
-                    DropdownMenuItem(value: '3', child: Text(' Manager')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        selectedRole = value;
-                        if (value == '1') {
-                          selectedDepartmentId = '';
+                    DropdownButtonFormField<String>(
+                      value: selectedRole,
+                      decoration: InputDecoration(
+                        labelText: 'Role',
+                        labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: spacing * 1.5,
+                          vertical: isMobile ? 6 : 8,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: '1', child: Text('👑 Admin')),
+                        DropdownMenuItem(value: '2', child: Text(' Staff')),
+                        DropdownMenuItem(value: '3', child: Text(' Manager')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() {
+                            selectedRole = value;
+                            if (value == '1') {
+                              selectedDepartmentId = '';
+                            }
+                            if (value != '2' && value != '3') {
+                              positionController.clear();
+                            } else {
+                              positionController.text = _getPositionDisplay(user);
+                            }
+                          });
                         }
-                        if (value != '2' && value != '3') {
-                          positionController.clear();
-                        } else {
-                          positionController.text = _getPositionDisplay(user);
-                        }
-                      });
-                    }
-                  },
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
-                  dropdownColor: Colors.white,
-                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
-                ),
-                SizedBox(height: spacing * 1.5),
+                      },
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black,
+                      ),
+                      dropdownColor: Colors.white,
+                      icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                    ),
+                    SizedBox(height: spacing * 1.5),
 
-                if (_showDepartmentField(selectedRole)) ...[
-                  DropdownButtonFormField<String>(
-                    value: selectedDepartmentId.isEmpty ? null : selectedDepartmentId,
-                    decoration: InputDecoration(
-                      labelText: 'Department',
-                      labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    if (_showDepartmentField(selectedRole)) ...[
+                      DropdownButtonFormField<String>(
+                        value: _departments.any((d) => d['id'] == selectedDepartmentId)
+                            ? (selectedDepartmentId.isEmpty ? null : selectedDepartmentId)
+                            : null,
+                        decoration: InputDecoration(
+                          labelText: 'Department',
+                          labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: spacing * 1.5,
+                            vertical: isMobile ? 6 : 8,
+                          ),
+                        ),
+                        hint: Text(
+                          'Select Department',
+                          style: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
+                        ),
+                        items: [
+                          const DropdownMenuItem(value: '', child: Text('No Department')),
+                          ..._departments.map((dept) {
+                            return DropdownMenuItem(
+                              value: dept['id'],
+                              child: Text(dept['name']!),
+                            );
+                          }),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() {
+                              selectedDepartmentId = value;
+                            });
+                          }
+                        },
+                        style: TextStyle(
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                        ),
+                        dropdownColor: Colors.white,
+                        icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: spacing * 1.5,
-                        vertical: isMobile ? 6 : 8,
-                      ),
-                    ),
-                    hint: Text(
-                      'Select Department',
-                      style: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
-                    ),
-                    items: [
-                      const DropdownMenuItem(value: '', child: Text('No Department')),
-                      ..._departments.map((dept) {
-                        return DropdownMenuItem(
-                          value: dept['id'],
-                          child: Text(dept['name']!),
-                        );
-                      }),
+                      SizedBox(height: spacing * 1.5),
                     ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        selectedDepartmentId = value;
-                      }
-                    },
-                    style: TextStyle(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black,
-                    ),
-                    dropdownColor: Colors.white,
-                    icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
-                  ),
-                  SizedBox(height: spacing * 1.5),
-                ],
 
-                if (_showPositionField(selectedRole)) ...[
-                  TextFormField(
-                    controller: positionController,
-                    decoration: InputDecoration(
-                      labelText: 'Position',
-                      labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-                      hintText: 'e.g. Teacher, Accountant, Manager, etc.',
-                      hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    if (_showPositionField(selectedRole)) ...[
+                      TextFormField(
+                        controller: positionController,
+                        decoration: InputDecoration(
+                          labelText: 'Position',
+                          labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+                          hintText: 'e.g. Teacher, Accountant, Manager, etc.',
+                          hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: spacing * 1.5,
+                            vertical: isMobile ? 12 : 14,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (_showPositionField(selectedRole) && (value?.isEmpty ?? true)) {
+                            return 'Position is required for Staff and Manager';
+                          }
+                          return null;
+                        },
+                        style: TextStyle(fontSize: fontSize, color: Colors.black),
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                      ),
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: spacing * 1.5,
-                        vertical: isMobile ? 12 : 14,
-                      ),
-                    ),
-                    validator: (value) {
-                      if (_showPositionField(selectedRole) && (value?.isEmpty ?? true)) {
-                        return 'Position is required for Staff and Manager';
-                      }
-                      return null;
-                    },
-                    style: TextStyle(fontSize: fontSize, color: Colors.black),
-                  ),
-                  SizedBox(height: spacing * 1.5),
-                ],
+                      SizedBox(height: spacing * 1.5),
+                    ],
 
-                DropdownButtonFormField<String>(
-                  value: selectedStatus,
-                  decoration: InputDecoration(
-                    labelText: 'Status',
-                    labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                    DropdownButtonFormField<String>(
+                      value: selectedStatus,
+                      decoration: InputDecoration(
+                        labelText: 'Status',
+                        labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: spacing * 1.5,
+                          vertical: isMobile ? 6 : 8,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Active', child: Text(' Active')),
+                        DropdownMenuItem(value: 'Inactive', child: Text(' Inactive')),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() {
+                            selectedStatus = value;
+                          });
+                        }
+                      },
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black,
+                      ),
+                      dropdownColor: Colors.white,
+                      icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: spacing * 1.5,
-                      vertical: isMobile ? 6 : 8,
-                    ),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'Active', child: Text(' Active')),
-                    DropdownMenuItem(value: 'Inactive', child: Text(' Inactive')),
                   ],
-                  onChanged: (value) {
-                    if (value != null) selectedStatus = value;
-                  },
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
-                  dropdownColor: Colors.white,
-                  icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                 ),
-              ],
+              ),
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: CircularProgressIndicator(),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
                 ),
-              );
-              
-              try {
-                String departmentName = '';
-                if (selectedDepartmentId.isNotEmpty) {
-                  final dept = _departments.firstWhere(
-                    (d) => d['id'] == selectedDepartmentId,
-                    orElse: () => {},
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+                  
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
                   );
-                  departmentName = dept['name'] ?? '';
-                }
+                  
+                  try {
+                    String departmentName = '';
+                    if (selectedDepartmentId.isNotEmpty) {
+                      final dept = _departments.firstWhere(
+                        (d) => d['id'] == selectedDepartmentId,
+                        orElse: () => {},
+                      );
+                      departmentName = dept['name'] ?? '';
+                    }
 
-                String? positionValue;
-                if (_showPositionField(selectedRole)) {
-                  final posText = positionController.text.trim();
-                  if (posText.isNotEmpty && posText != 'N/A') {
-                    positionValue = posText;
-                  } else {
-                    positionValue = null;
+                    String? positionValue;
+                    if (_showPositionField(selectedRole)) {
+                      final posText = positionController.text.trim();
+                      if (posText.isNotEmpty && posText != 'N/A') {
+                        positionValue = posText;
+                      } else {
+                        positionValue = null;
+                      }
+                    }
+
+                    final updatedUser = user.copyWith(
+                      fullName: nameController.text,
+                      phone: phoneController.text,
+                      email: emailController.text,
+                      roleId: selectedRole,
+                      status: selectedStatus,
+                      departmentId: selectedDepartmentId.isEmpty ? null : selectedDepartmentId,
+                      department: departmentName.isEmpty ? null : departmentName,
+                      position: positionValue,
+                    );
+                    
+                    await _userService.updateUser(updatedUser);
+                    
+                    Navigator.pop(context);
+                    Navigator.pop(context);
+                    
+                    _loadUsers();
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(' User updated successfully'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } catch (e) {
+                    Navigator.pop(context);
+                    
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('❌ Error: $e'),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
                   }
-                }
-
-                final updatedUser = user.copyWith(
-                  fullName: nameController.text,
-                  phone: phoneController.text,
-                  email: emailController.text,
-                  roleId: selectedRole,
-                  status: selectedStatus,
-                  departmentId: selectedDepartmentId.isEmpty ? null : selectedDepartmentId,
-                  department: departmentName.isEmpty ? null : departmentName,
-                  position: positionValue,
-                );
-                
-                await _userService.updateUser(updatedUser);
-                
-                Navigator.pop(context);
-                Navigator.pop(context);
-                
-                _loadUsers();
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(' User updated successfully'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } catch (e) {
-                Navigator.pop(context);
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(' Error: $e'),
-                    backgroundColor: Colors.red,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF173B69),
-              minimumSize: Size(double.infinity, buttonHeight),
-            ),
-            child: Text(
-              'Save',
-              style: TextStyle(fontSize: fontSize, color: Colors.white),
-            ),
-          ),
-        ],
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF173B69),
+                  minimumSize: Size(double.infinity, buttonHeight),
+                ),
+                child: Text(
+                  'Save',
+                  style: TextStyle(fontSize: fontSize, color: Colors.white),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
+  // ===== SHOW DELETE DIALOG =====
   Future<void> _showDeleteDialog(UserModel user) async {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -598,7 +659,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(' Error: $e'),
+            content: Text('❌ Error: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 3),
           ),

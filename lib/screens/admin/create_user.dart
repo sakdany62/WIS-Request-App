@@ -27,15 +27,621 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   String _selectedStatus = 'Active';
   bool _isLoading = false;
 
-  final List<Map<String, String>> _departments = [
-    {'id': 'dept_it', 'name': 'IT Department'},
-    {'id': 'dept_education', 'name': 'Education Department'},
-    {'id': 'dept_administration', 'name': 'Administration Department'},
-    {'id': 'dept_service', 'name': 'Service Department'},
-  ];
+  // ===== DEPARTMENT LIST (Default + Dynamic from Firestore) =====
+  List<Map<String, String>> _departments = [];
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // ===== DEFAULT DEPARTMENTS =====
+  List<Map<String, String>> _getDefaultDepartments() {
+    return [
+      {'id': 'dept_it', 'name': 'IT Department'},
+      {'id': 'dept_education', 'name': 'Education Department'},
+      {'id': 'dept_administration', 'name': 'Administration Department'},
+      {'id': 'dept_service', 'name': 'Service Department'},
+    ];
+  }
+
+  // ===== LOAD DEPARTMENTS FROM FIRESTORE =====
+  Future<void> _loadDepartments() async {
+    try {
+      final snapshot = await _firestore
+          .collection('departments')
+          .orderBy('name')
+          .get();
+
+      final List<Map<String, String>> loadedDepartments = [];
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        loadedDepartments.add({
+          'id': doc.id,
+          'name': data['name']?.toString() ?? 'Unnamed',
+        });
+      }
+
+      // If no departments in Firestore, use defaults
+      if (loadedDepartments.isEmpty) {
+        // Save default departments to Firestore
+        for (var dept in _getDefaultDepartments()) {
+          await _firestore.collection('departments').add({
+            'name': dept['name'],
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+        // Reload
+        await _loadDepartments();
+        return;
+      }
+
+      setState(() {
+        _departments = loadedDepartments;
+      });
+      
+      print('✅ Loaded ${_departments.length} departments from Firestore');
+    } catch (e) {
+      print('❌ Error loading departments: $e');
+      // Fallback to default departments
+      setState(() {
+        _departments = _getDefaultDepartments();
+      });
+    }
+  }
+
+  // ===== SHOW DEPARTMENT MANAGEMENT DIALOG =====
+  void _showDepartmentManagementDialog() {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.business, color: const Color(0xFF173B69), size: 24),
+                SizedBox(width: spacing),
+                Text(
+                  'Manage Departments',
+                  style: TextStyle(
+                    fontSize: isMobile ? fontSize : fontSize + 2,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF173B69),
+                  ),
+                ),
+              ],
+            ),
+            content: Container(
+              width: isMobile ? double.maxFinite : 400,
+              height: 400,
+              child: Column(
+                children: [
+                  // Add Department Button
+                  ElevatedButton.icon(
+                    onPressed: () => _showAddDepartmentDialog(),
+                    icon: Icon(Icons.add, size: 20),
+                    label: Text(
+                      'Add New Department',
+                      style: TextStyle(fontSize: fontSize),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF173B69),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      minimumSize: Size(double.infinity, 45),
+                    ),
+                  ),
+                  SizedBox(height: spacing * 1.5),
+                  
+                  // Department List
+                  Expanded(
+                    child: _departments.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.business_outlined,
+                                  size: 48,
+                                  color: Colors.grey[400],
+                                ),
+                                SizedBox(height: spacing),
+                                Text(
+                                  'No departments found',
+                                  style: TextStyle(
+                                    fontSize: fontSize,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _departments.length,
+                            itemBuilder: (context, index) {
+                              final dept = _departments[index];
+                              return Card(
+                                margin: EdgeInsets.only(bottom: spacing / 2),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: const Color(0xFF173B69).withOpacity(0.1),
+                                    child: Text(
+                                      dept['name']![0].toUpperCase(),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color(0xFF173B69),
+                                        fontSize: fontSize,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    dept['name']!,
+                                    style: TextStyle(
+                                      fontSize: fontSize,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    'ID: ${dept['id']}',
+                                    style: TextStyle(
+                                      fontSize: fontSize * 0.75,
+                                      color: Colors.grey[500],
+                                    ),
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.edit,
+                                          color: Colors.blue,
+                                          size: 20,
+                                        ),
+                                        onPressed: () => _showEditDepartmentDialog(dept, index),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                          size: 20,
+                                        ),
+                                        onPressed: () => _showDeleteDepartmentDialog(dept, index),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Close',
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ===== SHOW ADD DEPARTMENT DIALOG =====
+  void _showAddDepartmentDialog() {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final TextEditingController nameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Add New Department',
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF173B69),
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Enter the name of the new department',
+              style: TextStyle(
+                fontSize: fontSize,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: spacing),
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'e.g. Marketing Department',
+                hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: spacing * 1.5,
+                  vertical: isMobile ? 12 : 14,
+                ),
+              ),
+              style: TextStyle(fontSize: fontSize, color: Colors.black),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a department name'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              // Check if department already exists
+              if (_departments.any((d) => d['name']!.toLowerCase() == name.toLowerCase())) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Department "$name" already exists!'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+
+              // Show loading
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+
+              try {
+                // Save to Firestore
+                final docRef = await _firestore.collection('departments').add({
+                  'name': name,
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+
+                // Add to local list
+                setState(() {
+                  _departments.add({
+                    'id': docRef.id,
+                    'name': name,
+                  });
+                });
+
+                Navigator.pop(context); // Close loading
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(' Department "$name" added successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                Navigator.pop(context); // Close loading
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('❌ Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF173B69),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Add Department',
+              style: TextStyle(fontSize: fontSize),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== SHOW EDIT DEPARTMENT DIALOG =====
+  void _showEditDepartmentDialog(Map<String, String> department, int index) {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final TextEditingController nameController = TextEditingController(text: department['name']);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Edit Department',
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF173B69),
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Update the department name',
+              style: TextStyle(
+                fontSize: fontSize,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: spacing),
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Department name',
+                hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: spacing * 1.5,
+                  vertical: isMobile ? 12 : 14,
+                ),
+              ),
+              style: TextStyle(fontSize: fontSize, color: Colors.black),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a department name'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+
+              // Show loading
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+
+              try {
+                // Update in Firestore
+                await _firestore
+                    .collection('departments')
+                    .doc(department['id'])
+                    .update({
+                      'name': name,
+                      'updatedAt': FieldValue.serverTimestamp(),
+                    });
+
+                // Update local list
+                setState(() {
+                  _departments[index]['name'] = name;
+                });
+
+                Navigator.pop(context); // Close loading
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(' Department updated successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+
+              } catch (e) {
+                Navigator.pop(context); // Close loading
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('❌ Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF173B69),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Update',
+              style: TextStyle(fontSize: fontSize),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== SHOW DELETE DEPARTMENT DIALOG =====
+  void _showDeleteDepartmentDialog(Map<String, String> department, int index) {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Delete Department',
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete "${department['name']}"?',
+              style: TextStyle(fontSize: fontSize),
+            ),
+            SizedBox(height: 8),
+            Text(
+              ' This will also remove this department from all users.',
+              style: TextStyle(
+                fontSize: fontSize * 0.85,
+                color: Colors.orange,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+
+              // Show loading
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+
+              try {
+                // 1. Remove department from all users
+                final usersSnapshot = await _firestore
+                    .collection('users')
+                    .where('departmentId', isEqualTo: department['id'])
+                    .get();
+
+                for (var doc in usersSnapshot.docs) {
+                  await _firestore.collection('users').doc(doc.id).update({
+                    'departmentId': null,
+                    'department': null,
+                  });
+                }
+
+                // 2. Delete department from Firestore
+                await _firestore.collection('departments').doc(department['id']).delete();
+
+                // 3. Remove from local list
+                setState(() {
+                  _departments.removeAt(index);
+                  if (_selectedDepartmentId == department['id']) {
+                    _selectedDepartmentId = '';
+                  }
+                });
+
+                Navigator.pop(context); // Close loading
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(' Department "${department['name']}" deleted successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+
+              } catch (e) {
+                Navigator.pop(context); // Close loading
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('❌ Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(
+              'Delete',
+              style: TextStyle(fontSize: fontSize),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   bool _showDepartment() {
     return _selectedRole != '1' && _selectedRole != '4';
@@ -45,14 +651,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     return _selectedRole == '2';
   }
 
-  //  Check if position field should be disabled (read-only)
   bool _isPositionReadOnly() {
-    return _selectedRole == '3'; // Manager role
-  }
-
-  //  Get default position for Manager
-  String _getDefaultPosition() {
-    return 'Manager';
+    return _selectedRole == '3';
   }
 
   // ==================== CHECK IF MANAGER EXISTS IN DEPARTMENT ====================
@@ -71,7 +671,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       
       return snapshot.docs.isNotEmpty;
     } catch (e) {
-      print(' Error checking manager exists in department: $e');
+      print('❌ Error checking manager exists in department: $e');
       return false;
     }
   }
@@ -98,7 +698,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       
       return result;
     } catch (e) {
-      print(' Error generating user number: $e');
+      print('❌ Error generating user number: $e');
       return DateTime.now().millisecondsSinceEpoch ~/ 1000;
     }
   }
@@ -158,21 +758,20 @@ IMPORTANT:
 - Keep this information safe and secure
 ''';
 
-      //  ផ្ញើទៅ Group, Admin, Manager
       final bool sent = await TelegramService.sendToAll(message);
       
       if (sent) {
         print(' Telegram sent to Group/Admin/Manager');
       } else {
-        print(' Failed to send Telegram');
+        print('❌ Failed to send Telegram');
       }
       
     } catch (e) {
-      print(' Error sending Telegram: $e');
+      print('❌ Error sending Telegram: $e');
     }
   }
 
-  // ទាញយក Admin Credentials
+  // ==================== GET ADMIN CREDENTIALS ====================
   Future<Map<String, String>?> _getAdminCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     final email = prefs.getString('admin_email');
@@ -183,7 +782,7 @@ IMPORTANT:
     return null;
   }
 
-  // Auto Re-login Admin
+  // ==================== AUTO RE-LOGIN ADMIN ====================
   Future<bool> _autoReLoginAdmin() async {
     final credentials = await _getAdminCredentials();
     
@@ -193,21 +792,21 @@ IMPORTANT:
           email: credentials['email']!,
           password: credentials['password']!,
         );
-        print(' Admin auto re-login successful!');
+        print('✅ Admin auto re-login successful!');
         return true;
       } catch (e) {
-        print('Admin auto re-login failed: $e');
+        print('❌ Admin auto re-login failed: $e');
         return false;
       }
     }
-    print(' No admin credentials found');
+    print('⚠️ No admin credentials found');
     return false;
   }
 
+  // ==================== CREATE USER ====================
   Future<void> _createUser() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // ពិនិត្យមើលថា Manager មានរួចហើយក្នុង Department នេះឬនៅ
     if (_selectedRole == '3') {
       if (_selectedDepartmentId.isEmpty) {
         if (mounted) {
@@ -257,7 +856,6 @@ IMPORTANT:
       final username = _usernameController.text.trim();
       final phone = _phoneController.text.trim();
       
-      //  Get position: For Manager, use default "Manager", else use controller value
       String position;
       if (_selectedRole == '3') {
         position = 'Manager';
@@ -265,7 +863,6 @@ IMPORTANT:
         position = _positionController.text.trim();
       }
       
-      // ពិនិត្យមើលថា Email មានហើយឬនៅ
       try {
         final methods = await _auth.fetchSignInMethodsForEmail(email);
         if (methods.isNotEmpty) {
@@ -298,7 +895,6 @@ IMPORTANT:
         }
       }
       
-      // 1. Create user in Firebase Auth
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -306,7 +902,6 @@ IMPORTANT:
 
       final newUserUid = userCredential.user!.uid;
 
-      // Find department name
       String departmentName = '';
       if (_selectedDepartmentId.isNotEmpty) {
         final dept = _departments.firstWhere(
@@ -316,13 +911,11 @@ IMPORTANT:
         departmentName = dept['name'] ?? '';
       }
 
-      //  បង្កើត User Number
       final userNumberInt = await _generateUserNumber();
       final userNumberFormatted = _formatUserNumber(userNumberInt);
       
-      print('User Number: $userNumberFormatted');
+      print('📝 User Number: $userNumberFormatted');
 
-      // 2. Save user to Firestore
       await _firestore.collection('users').doc(newUserUid).set({
         'userId': userNumberFormatted,
         'userIdInt': userNumberInt,
@@ -339,7 +932,6 @@ IMPORTANT:
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // ====================  ផ្ញើ Telegram ទៅ Group ====================
       await _sendTelegramToGroup(
         fullName: fullName,
         username: username,
@@ -352,16 +944,14 @@ IMPORTANT:
         department: departmentName,
       );
 
-      // 3. Sign out the new user
       await _auth.signOut();
-      print(' New user signed out');
+      print('🔓 New user signed out');
 
-      // 4. Auto Re-login Admin
       final reLoginSuccess = await _autoReLoginAdmin();
       
       if (mounted) {
         String successMessage = ' User created successfully!';
-        successMessage += '\n Telegram sent to Group/Admin/Manager';
+        successMessage += '\n📨 Telegram sent to Group/Admin/Manager';
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -378,7 +968,7 @@ IMPORTANT:
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(' Please login again as Admin'),
+              content: Text('⚠️ Please login again as Admin'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -396,7 +986,7 @@ IMPORTANT:
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(' $message'),
+            content: Text('❌ $message'),
             backgroundColor: Colors.red,
           ),
         );
@@ -405,7 +995,7 @@ IMPORTANT:
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(' Error: $e'),
+            content: Text('❌ Error: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -417,6 +1007,12 @@ IMPORTANT:
         });
       }
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDepartments();
   }
 
   @override
@@ -455,6 +1051,7 @@ IMPORTANT:
           icon: Icon(Icons.arrow_back, color: Colors.white, size: iconSize),
           onPressed: () => Navigator.pop(context),
         ),
+        
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(spacing * 2),
@@ -748,7 +1345,7 @@ IMPORTANT:
                   ),
                 ),
                 items: const [
-                  DropdownMenuItem(value: '1', child: Text(' Admin')),
+                  DropdownMenuItem(value: '1', child: Text('👑 Admin')),
                   DropdownMenuItem(value: '2', child: Text(' Staff')),
                   DropdownMenuItem(value: '3', child: Text(' Manager')),
                 ],
@@ -762,7 +1359,6 @@ IMPORTANT:
                       if (value != '2') {
                         _positionController.clear();
                       }
-                      //  If role is Manager, set position to "Manager"
                       if (value == '3') {
                         _positionController.text = 'Manager';
                       }
@@ -781,19 +1377,43 @@ IMPORTANT:
               ),
               SizedBox(height: spacing * 1.5),
 
-              // Department Dropdown
+              // Department Dropdown - FIXED
               if (_showDepartment()) ...[
-                Text(
-                  'Department',
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Department',
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _showDepartmentManagementDialog,
+                      icon: Icon(Icons.settings, size: 16, color: const Color(0xFF173B69)),
+                      label: Text(
+                        'Manage',
+                        style: TextStyle(
+                          fontSize: fontSize * 0.8,
+                          color: const Color(0xFF173B69),
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ],
                 ),
                 SizedBox(height: spacing * 0.6),
                 DropdownButtonFormField<String>(
-                  value: _selectedDepartmentId.isEmpty ? null : _selectedDepartmentId,
+                  // ===== FIX: Check if value exists in items =====
+                  value: _departments.any((d) => d['id'] == _selectedDepartmentId) 
+                      ? (_selectedDepartmentId.isEmpty ? null : _selectedDepartmentId)
+                      : null,
                   hint: Text(
                     'Select Department',
                     style: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
@@ -824,6 +1444,11 @@ IMPORTANT:
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 6 : 8,
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.settings, color: const Color(0xFF173B69), size: 20),
+                      onPressed: _showDepartmentManagementDialog,
+                      tooltip: 'Manage Departments',
                     ),
                   ),
                   items: [
@@ -866,7 +1491,7 @@ IMPORTANT:
                 SizedBox(height: spacing * 1.5),
               ],
 
-              //  POSITION TEXTFIELD - With read-only for Manager
+              // POSITION TEXTFIELD
               if (_showPositionField() || _isPositionReadOnly()) ...[
                 Text(
                   'Position',
@@ -879,7 +1504,7 @@ IMPORTANT:
                 SizedBox(height: spacing * 0.6),
                 TextFormField(
                   controller: _positionController,
-                  readOnly: _isPositionReadOnly(), //  Disable editing for Manager
+                  readOnly: _isPositionReadOnly(),
                   decoration: InputDecoration(
                     hintText: _isPositionReadOnly() 
                         ? 'Manager (Default)' 
@@ -910,11 +1535,9 @@ IMPORTANT:
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: Colors.red, width: 2.0),
                     ),
-                    //  Add lock icon for Manager
                     suffixIcon: _isPositionReadOnly()
                         ? const Icon(Icons.lock, color: Colors.grey, size: 20)
                         : null,
-                    //  Different background for read-only
                     filled: true,
                     fillColor: _isPositionReadOnly() 
                         ? Colors.grey.shade100 
@@ -931,7 +1554,6 @@ IMPORTANT:
                         : Colors.black,
                   ),
                   validator: (value) {
-                    //  For Manager, position is auto-set, so no validation needed
                     if (_selectedRole == '3') {
                       return null;
                     }
