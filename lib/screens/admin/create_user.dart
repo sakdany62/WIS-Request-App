@@ -331,16 +331,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 return;
               }
 
+              // Close add dialog
               Navigator.pop(context);
-
-              // Show loading
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
 
               try {
                 // Save to Firestore
@@ -349,7 +341,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   'createdAt': FieldValue.serverTimestamp(),
                 });
 
-                // Add to local list
+                // Update local list
                 setState(() {
                   _departments.add({
                     'id': docRef.id,
@@ -357,7 +349,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   });
                 });
 
-                Navigator.pop(context); // Close loading
+                // Close Management Dialog
+                Navigator.pop(context);
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -366,7 +359,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   ),
                 );
               } catch (e) {
-                Navigator.pop(context); // Close loading
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('❌ Error: $e'),
@@ -472,16 +464,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 return;
               }
 
+              // Close edit dialog
               Navigator.pop(context);
-
-              // Show loading
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
 
               try {
                 // Update in Firestore
@@ -498,7 +482,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   _departments[index]['name'] = name;
                 });
 
-                Navigator.pop(context); // Close loading
+                // Close Management Dialog
+                Navigator.pop(context);
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -506,9 +491,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     backgroundColor: Colors.green,
                   ),
                 );
-
               } catch (e) {
-                Navigator.pop(context); // Close loading
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('❌ Error: $e'),
@@ -577,16 +560,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
           ),
           TextButton(
             onPressed: () async {
+              // Close confirm dialog
               Navigator.pop(context);
-
-              // Show loading
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (context) => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
 
               try {
                 // 1. Remove department from all users
@@ -613,7 +588,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                   }
                 });
 
-                Navigator.pop(context); // Close loading
+                // Close Management Dialog
+                Navigator.pop(context);
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -621,9 +597,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     backgroundColor: Colors.green,
                   ),
                 );
-
               } catch (e) {
-                Navigator.pop(context); // Close loading
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('❌ Error: $e'),
@@ -812,7 +786,7 @@ IMPORTANT:
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text(' Please select a department for Manager.'),
+              content: Text('⚠️ Please select a department for Manager.'),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 3),
             ),
@@ -834,7 +808,7 @@ IMPORTANT:
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                ' A Manager already exists in "$departmentName". Only one Manager per department is allowed.',
+                '⚠️ A Manager already exists in "$departmentName". Only one Manager per department is allowed.',
               ),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 5),
@@ -951,7 +925,7 @@ IMPORTANT:
       
       if (mounted) {
         String successMessage = ' User created successfully!';
-        successMessage += '\n📨 Telegram sent to Group/Admin/Manager';
+        successMessage += '\n Telegram sent to Group/Admin/Manager';
         
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -968,7 +942,7 @@ IMPORTANT:
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('⚠️ Please login again as Admin'),
+              content: Text(' Please login again as Admin'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -1051,7 +1025,13 @@ IMPORTANT:
           icon: Icon(Icons.arrow_back, color: Colors.white, size: iconSize),
           onPressed: () => Navigator.pop(context),
         ),
-        
+        actions: [
+          IconButton(
+            icon: Icon(Icons.business, color: Colors.white, size: iconSize),
+            onPressed: _showDepartmentManagementDialog,
+            tooltip: 'Manage Departments',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(spacing * 2),

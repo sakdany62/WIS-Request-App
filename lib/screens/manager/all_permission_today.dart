@@ -130,6 +130,10 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   String _managerDepartment = '';
   bool _isManager = false;
 
+  // ===== SEE MORE =====
+  int _visibleCount = 3;
+  bool _showAll = false;
+
   final Map<String, String> _userNameCache = {};
 
   @override
@@ -375,6 +379,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   Future<void> _loadAllRequests() async {
     setState(() {
       _isLoading = true;
+      _showAll = false;
+      _visibleCount = 3;
     });
 
     try {
@@ -462,6 +468,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
     setState(() {
       _filteredRequests = filtered;
+      _visibleCount = 3;
+      _showAll = false;
     });
   }
 
@@ -474,6 +482,20 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       _filterStatus = 'all';
     });
     _applyFilters();
+  }
+
+  void _showMore() {
+    setState(() {
+      _showAll = true;
+      _visibleCount = _filteredRequests.length;
+    });
+  }
+
+  void _showLess() {
+    setState(() {
+      _showAll = false;
+      _visibleCount = 3;
+    });
   }
 
   Future<void> _exportToExcel() async {
@@ -581,7 +603,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ Exported: $fileName'),
+              content: Text(' Exported: $fileName'),
               backgroundColor: Colors.green,
             ),
           );
@@ -670,6 +692,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         ? '$_managerDepartment'
         : '';
 
+    // ===== Get visible items =====
+    final List<TodayRequest> visibleItems = _showAll 
+        ? filtered 
+        : filtered.take(_visibleCount).toList();
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -699,404 +726,459 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(
-                children: [
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      vertical: spacing * 2,
-                      horizontal: spacing,
-                    ),
-                    color: Colors.grey[100],
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                value: _selectedReportType,
-                                decoration: InputDecoration(
-                                  labelText: 'Report Type',
-                                  labelStyle: TextStyle(
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                return Column(
+                  children: [
+                    // ===== HEADER SECTION (FIXED) =====
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        vertical: spacing * 2,
+                        horizontal: spacing,
+                      ),
+                      color: Colors.grey[100],
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _selectedReportType,
+                                  decoration: InputDecoration(
+                                    labelText: 'Report Type',
+                                    labelStyle: TextStyle(
+                                      fontSize: fontSize,
+                                      color: Colors.grey[700],
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: spacing,
+                                      vertical: isMobile ? 6 : 8,
+                                    ),
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'daily',
+                                      child: Text(' Daily'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'weekly',
+                                      child: Text(' Weekly'), 
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'monthly',
+                                      child: Text(' Monthly'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'yearly',
+                                      child: Text(' Yearly'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        _selectedReportType = value;
+                                      });
+                                      _loadAllRequests();
+                                    }
+                                  },
+                                  style: TextStyle(
                                     fontSize: fontSize,
-                                    color: Colors.grey[700],
+                                    color: Colors.black,
                                   ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                  dropdownColor: Colors.white,
+                                  icon: const Icon(
+                                    Icons.arrow_drop_down,
+                                    color: Color(0xFF173B69),
                                   ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: spacing,
-                                    vertical: isMobile ? 6 : 8,
-                                  ),
-                                ),
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: 'daily',
-                                    child: Text(' Daily'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'weekly',
-                                    child: Text('Weekly'), 
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'monthly',
-                                    child: Text('Monthly'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'yearly',
-                                    child: Text(' Yearly'),
-                                  ),
-                                ],
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    setState(() {
-                                      _selectedReportType = value;
-                                    });
-                                    _loadAllRequests();
-                                  }
-                                },
-                                style: TextStyle(
-                                  fontSize: fontSize,
-                                  color: Colors.black,
-                                ),
-                                dropdownColor: Colors.white,
-                                icon: const Icon(
-                                  Icons.arrow_drop_down,
-                                  color: Color(0xFF173B69),
                                 ),
                               ),
-                            ),
-                            SizedBox(width: spacing),
-                            SizedBox(
-                              height: isMobile ? 44 : 50,
-                              child: ElevatedButton.icon(
-                                onPressed: _selectDate,
-                                icon: Icon(Icons.calendar_today, size: iconSize - 2),
-                                label: Text(
-                                  _getDateLabel(),
-                                  style: TextStyle(fontSize: isMobile ? 11 : 13),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF173B69),
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(horizontal: spacing),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: spacing),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                value: _filterStatus,
-                                decoration: InputDecoration(
-                                  labelText: 'Status Filter',
-                                  labelStyle: TextStyle(
-                                    fontSize: fontSize,
-                                    color: Colors.grey[700],
-                                  ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                    borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: spacing,
-                                    vertical: isMobile ? 6 : 8,
-                                  ),
-                                ),
-                                items: const [
-                                  DropdownMenuItem(
-                                    value: 'all',
-                                    child: Text('All'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'pending',
-                                    child: Text(' Pending'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'approved',
-                                    child: Text(' Approved'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'auto_approved',
-                                    child: Text(' Auto Approved'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'rejected',
-                                    child: Text(' Rejected'),
-                                  ),
-                                ],
-                                onChanged: (value) {
-                                  if (value != null) {
-                                    setState(() {
-                                      _filterStatus = value;
-                                    });
-                                    _applyFilters();
-                                  }
-                                },
-                                style: TextStyle(
-                                  fontSize: fontSize,
-                                  color: Colors.black,
-                                ),
-                                dropdownColor: Colors.white,
-                                icon: const Icon(
-                                  Icons.arrow_drop_down,
-                                  color: Color(0xFF173B69),
-                                ),
-                              ),
-                            ),
-                            if (_filterStatus != 'all') ...[
                               SizedBox(width: spacing),
                               SizedBox(
                                 height: isMobile ? 44 : 50,
-                                child: ElevatedButton(
-                                  onPressed: _clearFilter,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red.shade50,
-                                    foregroundColor: Colors.red.shade700,
-                                    padding: EdgeInsets.symmetric(horizontal: spacing),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      side: BorderSide(color: Colors.red.shade200),
-                                    ),
+                                child: ElevatedButton.icon(
+                                  onPressed: _selectDate,
+                                  icon: Icon(Icons.calendar_today, size: iconSize - 2),
+                                  label: Text(
+                                    _getDateLabel(),
+                                    style: TextStyle(fontSize: isMobile ? 11 : 13),
                                   ),
-                                  child: Text(
-                                    'Clear',
-                                    style: TextStyle(
-                                      fontSize: isMobile ? 11 : 13,
-                                    ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF173B69),
+                                    foregroundColor: Colors.white,
+                                    padding: EdgeInsets.symmetric(horizontal: spacing),
                                   ),
                                 ),
                               ),
                             ],
-                          ],
-                        ),
-                        if (departmentDisplay.isNotEmpty)
-                          Padding(
-                            padding: EdgeInsets.only(top: spacing),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: spacing * 1.5,
-                                    vertical: spacing,
+                          ),
+                          SizedBox(height: spacing),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: _filterStatus,
+                                  decoration: InputDecoration(
+                                    labelText: 'Status Filter',
+                                    labelStyle: TextStyle(
+                                      fontSize: fontSize,
+                                      color: Colors.grey[700],
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: EdgeInsets.symmetric(
+                                      horizontal: spacing,
+                                      vertical: isMobile ? 6 : 8,
+                                    ),
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'all',
+                                      child: Text('All'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'pending',
+                                      child: Text(' Pending'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'approved',
+                                      child: Text(' Approved'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'auto_approved',
+                                      child: Text(' Auto Approved'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'rejected',
+                                      child: Text(' Rejected'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        _filterStatus = value;
+                                      });
+                                      _applyFilters();
+                                    }
+                                  },
+                                  style: TextStyle(
+                                    fontSize: fontSize,
+                                    color: Colors.black,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.business,
-                                        size: iconSize - 2,
-                                        color: Colors.green,
+                                  dropdownColor: Colors.white,
+                                  icon: const Icon(
+                                    Icons.arrow_drop_down,
+                                    color: Color(0xFF173B69),
+                                  ),
+                                ),
+                              ),
+                              if (_filterStatus != 'all') ...[
+                                SizedBox(width: spacing),
+                                SizedBox(
+                                  height: isMobile ? 44 : 50,
+                                  child: ElevatedButton(
+                                    onPressed: _clearFilter,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red.shade50,
+                                      foregroundColor: Colors.red.shade700,
+                                      padding: EdgeInsets.symmetric(horizontal: spacing),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        side: BorderSide(color: Colors.red.shade200),
                                       ),
-                                      SizedBox(width: spacing / 2),
-                                      Text(
-                                        ' $departmentDisplay',
-                                        style: TextStyle(
-                                          fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.green,
-                                        ),
+                                    ),
+                                    child: Text(
+                                      'Clear',
+                                      style: TextStyle(
+                                        fontSize: isMobile ? 11 : 13,
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 ),
                               ],
+                            ],
+                          ),
+                          if (departmentDisplay.isNotEmpty)
+                            Padding(
+                              padding: EdgeInsets.only(top: spacing),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: spacing * 1.5,
+                                      vertical: spacing,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.business,
+                                          size: iconSize - 2,
+                                          color: Colors.green,
+                                        ),
+                                        SizedBox(width: spacing / 2),
+                                        Text(
+                                          ' $departmentDisplay',
+                                          style: TextStyle(
+                                            fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.green,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    // ===== SUMMARY CARDS (FIXED) =====
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        vertical: spacing,
+                        horizontal: spacing * 1.5,
+                      ),
+                      child: SizedBox(
+                        height: isMobile ? 60 : 70,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            _buildSummaryCard(
+                              label: 'Total',
+                              value: summary['total'].toString(),
+                              color: const Color(0xFF173B69),
+                              isMobile: isMobile,
+                              fontSize: fontSize,
+                            ),
+                            SizedBox(width: spacing / 2),
+                            _buildSummaryCard(
+                              label: 'Pending',
+                              value: summary['pending'].toString(),
+                              color: Colors.orange,
+                              isMobile: isMobile,
+                              fontSize: fontSize,
+                            ),
+                            SizedBox(width: spacing / 2),
+                            _buildSummaryCard(
+                              label: 'Approved',
+                              value: summary['approved'].toString(),
+                              color: Colors.green,
+                              isMobile: isMobile,
+                              fontSize: fontSize,
+                            ),
+                            SizedBox(width: spacing / 2),
+                            _buildSummaryCard(
+                              label: 'Rejected',
+                              value: summary['rejected'].toString(),
+                              color: Colors.red,
+                              isMobile: isMobile,
+                              fontSize: fontSize,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // ===== TOTAL DAYS (FIXED) =====
+                    Container(
+                      margin: EdgeInsets.symmetric(horizontal: spacing * 1.5),
+                      padding: EdgeInsets.symmetric(
+                        vertical: spacing,
+                        horizontal: spacing * 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            color: Colors.purple,
+                            size: iconSize - 2,
+                          ),
+                          SizedBox(width: spacing / 2),
+                          Text(
+                            ' Total Days: ${summary['totalDays']}',
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.purple,
                             ),
                           ),
-                      ],
-                    ),
-                  ),
-
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      vertical: spacing,
-                      horizontal: spacing * 1.5,
-                    ),
-                    child: SizedBox(
-                      height: isMobile ? 60 : 70,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          _buildSummaryCard(
-                            label: 'Total',
-                            value: summary['total'].toString(),
-                            color: const Color(0xFF173B69),
-                            isMobile: isMobile,
-                            fontSize: fontSize,
-                          ),
-                          SizedBox(width: spacing / 2),
-                          _buildSummaryCard(
-                            label: 'Pending',
-                            value: summary['pending'].toString(),
-                            color: Colors.orange,
-                            isMobile: isMobile,
-                            fontSize: fontSize,
-                          ),
-                          SizedBox(width: spacing / 2),
-                          _buildSummaryCard(
-                            label: 'Approved',
-                            value: summary['approved'].toString(),
-                            color: Colors.green,
-                            isMobile: isMobile,
-                            fontSize: fontSize,
-                          ),
-                          SizedBox(width: spacing / 2),
-                          _buildSummaryCard(
-                            label: 'Rejected',
-                            value: summary['rejected'].toString(),
-                            color: Colors.red,
-                            isMobile: isMobile,
-                            fontSize: fontSize,
+                          SizedBox(width: spacing),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: spacing / 2,
+                              vertical: spacing / 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${summary['autoApproved']} Auto',
+                              style: TextStyle(
+                                fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                                color: Colors.purple,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
 
-                  Container(
-                    margin: EdgeInsets.symmetric(horizontal: spacing * 1.5),
-                    padding: EdgeInsets.symmetric(
-                      vertical: spacing,
-                      horizontal: spacing * 1.5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.purple.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          color: Colors.purple,
-                          size: iconSize - 2,
-                        ),
-                        SizedBox(width: spacing / 2),
-                        Text(
-                          'Total Days: ${summary['totalDays']}',
-                          style: TextStyle(
-                            fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.purple,
-                          ),
-                        ),
-                        SizedBox(width: spacing),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: spacing / 2,
-                            vertical: spacing / 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.purple.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${summary['autoApproved']} Auto',
-                            style: TextStyle(
-                              fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                              color: Colors.purple,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                    SizedBox(height: spacing),
 
-                  SizedBox(height: spacing),
-
-                  filtered.isEmpty
-                      ? Padding(
-                          padding: EdgeInsets.all(spacing * 5),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.inbox,
-                                size: iconSize * 3,
-                                color: Colors.grey,
-                              ),
-                              SizedBox(height: spacing * 2),
-                              Text(
-                                ' No requests found',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: fontSize,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              if (_isManager && _managerDepartment.isNotEmpty)
-                                Text(
-                                  'Department: $_managerDepartment',
-                                  style: TextStyle(
+                    // ===== LIST VIEW (SCROLLABLE) =====
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.inbox,
+                                    size: iconSize * 3,
                                     color: Colors.grey,
-                                    fontSize: fontSize * 0.85,
                                   ),
-                                ),
-                              SizedBox(height: spacing * 2),
-                              ElevatedButton.icon(
-                                onPressed: _refresh,
-                                icon: Icon(Icons.refresh, size: iconSize),
-                                label: Text(
-                                  'Refresh',
-                                  style: TextStyle(fontSize: fontSize),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF173B69),
-                                  foregroundColor: Colors.white,
-                                ),
+                                  SizedBox(height: spacing * 2),
+                                  Text(
+                                    ' No requests found',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: fontSize,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  if (_isManager && _managerDepartment.isNotEmpty)
+                                    Text(
+                                      'Department: $_managerDepartment',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: fontSize * 0.85,
+                                      ),
+                                    ),
+                                  SizedBox(height: spacing * 2),
+                                  ElevatedButton.icon(
+                                    onPressed: _refresh,
+                                    icon: Icon(Icons.refresh, size: iconSize),
+                                    label: Text(
+                                      'Refresh',
+                                      style: TextStyle(fontSize: fontSize),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF173B69),
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: spacing * 1.5,
-                            vertical: spacing / 1.5,
-                          ),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final r = filtered[index];
-                            return _RequestCard(
-                              request: r,
-                              isMobile: isMobile,
-                              fontSize: fontSize,
-                              spacing: spacing,
-                              iconSize: iconSize,
-                            );
-                          },
-                        ),
-                ],
-              ),
+                            )
+                          : ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: spacing * 1.5,
+                                vertical: spacing / 1.5,
+                              ),
+                              itemCount: visibleItems.length + (filtered.length > 3 ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                // ===== SEE MORE BUTTON =====
+                                if (index == visibleItems.length && filtered.length > 3) {
+                                  return Padding(
+                                    padding: EdgeInsets.symmetric(vertical: spacing),
+                                    child: Center(
+                                      child: TextButton(
+                                        onPressed: _showAll ? _showLess : _showMore,
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(0xFF173B69),
+                                          padding: EdgeInsets.symmetric(
+                                            horizontal: spacing * 3,
+                                            vertical: spacing,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(10),
+                                            side: const BorderSide(
+                                              color: Color(0xFF173B69),
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              _showAll ? 'See Less' : 'See More',
+                                              style: TextStyle(
+                                                fontSize: fontSize,
+                                                fontWeight: FontWeight.w600,
+                                                color: const Color(0xFF173B69),
+                                              ),
+                                            ),
+                                            SizedBox(width: spacing / 2),
+                                            Icon(
+                                              _showAll 
+                                                  ? Icons.expand_less 
+                                                  : Icons.expand_more,
+                                              color: const Color(0xFF173B69),
+                                              size: iconSize,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                // ===== REQUEST CARD =====
+                                final r = visibleItems[index];
+                                return _RequestCard(
+                                  request: r,
+                                  isMobile: isMobile,
+                                  fontSize: fontSize,
+                                  spacing: spacing,
+                                  iconSize: iconSize,
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                );
+              },
             ),
     );
   }
@@ -1431,23 +1513,45 @@ class _RequestCard extends StatelessWidget {
             if (request.status == 'rejected' && request.rejectionReason != null)
               Padding(
                 padding: EdgeInsets.only(top: spacing / 2),
-                child: Text(
-                  ' ${request.rejectionReason}',
-                  style: TextStyle(
-                    fontSize: isMobile ? fontSize * 0.7 : 12,
-                    color: Colors.red[700],
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: isMobile ? 14 : 16,
+                      color: Colors.red[700],
+                    ),
+                    SizedBox(width: spacing / 2),
+                    Expanded(
+                      child: Text(
+                        request.rejectionReason!,
+                        style: TextStyle(
+                          fontSize: isMobile ? fontSize * 0.7 : 12,
+                          color: Colors.red[700],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             if (request.approvedByName != null && request.approvedByName!.isNotEmpty)
               Padding(
                 padding: EdgeInsets.only(top: spacing / 4),
-                child: Text(
-                  ' Approved by: ${request.approvedByName}',
-                  style: TextStyle(
-                    fontSize: isMobile ? fontSize * 0.7 : 12,
-                    color: Colors.green[700],
-                  ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle,
+                      size: isMobile ? 14 : 16,
+                      color: Colors.green[700],
+                    ),
+                    SizedBox(width: spacing / 2),
+                    Text(
+                      'Approved by: ${request.approvedByName}',
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.7 : 12,
+                        color: Colors.green[700],
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
