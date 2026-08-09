@@ -1,3 +1,4 @@
+// lib/screens/manager/manager_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -414,6 +415,291 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     }
   }
 
+  // ================= SHOW REQUEST DETAIL DIALOG =================
+void _showRequestDetailDialog({
+  required String requestId,
+  required String employeeName,
+  required String reason,
+  required String startDate,
+  required String endDate,
+  required int totalDays,
+  required String department,
+  required String permissionType,
+}) {
+  final bool isMobile = Responsive.isMobile(context);
+  final double fontSize = Responsive.fontSize(context, 14);
+  final double spacing = Responsive.spacing(context);
+
+  showDialog(
+    context: context,
+    barrierDismissible: true,
+    builder: (context) => Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Container(
+        width: isMobile ? double.infinity : 420,
+        padding: EdgeInsets.all(spacing * 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                vertical: spacing,
+                horizontal: spacing * 1.5,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'PENDING REQUEST',
+                style: TextStyle(
+                  fontSize: isMobile ? fontSize + 2 : fontSize + 4,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange[700],
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            
+            SizedBox(height: spacing * 2),
+
+            // Employee Name
+            _buildDetailRow(
+              label: 'Staff Name',
+              value: employeeName,
+              isMobile: isMobile,
+              fontSize: fontSize,
+              spacing: spacing,
+              isBold: true,
+            ),
+            
+            SizedBox(height: spacing * 1.5),
+
+
+            // Reason
+            _buildDetailRow(
+              label: 'Reason',
+              value: reason,
+              isMobile: isMobile,
+              fontSize: fontSize,
+              spacing: spacing,
+              isMultiline: true,
+            ),
+            
+            SizedBox(height: spacing * 1.5),
+
+            // Date Range
+            _buildDetailRow(
+              label: 'Date Range',
+              value: '$startDate - $endDate',
+              isMobile: isMobile,
+              fontSize: fontSize,
+              spacing: spacing,
+            ),
+            
+            SizedBox(height: spacing * 1.5),
+
+            // Total Days
+            Row(
+              children: [
+                
+  
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spacing * 1.5,
+                      vertical: spacing,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: Colors.orange.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total Days',
+                          style: TextStyle(
+                            fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.75,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          '$totalDays day${totalDays > 1 ? 's' : ''}',
+                          style: TextStyle(
+                            fontSize: isMobile ? fontSize + 2 : fontSize + 4,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(width: spacing),
+                
+              ],
+            ),
+
+            SizedBox(height: spacing * 2.5),
+
+            // Divider
+            Divider(
+              color: Colors.grey[300],
+              thickness: 1,
+            ),
+            
+            SizedBox(height: spacing * 1.5),
+
+            // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: isMobile ? 44 : 48,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _showRejectDialog(
+                          requestId,
+                          employeeName,
+                          totalDays,
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: Text(
+                        'Reject',
+                        style: TextStyle(
+                          fontSize: isMobile ? fontSize : fontSize + 1,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: spacing),
+                Expanded(
+                  child: SizedBox(
+                    height: isMobile ? 44 : 48,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _approveRequest(
+                          requestId,
+                          employeeName,
+                          totalDays,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: Text(
+                        'Approve',
+                        style: TextStyle(
+                          fontSize: isMobile ? fontSize : fontSize + 1,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            SizedBox(height: spacing),
+            
+            // Close Button
+            Center(
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Close',
+                  style: TextStyle(
+                    fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// ================= BUILD DETAIL ROW =================
+Widget _buildDetailRow({
+  required String label,
+  required String value,
+  required bool isMobile,
+  required double fontSize,
+  required double spacing,
+  bool isBold = false,
+  bool isMultiline = false,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.8,
+          color: Colors.grey[600],
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.3,
+        ),
+      ),
+      SizedBox(height: 4),
+      Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: spacing * 1.5,
+          vertical: isMultiline ? spacing : spacing * 0.6,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: Colors.grey.withOpacity(0.15),
+          ),
+        ),
+        child: Text(
+          value,
+          style: TextStyle(
+            fontSize: isMobile 
+                ? (isBold ? fontSize + 1 : fontSize)
+                : (isBold ? fontSize + 3 : fontSize + 1),
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: isBold ? const Color(0xFF173B69) : Colors.black87,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
   Future<void> _approveRequest(
       String requestId, String userName, int totalDays) async {
     try {
@@ -598,7 +884,7 @@ Status: REJECTED
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        ' Request rejected',
+                        '❌ Request rejected',
                         style: TextStyle(fontSize: AppFonts.md),
                       ),
                       backgroundColor: Colors.red,
@@ -611,7 +897,7 @@ Status: REJECTED
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        ' ${e.toString().replaceFirst('Exception: ', '')}',
+                        '❌ ${e.toString().replaceFirst('Exception: ', '')}',
                         style: TextStyle(fontSize: AppFonts.md),
                       ),
                       backgroundColor: Colors.red,
@@ -823,7 +1109,7 @@ Status: REJECTED
                       ),
                       SizedBox(height: spacing * 2),
                       
-                      // ✅ Row 1: Total, Pending, Approved
+                      // Row 1: Total, Pending, Approved
                       Row(
                         children: [
                           _buildStatCard(
@@ -852,7 +1138,7 @@ Status: REJECTED
                       
                       SizedBox(height: spacing),
                       
-                      // ✅ Row 2: Rejected, Auto Approved, Total Days
+                      // Row 2: Rejected, Auto Approved, Total Days
                       Row(
                         children: [
                           _buildStatCard(
@@ -999,15 +1285,16 @@ Status: REJECTED
                                 isMobile: isMobile,
                                 fontSize: fontSize,
                                 spacing: spacing,
-                                onApprove: () => _approveRequest(
-                                  doc.id,
-                                  data['userName'] ?? 'Unknown',
-                                  data['totalDays'] ?? 0,
-                                ),
-                                onReject: () => _showRejectDialog(
-                                  doc.id,
-                                  data['userName'] ?? 'Unknown',
-                                  data['totalDays'] ?? 0,
+                                // ពេលចុចលើ Card នឹងបង្ហាញ Dialog
+                                onTap: () => _showRequestDetailDialog(
+                                  requestId: doc.id,
+                                  employeeName: data['userName'] ?? 'Unknown',
+                                  reason: data['reason'] ?? 'No reason',
+                                  startDate: data['startDate'] ?? 'N/A',
+                                  endDate: data['endDate'] ?? 'N/A',
+                                  totalDays: data['totalDays'] ?? 0,
+                                  department: requestDepartment,
+                                  permissionType: data['permissionType'] ?? 'Leave',
                                 ),
                               );
                             }).toList(),
@@ -1026,7 +1313,6 @@ Status: REJECTED
     );
   }
 
-  // ✅ កែប្រែ _buildStatCard ឱ្យមានទំហំស្មើគ្នា
   Widget _buildStatCard({
     required String label,
     required String value,
@@ -1282,8 +1568,7 @@ class _PendingCard extends StatelessWidget {
   final bool isMobile;
   final double fontSize;
   final double spacing;
-  final VoidCallback onApprove;
-  final VoidCallback onReject;
+  final VoidCallback onTap; 
 
   const _PendingCard({
     required this.requestId,
@@ -1299,204 +1584,175 @@ class _PendingCard extends StatelessWidget {
     required this.isMobile,
     required this.fontSize,
     required this.spacing,
-    required this.onApprove,
-    required this.onReject,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: EdgeInsets.only(bottom: spacing * 1.5),
-      padding: EdgeInsets.all(isMobile ? 12 : 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.shade300,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: isMobile ? 50 : 60,
-                padding: EdgeInsets.symmetric(
-                  horizontal: spacing / 2,
-                  vertical: spacing,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF173B69).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      month,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                        color: const Color(0xFF173B69),
-                      ),
-                    ),
-                    Text(
-                      date,
-                      style: TextStyle(
-                        fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                        color: const Color(0xFF173B69),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(width: spacing * 1.5),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      employeeName,
-                      style: TextStyle(
-                        fontSize: isMobile ? fontSize : fontSize + 2,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: spacing / 2),
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: spacing / 2,
-                        vertical: spacing / 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        ' $department',
+    return GestureDetector(
+      onTap: onTap, //  ពេលចុចលើ Card ទាំងមូល
+      child: Container(
+        width: double.infinity,
+        margin: EdgeInsets.only(bottom: spacing * 1.5),
+        padding: EdgeInsets.all(isMobile ? 12 : 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade300,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Date Container
+                Container(
+                  width: isMobile ? 50 : 60,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacing / 2,
+                    vertical: spacing,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF173B69).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        month,
                         style: TextStyle(
-                          fontSize: isMobile ? fontSize * 0.75 : fontSize,
-                          color: Colors.blue[700],
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                          color: const Color(0xFF173B69),
                         ),
                       ),
-                    ),
-                    SizedBox(height: spacing / 2),
-                    Text(
-                      reason,
-                      style: TextStyle(
-                        fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                        color: Colors.grey,
+                      Text(
+                        date,
+                        style: TextStyle(
+                          fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                          color: const Color(0xFF173B69),
+                        ),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: spacing / 2),
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: spacing / 2,
-                            vertical: spacing / 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '$totalDays day${totalDays > 1 ? 's' : ''}',
-                            style: TextStyle(
-                              fontSize: isMobile ? fontSize * 0.75 : fontSize,
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
+                    ],
+                  ),
+                ),
+                SizedBox(width: spacing * 1.5),
+                // Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        employeeName,
+                        style: TextStyle(
+                          fontSize: isMobile ? fontSize : fontSize + 2,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: spacing / 2),
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: spacing / 2,
+                              vertical: spacing / 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              ' $department',
+                              style: TextStyle(
+                                fontSize: isMobile ? fontSize * 0.75 : fontSize,
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                        ),
-                        SizedBox(width: spacing / 2),
-                        Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: spacing / 2,
-                            vertical: spacing / 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.purple.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            permissionType,
-                            style: TextStyle(
-                              fontSize: isMobile ? fontSize * 0.75 : fontSize,
-                              color: Colors.purple,
-                              fontWeight: FontWeight.w500,
+                          SizedBox(width: spacing / 2),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: spacing / 2,
+                              vertical: spacing / 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '$totalDays day${totalDays > 1 ? 's' : ''}',
+                              style: TextStyle(
+                                fontSize: isMobile ? fontSize * 0.75 : fontSize,
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
+                        ],
+                      ),
+                      SizedBox(height: spacing / 2),
+                      Text(
+                        reason,
+                        style: TextStyle(
+                          fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                          color: Colors.grey,
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: spacing),
-          const Divider(),
-          SizedBox(height: spacing / 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              SizedBox(
-                width: isMobile ? 60 : 80,
-                height: isMobile ? 32 : 36,
-                child: OutlinedButton(
-                  onPressed: onReject,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: Text(
-                    'Reject',
-                    style: TextStyle(
-                      fontSize: isMobile ? fontSize * 0.75 : fontSize,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: spacing),
-              SizedBox(
-                width: isMobile ? 60 : 80,
-                height: isMobile ? 32 : 36,
-                child: ElevatedButton(
-                  onPressed: onApprove,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: Text(
-                    'Approve',
-                    style: TextStyle(
-                      fontSize: isMobile ? fontSize * 0.75 : fontSize,
-                    ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: spacing / 2),
+                      // Status Badge
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: spacing / 1.5,
+                          vertical: spacing / 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: isMobile ? 12 : 14,
+                              color: Colors.orange[700],
+                            ),
+                            SizedBox(width: spacing / 3),
+                            Text(
+                              'Pending',
+                              style: TextStyle(
+                                fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.75,
+                                color: Colors.orange[700],
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                // Arrow Icon
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: isMobile ? 16 : 20,
+                  color: Colors.grey[400],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
