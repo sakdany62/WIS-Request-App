@@ -4,6 +4,7 @@ import 'user_management_screen.dart';
 import 'policy_screen.dart';
 import 'warning_management_screen.dart' as warning;
 import 'terms_management_screen.dart'; 
+import 'telegram_config_screen.dart'; 
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 
@@ -131,6 +132,28 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => const TermsManagementScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    SizedBox(height: spacing * 2),
+
+                    //  Telegram Management Card (បន្ថែមថ្មី)
+                    _buildSettingsCard(
+                      icon: Icons.telegram,
+                      title: 'Telegram Management',
+                      subtitle: 'Configure Telegram bot settings and notifications',
+                      iconColor: Colors.blue.shade700,
+                      isMobile: isMobile,
+                      fontSize: fontSize,
+                      spacing: spacing,
+                      iconSize: iconSize,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TelegramConfigScreen(),
                           ),
                         );
                       },

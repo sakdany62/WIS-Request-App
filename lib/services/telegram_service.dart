@@ -5,14 +5,89 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'telegram_config_service.dart';
 
 class TelegramService {
-  // ===== TELEGRAM CONFIGURATION =====
-  static const String _botToken = '8679111334:AAE06FgfbBj-JNB1PtOpOQmnW77q25Qsurc';
-  static const String _groupChatId = '-1003899446883';
-  static const String _managerChatId = '1273488926';
-  static const String _adminChatId = '1273488926';
-  static const String _baseUrl = 'https://api.telegram.org/bot$_botToken';
+  // ===== TELEGRAM CONFIGURATION (Fallback Defaults) =====
+  static const String _defaultBotToken = '8679111334:AAE06FgfbBj-JNB1PtOpOQmnW77q25Qsurc';
+  static const String _defaultGroupChatId = '-1003899446883';
+  static const String _defaultManagerChatId = '1273488926';
+  static const String _defaultAdminChatId = '1273488926';
+
+  // ===== Get Configs from Firestore =====
+  static Future<Map<String, String>> _getConfigs() async {
+    try {
+      return await TelegramConfigService.getTelegramConfigs();
+    } catch (e) {
+      print('❌ Error getting configs from Firestore, using defaults: $e');
+      return {
+        'groupChatId': _defaultGroupChatId,
+        'managerChatId': _defaultManagerChatId,
+        'adminChatId': _defaultAdminChatId,
+        'botToken': _defaultBotToken,
+        'additionalChatIds': '[]',
+      };
+    }
+  }
+
+  // ===== Get Bot Token =====
+  static Future<String> _getBotToken() async {
+    try {
+      final configs = await _getConfigs();
+      final token = configs['botToken'] ?? '';
+      if (token.isEmpty) {
+        print('⚠️ Bot token not found in config, using default');
+        return _defaultBotToken;
+      }
+      return token;
+    } catch (e) {
+      print('❌ Error getting bot token, using default: $e');
+      return _defaultBotToken;
+    }
+  }
+
+  // ===== Get Base URL =====
+  static Future<String> _getBaseUrl() async {
+    final token = await _getBotToken();
+    if (token.isEmpty) return '';
+    return 'https://api.telegram.org/bot$token';
+  }
+
+  // ===== Get Chat IDs =====
+  static Future<Map<String, String>> _getChatIds() async {
+    try {
+      final configs = await _getConfigs();
+      return {
+        'groupChatId': configs['groupChatId'] ?? _defaultGroupChatId,
+        'managerChatId': configs['managerChatId'] ?? _defaultManagerChatId,
+        'adminChatId': configs['adminChatId'] ?? _defaultAdminChatId,
+      };
+    } catch (e) {
+      print('❌ Error getting chat IDs, using defaults: $e');
+      return {
+        'groupChatId': _defaultGroupChatId,
+        'managerChatId': _defaultManagerChatId,
+        'adminChatId': _defaultAdminChatId,
+      };
+    }
+  }
+
+  // ===== Get Additional Chat IDs =====
+  static Future<List<Map<String, String>>> _getAdditionalChatIds() async {
+    try {
+      final configs = await _getConfigs();
+      final additionalJson = configs['additionalChatIds'] ?? '[]';
+      
+      final List<dynamic> decoded = jsonDecode(additionalJson);
+      return decoded.map((item) => {
+        'chatId': item['chatId']?.toString() ?? '',
+        'type': item['type']?.toString() ?? 'Other',
+      }).toList();
+    } catch (e) {
+      print('❌ Error parsing additional chat IDs: $e');
+      return [];
+    }
+  }
 
   // ===== Get Current User Data from Firebase =====
   static Future<Map<String, dynamic>?> _getCurrentUserData() async {
@@ -26,7 +101,6 @@ class TelegramService {
       print(' Current user email: ${user.email}');
       print(' Current user UID: ${user.uid}');
 
-      // ស្វែងរកដោយ email
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: user.email)
@@ -208,19 +282,50 @@ class TelegramService {
   // ===== Send message =====
   static Future<bool> sendToAll(String message) async {
     try {
+      final chatIds = await _getChatIds();
+      final String managerChatId = chatIds['managerChatId'] ?? _defaultManagerChatId;
+      final String adminChatId = chatIds['adminChatId'] ?? _defaultAdminChatId;
+      final String groupChatId = chatIds['groupChatId'] ?? _defaultGroupChatId;
+
       final String correctPosition = await _getStaffPosition();
       
-      print(' Sending message with Position: "$correctPosition"');
+      print('📨 Sending message with Position: "$correctPosition"');
       
       final RegExp positionRegex = RegExp(r'Position: .+');
       String finalMessage = message.replaceAllMapped(positionRegex, (match) {
         return 'Position: $correctPosition';
       });
       
-      bool managerSent = await _sendMessage(_managerChatId, finalMessage);
-      bool adminSent = await _sendMessage(_adminChatId, finalMessage);
-      bool groupSent = await _sendMessage(_groupChatId, finalMessage);
-      return managerSent && adminSent && groupSent;
+      // 📨 ផ្ញើទៅកាន់ Chat IDs សំខាន់ៗ
+      print('📨 Sending to main chats:');
+      print('   👤 Manager: $managerChatId');
+      print('   🛡️ Admin: $adminChatId');
+      print('   👥 Group: $groupChatId');
+      
+      bool managerSent = await _sendMessage(managerChatId, finalMessage);
+      bool adminSent = await _sendMessage(adminChatId, finalMessage);
+      bool groupSent = await _sendMessage(groupChatId, finalMessage);
+      
+      // 📨 ផ្ញើទៅកាន់ Additional Chat IDs
+      final additionalChatIds = await _getAdditionalChatIds();
+      bool allAdditionalSent = true;
+      
+      if (additionalChatIds.isNotEmpty) {
+        print('📨 Sending to additional chats:');
+        for (var chat in additionalChatIds) {
+          final chatId = chat['chatId'] ?? '';
+          final type = chat['type'] ?? 'Other';
+          if (chatId.isNotEmpty) {
+            print('   📤 Additional ($type): $chatId');
+            final sent = await _sendMessage(chatId, finalMessage);
+            if (!sent) allAdditionalSent = false;
+          }
+        }
+      }
+      
+      print('📨 Messages sent - Manager: $managerSent, Admin: $adminSent, Group: $groupSent, Additional: $allAdditionalSent');
+      
+      return managerSent && adminSent && groupSent && allAdditionalSent;
     } catch (e) {
       print(' Error in sendToAll: $e');
       return false;
@@ -229,7 +334,17 @@ class TelegramService {
 
   // ===== Core send message =====
   static Future<bool> _sendMessage(String chatId, String message) async {
-    if (chatId.isEmpty || chatId == 'MANAGER_CHAT_ID' || chatId == 'ADMIN_CHAT_ID' || chatId == 'GROUP_CHAT_ID') {
+    if (chatId.isEmpty || 
+        chatId == 'MANAGER_CHAT_ID' || 
+        chatId == 'ADMIN_CHAT_ID' || 
+        chatId == 'GROUP_CHAT_ID') {
+      print('⚠️ Invalid chat ID: $chatId');
+      return false;
+    }
+
+    final baseUrl = await _getBaseUrl();
+    if (baseUrl.isEmpty) {
+      print('❌ Bot token is empty, cannot send message');
       return false;
     }
 
@@ -244,7 +359,7 @@ class TelegramService {
       }
       
       final response = await http.post(
-        Uri.parse('$_baseUrl/sendMessage'),
+        Uri.parse('$baseUrl/sendMessage'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'chat_id': chatId,
@@ -253,8 +368,16 @@ class TelegramService {
           'disable_web_page_preview': true,
         }),
       );
-      return response.statusCode == 200;
+      
+      if (response.statusCode == 200) {
+        print(' Message sent to $chatId');
+        return true;
+      } else {
+        print('❌ Failed to send message to $chatId: ${response.body}');
+        return false;
+      }
     } catch (e) {
+      print('❌ Error sending message to $chatId: $e');
       return false;
     }
   }
@@ -274,6 +397,7 @@ class TelegramService {
       }
       return await _sendMessage(formattedPhone, message);
     } catch (e) {
+      print('❌ Error sending message to phone: $e');
       return false;
     }
   }
@@ -290,7 +414,10 @@ class TelegramService {
     required String position,
     required String department,
   }) async {
-    if (phoneNumber.isEmpty) return false;
+    if (phoneNumber.isEmpty) {
+      print(' Phone number is empty, cannot send credentials');
+      return false;
+    }
 
     final roleNames = {'1': 'Admin', '2': 'Staff', '3': 'Manager'};
     final String roleName = roleNames[roleId] ?? 'User';
@@ -402,6 +529,7 @@ This is a test message sent to:
 - Manager
 - Admin
 - Group
+- Additional Chats
     ''';
     return sendToAll(testMessage);
   }
@@ -409,14 +537,30 @@ This is a test message sent to:
   // ===== Check Bot Status =====
   static Future<bool> checkBotStatus() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/getMe'));
+      final baseUrl = await _getBaseUrl();
+      if (baseUrl.isEmpty) {
+        print('❌ Bot token is empty, cannot check status');
+        return false;
+      }
+      
+      print('🔍 Checking bot status...');
+      final response = await http.get(Uri.parse('$baseUrl/getMe'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data['ok'] == true;
+        final isOk = data['ok'] == true;
+        print('🔍 Bot status: ${isOk ? " OK" : " FAILED"}');
+        return isOk;
       }
+      print('❌ Bot status check failed: ${response.statusCode}');
       return false;
     } catch (e) {
+      print('❌ Error checking bot status: $e');
       return false;
     }
+  }
+
+  // ===== Get Current Configs (for UI) =====
+  static Future<Map<String, String>> getCurrentConfigs() async {
+    return await _getConfigs();
   }
 }
