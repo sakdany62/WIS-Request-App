@@ -176,6 +176,9 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
           'totalDays': days,
           'startDate': data['startDate'],
           'endDate': data['endDate'],
+          'submitTime': data['submitTime'],
+          'createdAt': data['createdAt'],
+          'userName': data['userName'] ?? 'Unknown',
         });
 
         if (status == 'approved') {
@@ -266,10 +269,165 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     });
   }
 
+  // Show remaining leave info dialog
+  void _showRemainingLeaveDialog() {
+    final int used = leaveStats['used'] ?? 0;
+    final int remaining = leaveStats['remaining'] ?? 0;
+    final int total = leaveStats['total'] ?? 24;
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'You have used $used days of leave',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'You have $remaining days remaining',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: remaining > 0 ? Colors.green.shade700 : Colors.red.shade700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total leave entitlement:',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            '$total days',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        remaining > 0 
+                          ? 'You can request leave up to $remaining days'
+                          : 'You have used all your leave days',
+                        style: TextStyle(
+                          color: remaining > 0 ? Colors.orange.shade700 : Colors.red.shade700,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Navigate to USED card detail
+                _navigateToDetail('used');
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.blue.shade50,
+                foregroundColor: Colors.blue.shade700,
+              ),
+              child: const Text('View Used Leave Details'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.green.shade50,
+                foregroundColor: Colors.green.shade700,
+              ),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Method for navigating to detail list
+  void _navigateToDetail(String type) {
+    // REMAINING card shows dialog
+    if (type == 'remaining') {
+      _showRemainingLeaveDialog();
+      return;
+    }
+
+    final stats = {
+      'pendingRequests': leaveStats['pending'] ?? 0,
+      'approved': leaveStats['approved'] ?? 0,
+      'rejected': leaveStats['rejected'] ?? 0,
+      'autoApproved': leaveStats['autoApproved'] ?? 0,
+      'used': leaveStats['used'] ?? 0,
+    };
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _StaffDetailListScreen(
+          type: type,
+          stats: stats,
+          userId: userId,
+        ),
+      ),
+    ).then((_) {
+      _loadLeaveStatus();
+      _loadUserData();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
-    //   fontSize
     final double fontSize = Responsive.fontSize(context, 14) * 1.05;
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 24);
@@ -297,6 +455,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
                 spacing: spacing,
                 iconSize: iconSize,
                 onProfileUpdated: _refreshProfileImage,
+                onCardTap: _navigateToDetail,
               ),
             ),
             SliverToBoxAdapter(
@@ -332,6 +491,7 @@ class _HeaderSection extends StatelessWidget {
   final double spacing;
   final double iconSize;
   final VoidCallback? onProfileUpdated;
+  final Function(String) onCardTap;
 
   const _HeaderSection({
     required this.userName,
@@ -344,6 +504,7 @@ class _HeaderSection extends StatelessWidget {
     required this.spacing,
     required this.iconSize,
     this.onProfileUpdated,
+    required this.onCardTap,
   });
 
   @override
@@ -410,6 +571,7 @@ class _HeaderSection extends StatelessWidget {
                 mainAxisSpacing: isMobile ? 4 : 8,
                 childAspectRatio: 1.78,
                 children: [
+                  // USED Card - Clickable - Shows Approved Requests
                   _BalanceCard(
                     count: '${leaveStats['used'] ?? 0}',
                     type: 'USED',
@@ -418,7 +580,10 @@ class _HeaderSection extends StatelessWidget {
                     fontSize: fontSize,
                     color: Colors.blue.shade400,
                     icon: Icons.check_circle_outline,
+                    onTap: () => onCardTap('used'),
+                    isClickable: true,
                   ),
+                  // REMAINING Card - Clickable - Shows Dialog
                   _BalanceCard(
                     count: '${leaveStats['remaining'] ?? 0}',
                     type: 'REMAINING',
@@ -427,7 +592,10 @@ class _HeaderSection extends StatelessWidget {
                     fontSize: fontSize,
                     color: Colors.green.shade400,
                     icon: Icons.assignment_turned_in,
+                    onTap: () => onCardTap('remaining'), // ✅ Clickable now
+                    isClickable: true,
                   ),
+                  // AUTO-APPROVED Card - Clickable
                   _BalanceCard(
                     count: '${leaveStats['autoApproved'] ?? 0}',
                     type: 'AUTO-APPROVED',
@@ -436,7 +604,10 @@ class _HeaderSection extends StatelessWidget {
                     fontSize: fontSize,
                     color: Colors.purple.shade400,
                     icon: Icons.autorenew,
+                    onTap: () => onCardTap('autoApproved'),
+                    isClickable: true,
                   ),
+                  // PENDING Card - Clickable
                   _BalanceCard(
                     count: '${leaveStats['pending'] ?? 0}',
                     type: 'PENDING',
@@ -445,7 +616,10 @@ class _HeaderSection extends StatelessWidget {
                     fontSize: fontSize,
                     color: Colors.orange.shade400,
                     icon: Icons.hourglass_empty,
+                    onTap: () => onCardTap('pending'),
+                    isClickable: true,
                   ),
+                  // APPROVED Card - Clickable
                   _BalanceCard(
                     count: '${leaveStats['approved'] ?? 0}',
                     type: 'APPROVED',
@@ -454,7 +628,10 @@ class _HeaderSection extends StatelessWidget {
                     fontSize: fontSize,
                     color: Colors.teal.shade400,
                     icon: Icons.thumb_up_alt_outlined,
+                    onTap: () => onCardTap('approved'),
+                    isClickable: true,
                   ),
+                  // REJECTED Card - Clickable
                   _BalanceCard(
                     count: '${leaveStats['rejected'] ?? 0}',
                     type: 'REJECTED',
@@ -463,6 +640,8 @@ class _HeaderSection extends StatelessWidget {
                     fontSize: fontSize,
                     color: Colors.red.shade400,
                     icon: Icons.cancel_outlined,
+                    onTap: () => onCardTap('rejected'),
+                    isClickable: true,
                   ),
                 ],
               ),
@@ -483,6 +662,8 @@ class _BalanceCard extends StatelessWidget {
   final double fontSize;
   final Color color;
   final IconData icon;
+  final VoidCallback? onTap;
+  final bool isClickable;
 
   const _BalanceCard({
     required this.count,
@@ -492,95 +673,99 @@ class _BalanceCard extends StatelessWidget {
     required this.fontSize,
     required this.color,
     required this.icon,
+    this.onTap,
+    this.isClickable = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែម 5% ទៅ baseFontSize
     final double baseFontSize = (isMobile ? fontSize * 0.75 : fontSize * 0.75) * 1.05;
     final double increasedFontSize = baseFontSize * 1.1;
     final double reducedPadding = isMobile ? 2 : 4;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return GestureDetector(
+      onTap: isClickable ? onTap : null,
       child: Container(
-        padding: EdgeInsets.symmetric(
-          vertical: reducedPadding,
-          horizontal: reducedPadding,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+          border: Border.all(
+            color: color.withOpacity(0.2),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.08),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: color.withOpacity(0.12),
-              ),
-              padding: EdgeInsets.all(isMobile ? 3 : 5),
-              child: Icon(
-                icon,
-                color: color.withOpacity(0.85),
-                size: (isMobile ? 17 : 23) * 1.05, // ✅ បន្ថែម 5%
-              ),
-            ),
-            SizedBox(height: isMobile ? 3 : 5),
-            Text(
-              count,
-              style: TextStyle(
-                color: color.withOpacity(0.9),
-                fontSize: (isMobile ? increasedFontSize + 8 : increasedFontSize + 12) * 1.05, // ✅ បន្ថែម 5%
-                fontWeight: FontWeight.bold,
-                height: 1.0,
-              ),
-            ),
-            Text(
-              type,
-              style: TextStyle(
-                color: color.withOpacity(0.7),
-                fontSize: (isMobile ? increasedFontSize * 0.65 : increasedFontSize * 0.7) * 1.05, // ✅ បន្ថែម 5%
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.3,
-                height: 1.0,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (total.isNotEmpty)
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            vertical: reducedPadding,
+            horizontal: reducedPadding,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
               Container(
-                margin: EdgeInsets.only(top: isMobile ? 1 : 2),
-                padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 4 : 6,
-                  vertical: isMobile ? 0.5 : 1,
-                ),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(4),
+                  shape: BoxShape.circle,
+                  color: color.withOpacity(0.12),
                 ),
-                child: Text(
-                  'of $total',
-                  style: TextStyle(
-                    color: color.withOpacity(0.5),
-                    fontSize: (isMobile ? increasedFontSize * 0.4 : increasedFontSize * 0.45) * 1.05, // ✅ បន្ថែម 5%
-                    fontWeight: FontWeight.w500,
-                    height: 1.0,
+                padding: EdgeInsets.all(isMobile ? 3 : 5),
+                child: Icon(
+                  icon,
+                  color: color.withOpacity(0.85),
+                  size: (isMobile ? 17 : 23) * 1.05,
+                ),
+              ),
+              SizedBox(height: isMobile ? 3 : 5),
+              Text(
+                count,
+                style: TextStyle(
+                  color: color.withOpacity(0.9),
+                  fontSize: (isMobile ? increasedFontSize + 8 : increasedFontSize + 12) * 1.05,
+                  fontWeight: FontWeight.bold,
+                  height: 1.0,
+                ),
+              ),
+              Text(
+                type,
+                style: TextStyle(
+                  color: color.withOpacity(0.7),
+                  fontSize: (isMobile ? increasedFontSize * 0.65 : increasedFontSize * 0.7) * 1.05,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
+                  height: 1.0,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (total.isNotEmpty)
+                Container(
+                  margin: EdgeInsets.only(top: isMobile ? 1 : 2),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 4 : 6,
+                    vertical: isMobile ? 0.5 : 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'of $total',
+                    style: TextStyle(
+                      color: color.withOpacity(0.5),
+                      fontSize: (isMobile ? increasedFontSize * 0.4 : increasedFontSize * 0.45) * 1.05,
+                      fontWeight: FontWeight.w500,
+                      height: 1.0,
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -621,7 +806,7 @@ class _UserHeader extends StatelessWidget {
             userId: userId,
             imageUrl: profileImageUrl,
             name: userName,
-            radius: (isMobile ? 30 : 40) * 1.05, // ✅ បន្ថែម 5%
+            radius: (isMobile ? 30 : 40) * 1.05,
             backgroundColor: Colors.white24,
             textColor: Colors.white,
             onTap: () async {
@@ -656,7 +841,7 @@ class _UserHeader extends StatelessWidget {
                     userName,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: (isMobile ? fontSize : fontSize + 2) * 1.05, // ✅ បន្ថែម 5%
+                      fontSize: (isMobile ? fontSize : fontSize + 2) * 1.05,
                       fontWeight: FontWeight.bold,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -666,7 +851,7 @@ class _UserHeader extends StatelessWidget {
                   'Staff',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05, // ✅ បន្ថែម 5%
+                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05,
                   ),
                 ),
               ],
@@ -700,10 +885,9 @@ class _NotificationIconWithBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែម 5% ទៅ notificationSize
     final double notificationSize = (isMobile ? iconSize * 1.3 : 28 * 1.3) * 1.05;
-    final double badgeSize = (isMobile ? 18 : 24) * 1.05; // ✅ បន្ថែម 5%
-    final double fontSize = (isMobile ? 10 : 12) * 1.05; // ✅ បន្ថែម 5%
+    final double badgeSize = (isMobile ? 18 : 24) * 1.05;
+    final double fontSize = (isMobile ? 10 : 12) * 1.05;
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -799,7 +983,7 @@ class _LeaveStatusSection extends StatelessWidget {
             child: Text(
               'Leave Status',
               style: TextStyle(
-                fontSize: (isMobile ? fontSize + 2 : fontSize + 4) * 1.05, // ✅ បន្ថែម 5%
+                fontSize: (isMobile ? fontSize + 2 : fontSize + 4) * 1.05,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -813,7 +997,7 @@ class _LeaveStatusSection extends StatelessWidget {
                   'No leave requests yet',
                   style: TextStyle(
                     color: Colors.grey,
-                    fontSize: (isMobile ? fontSize * 0.85 : fontSize) * 1.05, // ✅ បន្ថែម 5%
+                    fontSize: (isMobile ? fontSize * 0.85 : fontSize) * 1.05,
                   ),
                 ),
               ),
@@ -848,14 +1032,14 @@ class _LeaveStatusSection extends StatelessWidget {
                     Text(
                       showAll ? 'Show Less' : 'See More',
                       style: TextStyle(
-                        fontSize: (isMobile ? fontSize : fontSize + 2) * 1.05, // ✅ បន្ថែម 5%
+                        fontSize: (isMobile ? fontSize : fontSize + 2) * 1.05,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     SizedBox(width: isMobile ? 2 : 4),
                     Icon(
                       showAll ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                      size: (isMobile ? 16 : 20) * 1.05, // ✅ បន្ថែម 5%
+                      size: (isMobile ? 16 : 20) * 1.05,
                     ),
                   ],
                 ),
@@ -923,14 +1107,14 @@ class LeaveStatusCard extends StatelessWidget {
                   month,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05, // ✅ បន្ថែម 5%
+                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05,
                     color: const Color(0xFF173B69),
                   ),
                 ),
                 Text(
                   date,
                   style: TextStyle(
-                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05, // ✅ បន្ថែម 5%
+                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05,
                     color: const Color(0xFF173B69),
                   ),
                 ),
@@ -942,7 +1126,7 @@ class LeaveStatusCard extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                fontSize: (isMobile ? fontSize * 0.85 : fontSize) * 1.05, // ✅ បន្ថែម 5%
+                fontSize: (isMobile ? fontSize * 0.85 : fontSize) * 1.05,
                 fontWeight: FontWeight.w500,
               ),
               overflow: TextOverflow.ellipsis,
@@ -962,12 +1146,558 @@ class LeaveStatusCard extends StatelessWidget {
               style: TextStyle(
                 color: statusColor,
                 fontWeight: FontWeight.bold,
-                fontSize: (isMobile ? fontSize * 0.7 : fontSize) * 1.05, // ✅ បន្ថែម 5%
+                fontSize: (isMobile ? fontSize * 0.7 : fontSize) * 1.05,
               ),
             ),
           ),
         ],
       ),
     );
-  } 
+  }
+}
+
+// ================= STAFF DETAIL LIST SCREEN =================
+class _StaffDetailListScreen extends StatefulWidget {
+  final String type;
+  final Map<String, int> stats;
+  final String userId;
+
+  const _StaffDetailListScreen({
+    required this.type,
+    required this.stats,
+    required this.userId,
+  });
+
+  @override
+  State<_StaffDetailListScreen> createState() => _StaffDetailListScreenState();
+}
+
+class _StaffDetailListScreenState extends State<_StaffDetailListScreen> {
+  List<Map<String, dynamic>> _items = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      List<Map<String, dynamic>> items = [];
+      
+      // Special handling for autoApproved
+      if (widget.type == 'autoApproved') {
+        // First get all approved requests
+        final snapshot = await FirebaseFirestore.instance
+            .collection('leave_requests')
+            .where('userId', isEqualTo: widget.userId)
+            .where('status', isEqualTo: 'approved')
+            .orderBy('createdAt', descending: true)
+            .get();
+        
+        // Then filter autoApproved = true in code
+        for (var doc in snapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final isAutoApproved = data['autoApproved'] ?? false;
+          
+          if (isAutoApproved) {
+            // Get user data
+            String userName = data['userName'] ?? 'Unknown';
+            String userPosition = 'Staff';
+            
+            try {
+              final userDoc = await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(widget.userId)
+                  .get();
+              
+              if (userDoc.exists) {
+                final userData = userDoc.data()!;
+                userName = userData['fullName'] ?? userData['username'] ?? userName;
+                userPosition = userData['position'] ?? userData['role'] ?? 'Staff';
+              }
+            } catch (e) {
+              print('Error fetching user data: $e');
+            }
+
+            items.add({
+              'id': doc.id,
+              'userName': userName,
+              'position': userPosition,
+              'reason': data['reason'] ?? 'No reason',
+              'status': data['status'] ?? 'pending',
+              'startDate': data['startDate'],
+              'endDate': data['endDate'],
+              'createdAt': data['createdAt'],
+              'submitTime': data['submitTime'],
+              'totalDays': (data['totalDays'] as num?)?.toInt() ?? 0,
+              'autoApproved': data['autoApproved'] ?? false,
+            });
+          }
+        }
+      } else {
+        // For other types
+        Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+            .collection('leave_requests')
+            .where('userId', isEqualTo: widget.userId);
+
+        switch (widget.type) {
+          case 'used':
+            query = query.where('status', isEqualTo: 'approved');
+            break;
+          case 'pending':
+            query = query.where('status', isEqualTo: 'pending');
+            break;
+          case 'approved':
+            query = query.where('status', isEqualTo: 'approved');
+            break;
+          case 'rejected':
+            query = query.where('status', isEqualTo: 'rejected');
+            break;
+          default:
+            query = query.where('status', isEqualTo: 'pending');
+            break;
+        }
+
+        query = query.orderBy('createdAt', descending: true);
+        final snapshot = await query.get();
+
+        for (var doc in snapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          
+          // Get user data
+          String userName = data['userName'] ?? 'Unknown';
+          String userPosition = 'Staff';
+          
+          try {
+            final userDoc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(widget.userId)
+                .get();
+            
+            if (userDoc.exists) {
+              final userData = userDoc.data()!;
+              userName = userData['fullName'] ?? userData['username'] ?? userName;
+              userPosition = userData['position'] ?? userData['role'] ?? 'Staff';
+            }
+          } catch (e) {
+            print('Error fetching user data: $e');
+          }
+
+          items.add({
+            'id': doc.id,
+            'userName': userName,
+            'position': userPosition,
+            'reason': data['reason'] ?? 'No reason',
+            'status': data['status'] ?? 'pending',
+            'startDate': data['startDate'],
+            'endDate': data['endDate'],
+            'createdAt': data['createdAt'],
+            'submitTime': data['submitTime'],
+            'totalDays': (data['totalDays'] as num?)?.toInt() ?? 0,
+            'autoApproved': data['autoApproved'] ?? false,
+          });
+        }
+      }
+
+      setState(() {
+        _items = items;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load data: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _getTitle() {
+    switch (widget.type) {
+      case 'used':
+        return 'Used Leave (${widget.stats['used'] ?? 0} days)';
+      case 'pending':
+        return 'Pending Requests (${widget.stats['pendingRequests'] ?? 0})';
+      case 'approved':
+        return 'Approved Requests (${widget.stats['approved'] ?? 0})';
+      case 'rejected':
+        return 'Rejected Requests (${widget.stats['rejected'] ?? 0})';
+      case 'autoApproved':
+        return 'Auto-Approved (${widget.stats['autoApproved'] ?? 0})';
+      default:
+        return 'Leave Requests';
+    }
+  }
+
+  Color _getColor() {
+    switch (widget.type) {
+      case 'used':
+        return Colors.blue;
+      case 'pending':
+        return Colors.orange;
+      case 'approved':
+        return Colors.teal;
+      case 'rejected':
+        return Colors.red;
+      case 'autoApproved':
+        return Colors.purple;
+      default:
+        return Colors.blue;
+    }
+  }
+
+  IconData _getIcon() {
+    switch (widget.type) {
+      case 'used':
+        return Icons.check_circle_outline;
+      case 'pending':
+        return Icons.hourglass_empty;
+      case 'approved':
+        return Icons.thumb_up_alt_outlined;
+      case 'rejected':
+        return Icons.cancel_outlined;
+      case 'autoApproved':
+        return Icons.autorenew;
+      default:
+        return Icons.info;
+    }
+  }
+
+  String _formatDate(dynamic timestamp) {
+    try {
+      if (timestamp == null) return 'N/A';
+      if (timestamp is Timestamp) {
+        return '${timestamp.toDate().day}/${timestamp.toDate().month}/${timestamp.toDate().year}';
+      }
+      if (timestamp is String) {
+        final parts = timestamp.split(' ');
+        if (parts.length >= 1) {
+          return parts[0];
+        }
+        return timestamp;
+      }
+      return 'N/A';
+    } catch (e) {
+      return 'N/A';
+    }
+  }
+
+  String _formatSubmitTimeToCambodia(dynamic submitTime) {
+    if (submitTime == null) return 'N/A';
+    
+    try {
+      DateTime? dateTime;
+      
+      if (submitTime is Timestamp) {
+        dateTime = submitTime.toDate();
+      } else if (submitTime is DateTime) {
+        dateTime = submitTime;
+      } else if (submitTime is String) {
+        String cleaned = submitTime.trim();
+        
+        if (cleaned.contains('AM') || cleaned.contains('PM')) {
+          return cleaned;
+        }
+        
+        if (cleaned.contains('T')) {
+          try {
+            dateTime = DateTime.parse(cleaned);
+          } catch (e) {}
+        }
+        
+        if (dateTime == null && cleaned.contains(' ')) {
+          final parts = cleaned.split(' ');
+          if (parts.length == 2) {
+            final dateParts = parts[0].split('-');
+            final timeParts = parts[1].split(':');
+            
+            if (dateParts.length == 3 && timeParts.length >= 2) {
+              try {
+                final year = int.parse(dateParts[0]);
+                final month = int.parse(dateParts[1]);
+                final day = int.parse(dateParts[2]);
+                final hour = int.parse(timeParts[0]);
+                final minute = int.parse(timeParts[1]);
+                dateTime = DateTime(year, month, day, hour, minute);
+              } catch (e) {}
+            }
+          }
+        }
+      }
+      
+      if (dateTime == null) {
+        return submitTime.toString();
+      }
+      
+      final cambodiaTime = dateTime.toUtc().add(const Duration(hours: 7));
+      
+      int hour = cambodiaTime.hour;
+      final int minute = cambodiaTime.minute;
+      final String period = hour >= 12 ? 'PM' : 'AM';
+      
+      if (hour == 0) {
+        hour = 12;
+      } else if (hour > 12) {
+        hour = hour - 12;
+      }
+      
+      return '$hour:${minute.toString().padLeft(2, '0')} $period';
+      
+    } catch (e) {
+      return submitTime.toString();
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      case 'pending':
+      default:
+        return Colors.orange;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          _getTitle(),
+          style: TextStyle(
+            fontSize: isMobile ? 16 : 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: _getColor(),
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadData,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: fontSize),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: _loadData,
+                        child: Text(
+                          'Retry',
+                          style: TextStyle(fontSize: fontSize),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : _items.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(_getIcon(), size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No Data',
+                            style: TextStyle(
+                              fontSize: fontSize,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.all(spacing),
+                      itemCount: _items.length,
+                      itemBuilder: (context, index) {
+                        final item = _items[index];
+                        return _buildItemCard(item, isMobile, fontSize, spacing);
+                      },
+                    ),
+    );
+  }
+
+  Widget _buildItemCard(Map<String, dynamic> item, bool isMobile, double fontSize, double spacing) {
+    final String submitTime = _formatSubmitTimeToCambodia(item['submitTime']);
+    
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: spacing / 2, vertical: spacing / 2),
+      elevation: 2,
+      child: Container(
+        padding: EdgeInsets.all(isMobile ? 12 : 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row with avatar, name, position and status
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: isMobile ? 18 : 24,
+                  backgroundColor: _getStatusColor(item['status'] ?? 'pending').withOpacity(0.2),
+                  child: Icon(
+                    item['status']?.toLowerCase() == 'approved' ? Icons.check_circle :
+                    item['status']?.toLowerCase() == 'rejected' ? Icons.cancel :
+                    Icons.pending,
+                    color: _getStatusColor(item['status'] ?? 'pending'),
+                    size: isMobile ? 16 : 20,
+                  ),
+                ),
+                SizedBox(width: isMobile ? 10 : 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['userName'] ?? 'Unknown User',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: isMobile ? fontSize : fontSize + 2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        item['position'] ?? 'Staff',
+                        style: TextStyle(
+                          fontSize: isMobile ? fontSize * 0.75 : fontSize,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 6 : 12,
+                    vertical: isMobile ? 2 : 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(item['status'] ?? 'pending'),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    item['status']?.toString().toUpperCase() ?? 'PENDING',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isMobile ? fontSize * 0.7 : fontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            SizedBox(height: isMobile ? 6 : 8),
+            
+            // Reason
+            Text(
+              'Reason: ${item['reason'] ?? 'No reason'}',
+              style: TextStyle(
+                fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+            
+            SizedBox(height: isMobile ? 4 : 6),
+            
+            // Date range and total days
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: isMobile ? 12 : 14, color: Colors.grey[600]),
+                SizedBox(width: 4),
+                Text(
+                  '${_formatDate(item['startDate'])} - ${_formatDate(item['endDate'])}',
+                  style: TextStyle(
+                    fontSize: isMobile ? fontSize * 0.8 : fontSize,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                if (item['totalDays'] != null && item['totalDays'] > 0) ...[
+                  SizedBox(width: isMobile ? 8 : 12),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${item['totalDays']} day${item['totalDays'] > 1 ? 's' : ''}',
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.8,
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            
+            SizedBox(height: isMobile ? 4 : 6),
+            
+            // Submit time
+            Row(
+              children: [
+                Icon(Icons.access_time, size: isMobile ? 12 : 14, color: Colors.grey[500]),
+                SizedBox(width: 4),
+                Text(
+                  'Submitted: $submitTime',
+                  style: TextStyle(
+                    fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.8,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+            
+            // Auto-approved badge
+            if (item['autoApproved'] == true)
+              Container(
+                margin: EdgeInsets.only(top: 4),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'Auto-Approved',
+                  style: TextStyle(
+                    color: Colors.purple,
+                    fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.8,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
