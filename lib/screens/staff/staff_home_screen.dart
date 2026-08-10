@@ -2,9 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:permission_system/screens/staff/staff_detail_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
-import 'package:permission_system/app_fonts.dart';
+import '../../models/leave_stats.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/profile_avatar.dart';
 
@@ -41,15 +42,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
   List<Map<String, dynamic>> leaveStatusList = [];
   List<Map<String, dynamic>> allLeaveStatusList = [];
   bool showAll = false;
-  Map<String, int> leaveStats = {
-    'total': 24,
-    'used': 0,
-    'remaining': 24,
-    'pending': 0,
-    'approved': 0,
-    'rejected': 0,
-    'autoApproved': 0,
-  };
+  LeaveStats leaveStats = LeaveStats();
 
   final ScrollController _scrollController = ScrollController();
 
@@ -93,7 +86,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
         }
       }
     } catch (e) {
-      print('❌ Error refreshing profile image: $e');
+      print('Error refreshing profile image: $e');
     }
   }
 
@@ -154,45 +147,22 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
           .get();
 
       List<Map<String, dynamic>> requests = [];
-      int totalDays = 0;
-      int pending = 0;
-      int approved = 0;
-      int rejected = 0;
-      int autoApproved = 0;
 
       for (var doc in querySnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        final status = data['status'] ?? 'pending';
-        final days = (data['totalDays'] as num?)?.toInt() ?? 0;
-        final isAutoApproved = data['autoApproved'] ?? false;
-
         requests.add({
           'id': doc.id,
           'month': _getMonthFromDate(data['startDate']),
           'date': _getDateRange(data['startDate'], data['endDate']),
           'title': data['reason'] ?? 'Leave Request',
-          'status': status.toUpperCase(),
-          'statusColor': _getStatusColor(status),
-          'totalDays': days,
+          'status': data['status'] ?? 'pending',
+          'statusColor': _getStatusColor(data['status'] ?? 'pending'),
+          'totalDays': (data['totalDays'] as num?)?.toInt() ?? 0,
           'startDate': data['startDate'],
           'endDate': data['endDate'],
-          'submitTime': data['submitTime'],
-          'createdAt': data['createdAt'],
-          'userName': data['userName'] ?? 'Unknown',
+          'autoApproved': data['autoApproved'] ?? false,
         });
-
-        if (status == 'approved') {
-          approved++;
-          totalDays += days;
-          if (isAutoApproved) autoApproved++;
-        } else if (status == 'pending') {
-          pending++;
-        } else if (status == 'rejected') {
-          rejected++;
-        }
       }
-
-      final remaining = 24 - totalDays;
 
       if (mounted) {
         setState(() {
@@ -202,15 +172,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
           } else {
             leaveStatusList = requests;
           }
-          leaveStats = {
-            'total': 24,
-            'used': totalDays,
-            'remaining': remaining < 0 ? 0 : remaining,
-            'pending': pending,
-            'approved': approved,
-            'rejected': rejected,
-            'autoApproved': autoApproved,
-          };
+          leaveStats = LeaveStats.calculate(requests);
         });
       }
     } catch (e) {
@@ -269,169 +231,8 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
     });
   }
 
-  // Show remaining leave info dialog
-  void _showRemainingLeaveDialog() {
-    final int used = leaveStats['used'] ?? 0;
-    final int remaining = leaveStats['remaining'] ?? 0;
-    final int total = leaveStats['total'] ?? 24;
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'You have used $used days of leave',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'You have $remaining days remaining',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: remaining > 0 ? Colors.green.shade700 : Colors.red.shade700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Total leave entitlement:',
-                            style: TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          Text(
-                            '$total days',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        remaining > 0 
-                          ? 'You can request leave up to $remaining days'
-                          : 'You have used all your leave days',
-                        style: TextStyle(
-                          color: remaining > 0 ? Colors.orange.shade700 : Colors.red.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Navigate to USED card detail
-                _navigateToDetail('used');
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.blue.shade50,
-                foregroundColor: Colors.blue.shade700,
-              ),
-              child: const Text('View Used Leave Details'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.green.shade50,
-                foregroundColor: Colors.green.shade700,
-              ),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  // Method for navigating to detail list
-  void _navigateToDetail(String type) {
-    // REMAINING card shows dialog
-    if (type == 'remaining') {
-      _showRemainingLeaveDialog();
-      return;
-    }
-
-    final stats = {
-      'pendingRequests': leaveStats['pending'] ?? 0,
-      'approved': leaveStats['approved'] ?? 0,
-      'rejected': leaveStats['rejected'] ?? 0,
-      'autoApproved': leaveStats['autoApproved'] ?? 0,
-      'used': leaveStats['used'] ?? 0,
-    };
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => _StaffDetailListScreen(
-          type: type,
-          stats: stats,
-          userId: userId,
-        ),
-      ),
-    ).then((_) {
-      _loadLeaveStatus();
-      _loadUserData();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14) * 1.05;
-    final double spacing = Responsive.spacing(context);
-    final double iconSize = Responsive.iconSize(context, 24);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FA),
       body: RefreshIndicator(
@@ -450,12 +251,6 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
                 profileImageUrl: profileImageUrl,
                 isLoading: isLoading,
                 leaveStats: leaveStats,
-                isMobile: isMobile,
-                fontSize: fontSize,
-                spacing: spacing,
-                iconSize: iconSize,
-                onProfileUpdated: _refreshProfileImage,
-                onCardTap: _navigateToDetail,
               ),
             ),
             SliverToBoxAdapter(
@@ -464,13 +259,10 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
                 allLeaveStatusList: allLeaveStatusList,
                 showAll: showAll,
                 onToggleShowAll: _toggleShowAll,
-                isMobile: isMobile,
-                fontSize: fontSize,
-                spacing: spacing,
               ),
             ),
             SliverToBoxAdapter(
-              child: SizedBox(height: isMobile ? 60 : 100),
+              child: const SizedBox(height: 60),
             ),
           ],
         ),
@@ -479,19 +271,12 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
   }
 }
 
-// ================= HEADER SECTION =================
 class _HeaderSection extends StatelessWidget {
   final String userName;
   final String userId;
   final String? profileImageUrl;
   final bool isLoading;
-  final Map<String, int> leaveStats;
-  final bool isMobile;
-  final double fontSize;
-  final double spacing;
-  final double iconSize;
-  final VoidCallback? onProfileUpdated;
-  final Function(String) onCardTap;
+  final LeaveStats leaveStats;
 
   const _HeaderSection({
     required this.userName,
@@ -499,18 +284,20 @@ class _HeaderSection extends StatelessWidget {
     this.profileImageUrl,
     required this.isLoading,
     required this.leaveStats,
-    required this.isMobile,
-    required this.fontSize,
-    required this.spacing,
-    required this.iconSize,
-    this.onProfileUpdated,
-    required this.onCardTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    final headerHeight = screenHeight * 0.43;
+    final isSmallScreen = screenWidth < 360;
+    final isTablet = screenWidth >= 600;
+    
+    double paddingHorizontal = isSmallScreen ? 12 : (isTablet ? 24 : 16);
+    double paddingVertical = isSmallScreen ? 12 : (isTablet ? 28 : 18);
+    double headerHeight = screenHeight * (isSmallScreen ? 0.45 : (isTablet ? 0.38 : 0.43));
+    double fontSize = isSmallScreen ? 12 : (isTablet ? 18 : 14);
+    double cardSpacing = isSmallScreen ? 3 : (isTablet ? 8 : 4);
 
     return SizedBox(
       height: headerHeight,
@@ -524,10 +311,10 @@ class _HeaderSection extends StatelessWidget {
           ),
         ),
         padding: EdgeInsets.fromLTRB(
-          isMobile ? 16 : 24,
-          isMobile ? 18 : 28,
-          isMobile ? 16 : 24,
-          isMobile ? 16 : 22,
+          paddingHorizontal,
+          paddingVertical,
+          paddingHorizontal,
+          isSmallScreen ? 12 : 16,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,113 +324,121 @@ class _HeaderSection extends StatelessWidget {
               userId: userId,
               profileImageUrl: profileImageUrl,
               isLoading: isLoading,
-              isMobile: isMobile,
               fontSize: fontSize,
-              spacing: spacing,
-              iconSize: iconSize,
-              onProfileUpdated: onProfileUpdated,
+              isSmallScreen: isSmallScreen,
+              isTablet: isTablet,
             ),
             
-            SizedBox(height: isMobile ? 24 : 36),
+            SizedBox(height: isSmallScreen ? 16 : (isTablet ? 36 : 24)),
             
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Your Leave Balance',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: isMobile ? fontSize + 2 : fontSize + 4,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
+            Text(
+              'Your Leave Balance',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isSmallScreen ? fontSize + 2 : (isTablet ? fontSize + 6 : fontSize + 4),
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
             ),
-            SizedBox(height: isMobile ? 4 : 8),
+            SizedBox(height: isSmallScreen ? 2 : (isTablet ? 8 : 4)),
             
             Expanded(
-              child: GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 3,
-                crossAxisSpacing: isMobile ? 4 : 8,
-                mainAxisSpacing: isMobile ? 4 : 8,
-                childAspectRatio: 1.78,
-                children: [
-                  // USED Card - Clickable - Shows Approved Requests
-                  _BalanceCard(
-                    count: '${leaveStats['used'] ?? 0}',
-                    type: 'USED',
-                    total: '${leaveStats['total'] ?? 24}',
-                    isMobile: isMobile,
-                    fontSize: fontSize,
-                    color: Colors.blue.shade400,
-                    icon: Icons.check_circle_outline,
-                    onTap: () => onCardTap('used'),
-                    isClickable: true,
-                  ),
-                  // REMAINING Card - Clickable - Shows Dialog
-                  _BalanceCard(
-                    count: '${leaveStats['remaining'] ?? 0}',
-                    type: 'REMAINING',
-                    total: '${leaveStats['total'] ?? 24}',
-                    isMobile: isMobile,
-                    fontSize: fontSize,
-                    color: Colors.green.shade400,
-                    icon: Icons.assignment_turned_in,
-                    onTap: () => onCardTap('remaining'), // ✅ Clickable now
-                    isClickable: true,
-                  ),
-                  // AUTO-APPROVED Card - Clickable
-                  _BalanceCard(
-                    count: '${leaveStats['autoApproved'] ?? 0}',
-                    type: 'AUTO-APPROVED',
-                    total: '',
-                    isMobile: isMobile,
-                    fontSize: fontSize,
-                    color: Colors.purple.shade400,
-                    icon: Icons.autorenew,
-                    onTap: () => onCardTap('autoApproved'),
-                    isClickable: true,
-                  ),
-                  // PENDING Card - Clickable
-                  _BalanceCard(
-                    count: '${leaveStats['pending'] ?? 0}',
-                    type: 'PENDING',
-                    total: '',
-                    isMobile: isMobile,
-                    fontSize: fontSize,
-                    color: Colors.orange.shade400,
-                    icon: Icons.hourglass_empty,
-                    onTap: () => onCardTap('pending'),
-                    isClickable: true,
-                  ),
-                  // APPROVED Card - Clickable
-                  _BalanceCard(
-                    count: '${leaveStats['approved'] ?? 0}',
-                    type: 'APPROVED',
-                    total: '',
-                    isMobile: isMobile,
-                    fontSize: fontSize,
-                    color: Colors.teal.shade400,
-                    icon: Icons.thumb_up_alt_outlined,
-                    onTap: () => onCardTap('approved'),
-                    isClickable: true,
-                  ),
-                  // REJECTED Card - Clickable
-                  _BalanceCard(
-                    count: '${leaveStats['rejected'] ?? 0}',
-                    type: 'REJECTED',
-                    total: '',
-                    isMobile: isMobile,
-                    fontSize: fontSize,
-                    color: Colors.red.shade400,
-                    icon: Icons.cancel_outlined,
-                    onTap: () => onCardTap('rejected'),
-                    isClickable: true,
-                  ),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableWidth = constraints.maxWidth;
+                  final cardWidth = (availableWidth - (cardSpacing * 2)) / 3;
+                  
+                  return Wrap(
+                    spacing: cardSpacing,
+                    runSpacing: cardSpacing,
+                    children: [
+                      _BalanceCard(
+                        count: '${leaveStats.total}',
+                        type: 'TOTAL',
+                        total: '',
+                        color: Colors.blue.shade400,
+                        icon: Icons.calendar_today,
+                        cardWidth: cardWidth,
+                        isSmallScreen: isSmallScreen,
+                        isTablet: isTablet,
+                        statType: 'total',
+                        userId: userId,
+                      ),
+                      _BalanceCard(
+                        count: '${leaveStats.used}',
+                        type: 'USED',
+                        total: '${leaveStats.total}',
+                        color: Colors.green.shade400,
+                        icon: Icons.check_circle_outline,
+                        cardWidth: cardWidth,
+                        isSmallScreen: isSmallScreen,
+                        isTablet: isTablet,
+                        statType: 'used',
+                        userId: userId,
+                      ),
+                      _BalanceCard(
+                        count: '${leaveStats.remaining}',
+                        type: 'REMAINING',
+                        total: '${leaveStats.total}',
+                        color: Colors.purple.shade400,
+                        icon: Icons.assignment_turned_in,
+                        cardWidth: cardWidth,
+                        isSmallScreen: isSmallScreen,
+                        isTablet: isTablet,
+                        statType: 'remaining',
+                        userId: userId,
+                      ),
+                      _BalanceCard(
+                        count: '${leaveStats.autoApproved}',
+                        type: 'AUTO-APPROVED',
+                        total: '',
+                        color: Colors.teal.shade400,
+                        icon: Icons.autorenew,
+                        cardWidth: cardWidth,
+                        isSmallScreen: isSmallScreen,
+                        isTablet: isTablet,
+                        statType: 'autoApproved',
+                        userId: userId,
+                      ),
+                      _BalanceCard(
+                        count: '${leaveStats.pending}',
+                        type: 'PENDING',
+                        total: '',
+                        color: Colors.orange.shade400,
+                        icon: Icons.hourglass_empty,
+                        cardWidth: cardWidth,
+                        isSmallScreen: isSmallScreen,
+                        isTablet: isTablet,
+                        statType: 'pending',
+                        userId: userId,
+                      ),
+                      _BalanceCard(
+                        count: '${leaveStats.approved}',
+                        type: 'APPROVED',
+                        total: '',
+                        color: Colors.blue.shade700,
+                        icon: Icons.thumb_up_alt_outlined,
+                        cardWidth: cardWidth,
+                        isSmallScreen: isSmallScreen,
+                        isTablet: isTablet,
+                        statType: 'approved',
+                        userId: userId,
+                      ),
+                      _BalanceCard(
+                        count: '${leaveStats.rejected}',
+                        type: 'REJECTED',
+                        total: '',
+                        color: Colors.red.shade400,
+                        icon: Icons.cancel_outlined,
+                        cardWidth: cardWidth,
+                        isSmallScreen: isSmallScreen,
+                        isTablet: isTablet,
+                        statType: 'rejected',
+                        userId: userId,
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -653,58 +448,98 @@ class _HeaderSection extends StatelessWidget {
   }
 }
 
-// ================= BALANCE CARD =================
 class _BalanceCard extends StatelessWidget {
   final String count;
   final String type;
   final String total;
-  final bool isMobile;
-  final double fontSize;
   final Color color;
   final IconData icon;
-  final VoidCallback? onTap;
-  final bool isClickable;
+  final double cardWidth;
+  final bool isSmallScreen;
+  final bool isTablet;
+  final String statType;
+  final String userId;
 
   const _BalanceCard({
     required this.count,
     required this.type,
     required this.total,
-    required this.isMobile,
-    required this.fontSize,
     required this.color,
     required this.icon,
-    this.onTap,
-    this.isClickable = true,
+    required this.cardWidth,
+    required this.isSmallScreen,
+    required this.isTablet,
+    required this.statType,
+    required this.userId,
   });
 
   @override
   Widget build(BuildContext context) {
-    final double baseFontSize = (isMobile ? fontSize * 0.75 : fontSize * 0.75) * 1.05;
-    final double increasedFontSize = baseFontSize * 1.1;
-    final double reducedPadding = isMobile ? 2 : 4;
+    double fontSize = isSmallScreen ? 10 : (isTablet ? 16 : 12);
+    double iconSize = isSmallScreen ? 14 : (isTablet ? 22 : 18);
+    double paddingSize = isSmallScreen ? 2 : (isTablet ? 6 : 4);
+    double borderRadius = isSmallScreen ? 6 : (isTablet ? 12 : 8);
 
-    return GestureDetector(
-      onTap: isClickable ? onTap : null,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
-          border: Border.all(
-            color: color.withOpacity(0.2),
-            width: 1.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+    return SizedBox(
+      width: cardWidth,
+      child: InkWell(
+        onTap: () {
+          String title = '';
+          switch (statType) {
+            case 'total':
+              title = 'Total Leave Requests';
+              break;
+            case 'used':
+              title = 'Used Leave Requests';
+              break;
+            case 'remaining':
+              title = 'Remaining Leave Balance';
+              break;
+            case 'pending':
+              title = 'Pending Leave Requests';
+              break;
+            case 'approved':
+              title = 'Approved Leave Requests';
+              break;
+            case 'rejected':
+              title = 'Rejected Leave Requests';
+              break;
+            case 'autoApproved':
+              title = 'Auto-Approved Leave Requests';
+              break;
+          }
+          
+          Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (context) => StatDetailScreen(
+      title: title,
+      statType: statType,
+      userId: userId,
+    ),
+  ),
+);
+        },
+        borderRadius: BorderRadius.circular(borderRadius),
         child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(
+              color: color.withOpacity(0.2),
+              width: 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.08),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           padding: EdgeInsets.symmetric(
-            vertical: reducedPadding,
-            horizontal: reducedPadding,
+            vertical: paddingSize,
+            horizontal: paddingSize,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -715,19 +550,19 @@ class _BalanceCard extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: color.withOpacity(0.12),
                 ),
-                padding: EdgeInsets.all(isMobile ? 3 : 5),
+                padding: EdgeInsets.all(isSmallScreen ? 2 : (isTablet ? 6 : 4)),
                 child: Icon(
                   icon,
                   color: color.withOpacity(0.85),
-                  size: (isMobile ? 17 : 23) * 1.05,
+                  size: iconSize,
                 ),
               ),
-              SizedBox(height: isMobile ? 3 : 5),
+              SizedBox(height: isSmallScreen ? 1 : (isTablet ? 6 : 3)),
               Text(
                 count,
                 style: TextStyle(
                   color: color.withOpacity(0.9),
-                  fontSize: (isMobile ? increasedFontSize + 8 : increasedFontSize + 12) * 1.05,
+                  fontSize: isSmallScreen ? fontSize + 4 : (isTablet ? fontSize + 14 : fontSize + 8),
                   fontWeight: FontWeight.bold,
                   height: 1.0,
                 ),
@@ -736,7 +571,7 @@ class _BalanceCard extends StatelessWidget {
                 type,
                 style: TextStyle(
                   color: color.withOpacity(0.7),
-                  fontSize: (isMobile ? increasedFontSize * 0.65 : increasedFontSize * 0.7) * 1.05,
+                  fontSize: isSmallScreen ? fontSize * 0.5 : (isTablet ? fontSize * 0.7 : fontSize * 0.6),
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.3,
                   height: 1.0,
@@ -745,10 +580,10 @@ class _BalanceCard extends StatelessWidget {
               ),
               if (total.isNotEmpty)
                 Container(
-                  margin: EdgeInsets.only(top: isMobile ? 1 : 2),
+                  margin: EdgeInsets.only(top: isSmallScreen ? 0.5 : (isTablet ? 3 : 1)),
                   padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 4 : 6,
-                    vertical: isMobile ? 0.5 : 1,
+                    horizontal: isSmallScreen ? 2 : (isTablet ? 6 : 4),
+                    vertical: isSmallScreen ? 0.5 : (isTablet ? 2 : 1),
                   ),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.08),
@@ -758,7 +593,7 @@ class _BalanceCard extends StatelessWidget {
                     'of $total',
                     style: TextStyle(
                       color: color.withOpacity(0.5),
-                      fontSize: (isMobile ? increasedFontSize * 0.4 : increasedFontSize * 0.45) * 1.05,
+                      fontSize: isSmallScreen ? fontSize * 0.35 : (isTablet ? fontSize * 0.5 : fontSize * 0.4),
                       fontWeight: FontWeight.w500,
                       height: 1.0,
                     ),
@@ -772,41 +607,39 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
-// ================= USER HEADER =================
 class _UserHeader extends StatelessWidget {
   final String userName;
   final String userId;
   final String? profileImageUrl;
   final bool isLoading;
-  final bool isMobile;
   final double fontSize;
-  final double spacing;
-  final double iconSize;
-  final VoidCallback? onProfileUpdated;
+  final bool isSmallScreen;
+  final bool isTablet;
 
   const _UserHeader({
     required this.userName,
     required this.userId,
     this.profileImageUrl,
     required this.isLoading,
-    required this.isMobile,
     required this.fontSize,
-    required this.spacing,
-    required this.iconSize,
-    this.onProfileUpdated,
+    required this.isSmallScreen,
+    required this.isTablet,
   });
 
   @override
   Widget build(BuildContext context) {
+    double avatarRadius = isSmallScreen ? 24 : (isTablet ? 44 : 30);
+    double topPadding = isSmallScreen ? 12 : (isTablet ? 28 : 20);
+    
     return Row(
       children: [
         Padding(
-          padding: EdgeInsets.only(top: isMobile ? 20 : 28),
+          padding: EdgeInsets.only(top: topPadding),
           child: ProfileAvatar(
             userId: userId,
             imageUrl: profileImageUrl,
             name: userName,
-            radius: (isMobile ? 30 : 40) * 1.05,
+            radius: avatarRadius,
             backgroundColor: Colors.white24,
             textColor: Colors.white,
             onTap: () async {
@@ -814,23 +647,23 @@ class _UserHeader extends StatelessWidget {
                 context,
                 MaterialPageRoute(builder: (context) => StaffProfileScreen()),
               );
-              if (result == true && onProfileUpdated != null) {
-                onProfileUpdated!();
+              if (result == true) {
+                // Refresh will be handled
               }
             },
           ),
         ),
-        SizedBox(width: isMobile ? 12 : 16),
+        SizedBox(width: isSmallScreen ? 8 : (isTablet ? 20 : 12)),
         Expanded(
           child: Padding(
-            padding: EdgeInsets.only(top: isMobile ? 20 : 28),
+            padding: EdgeInsets.only(top: topPadding),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (isLoading)
                   SizedBox(
-                    height: isMobile ? 16 : 20,
-                    width: isMobile ? 16 : 20,
+                    height: isSmallScreen ? 14 : (isTablet ? 22 : 16),
+                    width: isSmallScreen ? 14 : (isTablet ? 22 : 16),
                     child: const CircularProgressIndicator(
                       color: Colors.white,
                       strokeWidth: 2,
@@ -841,17 +674,17 @@ class _UserHeader extends StatelessWidget {
                     userName,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: (isMobile ? fontSize : fontSize + 2) * 1.05,
+                      fontSize: isSmallScreen ? fontSize : (isTablet ? fontSize + 4 : fontSize + 2),
                       fontWeight: FontWeight.bold,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                SizedBox(height: isMobile ? 2 : 4),
+                SizedBox(height: isSmallScreen ? 1 : (isTablet ? 6 : 2)),
                 Text(
                   'Staff',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05,
+                    fontSize: isSmallScreen ? fontSize * 0.7 : (isTablet ? fontSize + 2 : fontSize * 0.8),
                   ),
                 ),
               ],
@@ -859,11 +692,11 @@ class _UserHeader extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: EdgeInsets.only(top: isMobile ? 20 : 28),
+          padding: EdgeInsets.only(top: topPadding),
           child: _NotificationIconWithBadge(
             userId: userId,
-            isMobile: isMobile,
-            iconSize: iconSize,
+            isSmallScreen: isSmallScreen,
+            isTablet: isTablet,
           ),
         ),
       ],
@@ -871,23 +704,23 @@ class _UserHeader extends StatelessWidget {
   }
 }
 
-// ================= NOTIFICATION ICON WITH BADGE =================
 class _NotificationIconWithBadge extends StatelessWidget {
   final String userId;
-  final bool isMobile;
-  final double iconSize;
+  final bool isSmallScreen;
+  final bool isTablet;
 
   const _NotificationIconWithBadge({
     required this.userId,
-    required this.isMobile,
-    required this.iconSize,
+    required this.isSmallScreen,
+    required this.isTablet,
   });
 
   @override
   Widget build(BuildContext context) {
-    final double notificationSize = (isMobile ? iconSize * 1.3 : 28 * 1.3) * 1.05;
-    final double badgeSize = (isMobile ? 18 : 24) * 1.05;
-    final double fontSize = (isMobile ? 10 : 12) * 1.05;
+    double iconSize = isSmallScreen ? 20 : (isTablet ? 32 : 24);
+    double notificationSize = isSmallScreen ? iconSize * 1.2 : (isTablet ? 32 : iconSize * 1.3);
+    double badgeSize = isSmallScreen ? 14 : (isTablet ? 26 : 18);
+    double fontSize = isSmallScreen ? 8 : (isTablet ? 14 : 10);
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -924,7 +757,7 @@ class _NotificationIconWithBadge extends StatelessWidget {
                 top: 0,
                 right: 0,
                 child: Container(
-                  padding: EdgeInsets.all(isMobile ? 3 : 5),
+                  padding: EdgeInsets.all(isSmallScreen ? 2 : (isTablet ? 6 : 3)),
                   decoration: const BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
@@ -951,53 +784,54 @@ class _NotificationIconWithBadge extends StatelessWidget {
   }
 }
 
-// ================= LEAVE STATUS SECTION =================
 class _LeaveStatusSection extends StatelessWidget {
   final List<Map<String, dynamic>> leaveStatusList;
   final List<Map<String, dynamic>> allLeaveStatusList;
   final bool showAll;
   final VoidCallback onToggleShowAll;
-  final bool isMobile;
-  final double fontSize;
-  final double spacing;
 
   const _LeaveStatusSection({
     required this.leaveStatusList,
     required this.allLeaveStatusList,
     required this.showAll,
     required this.onToggleShowAll,
-    required this.isMobile,
-    required this.fontSize,
-    required this.spacing,
   });
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+    final isTablet = screenWidth >= 600;
+    
+    double fontSize = isSmallScreen ? 12 : (isTablet ? 18 : 14);
+    double paddingHorizontal = isSmallScreen ? 8 : (isTablet ? 24 : 12);
+    double spacing = isSmallScreen ? 4 : (isTablet ? 12 : 8);
+    
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 20),
+      padding: EdgeInsets.symmetric(horizontal: paddingHorizontal),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(height: isMobile ? 12 : 20),
+          SizedBox(height: isSmallScreen ? 8 : (isTablet ? 24 : 12)),
           Center(
             child: Text(
               'Leave Status',
               style: TextStyle(
-                fontSize: (isMobile ? fontSize + 2 : fontSize + 4) * 1.05,
+                fontSize: isSmallScreen ? fontSize + 2 : (isTablet ? fontSize + 6 : fontSize + 4),
                 fontWeight: FontWeight.bold,
               ),
             ),
           ),
-          SizedBox(height: isMobile ? 12 : 16),
+          SizedBox(height: isSmallScreen ? 8 : (isTablet ? 20 : 12)),
           if (leaveStatusList.isEmpty)
             Center(
               child: Padding(
-                padding: EdgeInsets.all(isMobile ? 20 : 32),
+                padding: EdgeInsets.all(isSmallScreen ? 16 : (isTablet ? 40 : 20)),
                 child: Text(
                   'No leave requests yet',
                   style: TextStyle(
                     color: Colors.grey,
-                    fontSize: (isMobile ? fontSize * 0.85 : fontSize) * 1.05,
+                    fontSize: isSmallScreen ? fontSize * 0.8 : (isTablet ? fontSize + 2 : fontSize),
                   ),
                 ),
               ),
@@ -1010,11 +844,12 @@ class _LeaveStatusSection extends StatelessWidget {
               title: request['title'],
               status: request['status'],
               statusColor: request['statusColor'],
-              isMobile: isMobile,
+              isSmallScreen: isSmallScreen,
+              isTablet: isTablet,
               fontSize: fontSize,
               spacing: spacing,
             )),
-          SizedBox(height: isMobile ? 8 : 12),
+          SizedBox(height: isSmallScreen ? 4 : (isTablet ? 12 : 8)),
           if (allLeaveStatusList.length > 3)
             Center(
               child: TextButton(
@@ -1022,8 +857,8 @@ class _LeaveStatusSection extends StatelessWidget {
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF173B69),
                   padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 16 : 24,
-                    vertical: isMobile ? 8 : 12,
+                    horizontal: isSmallScreen ? 12 : (isTablet ? 24 : 16),
+                    vertical: isSmallScreen ? 6 : (isTablet ? 14 : 8),
                   ),
                 ),
                 child: Row(
@@ -1032,20 +867,20 @@ class _LeaveStatusSection extends StatelessWidget {
                     Text(
                       showAll ? 'Show Less' : 'See More',
                       style: TextStyle(
-                        fontSize: (isMobile ? fontSize : fontSize + 2) * 1.05,
+                        fontSize: isSmallScreen ? fontSize : (isTablet ? fontSize + 4 : fontSize + 2),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    SizedBox(width: isMobile ? 2 : 4),
+                    SizedBox(width: isSmallScreen ? 2 : (isTablet ? 8 : 4)),
                     Icon(
                       showAll ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                      size: (isMobile ? 16 : 20) * 1.05,
+                      size: isSmallScreen ? 14 : (isTablet ? 24 : 16),
                     ),
                   ],
                 ),
               ),
             ),
-          SizedBox(height: isMobile ? 12 : 20),
+          SizedBox(height: isSmallScreen ? 8 : (isTablet ? 24 : 12)),
         ],
       ),
     );
@@ -1058,7 +893,8 @@ class LeaveStatusCard extends StatelessWidget {
   final String title;
   final String status;
   final Color statusColor;
-  final bool isMobile;
+  final bool isSmallScreen;
+  final bool isTablet;
   final double fontSize;
   final double spacing;
 
@@ -1069,19 +905,25 @@ class LeaveStatusCard extends StatelessWidget {
     required this.title,
     required this.status,
     required this.statusColor,
-    required this.isMobile,
+    required this.isSmallScreen,
+    required this.isTablet,
     required this.fontSize,
     required this.spacing,
   });
 
   @override
   Widget build(BuildContext context) {
+    double padding = isSmallScreen ? 8 : (isTablet ? 18 : 12);
+    double borderRadius = isSmallScreen ? 8 : (isTablet ? 18 : 12);
+    double horizontalPadding = isSmallScreen ? 6 : (isTablet ? 14 : 8);
+    double verticalPadding = isSmallScreen ? 4 : (isTablet ? 10 : 6);
+    
     return Container(
-      margin: EdgeInsets.only(bottom: isMobile ? 8 : 12),
-      padding: EdgeInsets.all(isMobile ? 12 : 16),
+      margin: EdgeInsets.only(bottom: isSmallScreen ? 6 : (isTablet ? 14 : 8)),
+      padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
+        borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.shade200,
@@ -1094,12 +936,12 @@ class LeaveStatusCard extends StatelessWidget {
         children: [
           Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 8 : 12,
-              vertical: isMobile ? 6 : 8,
+              horizontal: horizontalPadding,
+              vertical: verticalPadding,
             ),
             decoration: BoxDecoration(
               color: const Color(0xFF173B69).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
+              borderRadius: BorderRadius.circular(isSmallScreen ? 4 : (isTablet ? 10 : 6)),
             ),
             child: Column(
               children: [
@@ -1107,26 +949,26 @@ class LeaveStatusCard extends StatelessWidget {
                   month,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05,
+                    fontSize: isSmallScreen ? fontSize * 0.7 : (isTablet ? fontSize + 2 : fontSize * 0.8),
                     color: const Color(0xFF173B69),
                   ),
                 ),
                 Text(
                   date,
                   style: TextStyle(
-                    fontSize: (isMobile ? fontSize * 0.8 : fontSize) * 1.05,
+                    fontSize: isSmallScreen ? fontSize * 0.7 : (isTablet ? fontSize + 2 : fontSize * 0.8),
                     color: const Color(0xFF173B69),
                   ),
                 ),
               ],
             ),
           ),
-          SizedBox(width: isMobile ? 10 : 16),
+          SizedBox(width: isSmallScreen ? 6 : (isTablet ? 18 : 10)),
           Expanded(
             child: Text(
               title,
               style: TextStyle(
-                fontSize: (isMobile ? fontSize * 0.85 : fontSize) * 1.05,
+                fontSize: isSmallScreen ? fontSize * 0.75 : (isTablet ? fontSize + 2 : fontSize * 0.85),
                 fontWeight: FontWeight.w500,
               ),
               overflow: TextOverflow.ellipsis,
@@ -1134,569 +976,23 @@ class LeaveStatusCard extends StatelessWidget {
           ),
           Container(
             padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 6 : 8,
-              vertical: isMobile ? 2 : 4,
+              horizontal: isSmallScreen ? 4 : (isTablet ? 10 : 6),
+              vertical: isSmallScreen ? 2 : (isTablet ? 6 : 4),
             ),
             decoration: BoxDecoration(
               color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(isMobile ? 8 : 12),
+              borderRadius: BorderRadius.circular(isSmallScreen ? 6 : (isTablet ? 14 : 8)),
             ),
             child: Text(
               status,
               style: TextStyle(
                 color: statusColor,
                 fontWeight: FontWeight.bold,
-                fontSize: (isMobile ? fontSize * 0.7 : fontSize) * 1.05,
+                fontSize: isSmallScreen ? fontSize * 0.6 : (isTablet ? fontSize + 2 : fontSize * 0.7),
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ================= STAFF DETAIL LIST SCREEN =================
-class _StaffDetailListScreen extends StatefulWidget {
-  final String type;
-  final Map<String, int> stats;
-  final String userId;
-
-  const _StaffDetailListScreen({
-    required this.type,
-    required this.stats,
-    required this.userId,
-  });
-
-  @override
-  State<_StaffDetailListScreen> createState() => _StaffDetailListScreenState();
-}
-
-class _StaffDetailListScreenState extends State<_StaffDetailListScreen> {
-  List<Map<String, dynamic>> _items = [];
-  bool _isLoading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      List<Map<String, dynamic>> items = [];
-      
-      // Special handling for autoApproved
-      if (widget.type == 'autoApproved') {
-        // First get all approved requests
-        final snapshot = await FirebaseFirestore.instance
-            .collection('leave_requests')
-            .where('userId', isEqualTo: widget.userId)
-            .where('status', isEqualTo: 'approved')
-            .orderBy('createdAt', descending: true)
-            .get();
-        
-        // Then filter autoApproved = true in code
-        for (var doc in snapshot.docs) {
-          final data = doc.data() as Map<String, dynamic>;
-          final isAutoApproved = data['autoApproved'] ?? false;
-          
-          if (isAutoApproved) {
-            // Get user data
-            String userName = data['userName'] ?? 'Unknown';
-            String userPosition = 'Staff';
-            
-            try {
-              final userDoc = await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(widget.userId)
-                  .get();
-              
-              if (userDoc.exists) {
-                final userData = userDoc.data()!;
-                userName = userData['fullName'] ?? userData['username'] ?? userName;
-                userPosition = userData['position'] ?? userData['role'] ?? 'Staff';
-              }
-            } catch (e) {
-              print('Error fetching user data: $e');
-            }
-
-            items.add({
-              'id': doc.id,
-              'userName': userName,
-              'position': userPosition,
-              'reason': data['reason'] ?? 'No reason',
-              'status': data['status'] ?? 'pending',
-              'startDate': data['startDate'],
-              'endDate': data['endDate'],
-              'createdAt': data['createdAt'],
-              'submitTime': data['submitTime'],
-              'totalDays': (data['totalDays'] as num?)?.toInt() ?? 0,
-              'autoApproved': data['autoApproved'] ?? false,
-            });
-          }
-        }
-      } else {
-        // For other types
-        Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-            .collection('leave_requests')
-            .where('userId', isEqualTo: widget.userId);
-
-        switch (widget.type) {
-          case 'used':
-            query = query.where('status', isEqualTo: 'approved');
-            break;
-          case 'pending':
-            query = query.where('status', isEqualTo: 'pending');
-            break;
-          case 'approved':
-            query = query.where('status', isEqualTo: 'approved');
-            break;
-          case 'rejected':
-            query = query.where('status', isEqualTo: 'rejected');
-            break;
-          default:
-            query = query.where('status', isEqualTo: 'pending');
-            break;
-        }
-
-        query = query.orderBy('createdAt', descending: true);
-        final snapshot = await query.get();
-
-        for (var doc in snapshot.docs) {
-          final data = doc.data() as Map<String, dynamic>;
-          
-          // Get user data
-          String userName = data['userName'] ?? 'Unknown';
-          String userPosition = 'Staff';
-          
-          try {
-            final userDoc = await FirebaseFirestore.instance
-                .collection('users')
-                .doc(widget.userId)
-                .get();
-            
-            if (userDoc.exists) {
-              final userData = userDoc.data()!;
-              userName = userData['fullName'] ?? userData['username'] ?? userName;
-              userPosition = userData['position'] ?? userData['role'] ?? 'Staff';
-            }
-          } catch (e) {
-            print('Error fetching user data: $e');
-          }
-
-          items.add({
-            'id': doc.id,
-            'userName': userName,
-            'position': userPosition,
-            'reason': data['reason'] ?? 'No reason',
-            'status': data['status'] ?? 'pending',
-            'startDate': data['startDate'],
-            'endDate': data['endDate'],
-            'createdAt': data['createdAt'],
-            'submitTime': data['submitTime'],
-            'totalDays': (data['totalDays'] as num?)?.toInt() ?? 0,
-            'autoApproved': data['autoApproved'] ?? false,
-          });
-        }
-      }
-
-      setState(() {
-        _items = items;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Failed to load data: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  String _getTitle() {
-    switch (widget.type) {
-      case 'used':
-        return 'Used Leave (${widget.stats['used'] ?? 0} days)';
-      case 'pending':
-        return 'Pending Requests (${widget.stats['pendingRequests'] ?? 0})';
-      case 'approved':
-        return 'Approved Requests (${widget.stats['approved'] ?? 0})';
-      case 'rejected':
-        return 'Rejected Requests (${widget.stats['rejected'] ?? 0})';
-      case 'autoApproved':
-        return 'Auto-Approved (${widget.stats['autoApproved'] ?? 0})';
-      default:
-        return 'Leave Requests';
-    }
-  }
-
-  Color _getColor() {
-    switch (widget.type) {
-      case 'used':
-        return Colors.blue;
-      case 'pending':
-        return Colors.orange;
-      case 'approved':
-        return Colors.teal;
-      case 'rejected':
-        return Colors.red;
-      case 'autoApproved':
-        return Colors.purple;
-      default:
-        return Colors.blue;
-    }
-  }
-
-  IconData _getIcon() {
-    switch (widget.type) {
-      case 'used':
-        return Icons.check_circle_outline;
-      case 'pending':
-        return Icons.hourglass_empty;
-      case 'approved':
-        return Icons.thumb_up_alt_outlined;
-      case 'rejected':
-        return Icons.cancel_outlined;
-      case 'autoApproved':
-        return Icons.autorenew;
-      default:
-        return Icons.info;
-    }
-  }
-
-  String _formatDate(dynamic timestamp) {
-    try {
-      if (timestamp == null) return 'N/A';
-      if (timestamp is Timestamp) {
-        return '${timestamp.toDate().day}/${timestamp.toDate().month}/${timestamp.toDate().year}';
-      }
-      if (timestamp is String) {
-        final parts = timestamp.split(' ');
-        if (parts.length >= 1) {
-          return parts[0];
-        }
-        return timestamp;
-      }
-      return 'N/A';
-    } catch (e) {
-      return 'N/A';
-    }
-  }
-
-  String _formatSubmitTimeToCambodia(dynamic submitTime) {
-    if (submitTime == null) return 'N/A';
-    
-    try {
-      DateTime? dateTime;
-      
-      if (submitTime is Timestamp) {
-        dateTime = submitTime.toDate();
-      } else if (submitTime is DateTime) {
-        dateTime = submitTime;
-      } else if (submitTime is String) {
-        String cleaned = submitTime.trim();
-        
-        if (cleaned.contains('AM') || cleaned.contains('PM')) {
-          return cleaned;
-        }
-        
-        if (cleaned.contains('T')) {
-          try {
-            dateTime = DateTime.parse(cleaned);
-          } catch (e) {}
-        }
-        
-        if (dateTime == null && cleaned.contains(' ')) {
-          final parts = cleaned.split(' ');
-          if (parts.length == 2) {
-            final dateParts = parts[0].split('-');
-            final timeParts = parts[1].split(':');
-            
-            if (dateParts.length == 3 && timeParts.length >= 2) {
-              try {
-                final year = int.parse(dateParts[0]);
-                final month = int.parse(dateParts[1]);
-                final day = int.parse(dateParts[2]);
-                final hour = int.parse(timeParts[0]);
-                final minute = int.parse(timeParts[1]);
-                dateTime = DateTime(year, month, day, hour, minute);
-              } catch (e) {}
-            }
-          }
-        }
-      }
-      
-      if (dateTime == null) {
-        return submitTime.toString();
-      }
-      
-      final cambodiaTime = dateTime.toUtc().add(const Duration(hours: 7));
-      
-      int hour = cambodiaTime.hour;
-      final int minute = cambodiaTime.minute;
-      final String period = hour >= 12 ? 'PM' : 'AM';
-      
-      if (hour == 0) {
-        hour = 12;
-      } else if (hour > 12) {
-        hour = hour - 12;
-      }
-      
-      return '$hour:${minute.toString().padLeft(2, '0')} $period';
-      
-    } catch (e) {
-      return submitTime.toString();
-    }
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'approved':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      case 'pending':
-      default:
-        return Colors.orange;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14);
-    final double spacing = Responsive.spacing(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _getTitle(),
-          style: TextStyle(
-            fontSize: isMobile ? 16 : 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: _getColor(),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                      const SizedBox(height: 16),
-                      Text(
-                        _error!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: fontSize),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: _loadData,
-                        child: Text(
-                          'Retry',
-                          style: TextStyle(fontSize: fontSize),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : _items.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(_getIcon(), size: 64, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No Data',
-                            style: TextStyle(
-                              fontSize: fontSize,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.all(spacing),
-                      itemCount: _items.length,
-                      itemBuilder: (context, index) {
-                        final item = _items[index];
-                        return _buildItemCard(item, isMobile, fontSize, spacing);
-                      },
-                    ),
-    );
-  }
-
-  Widget _buildItemCard(Map<String, dynamic> item, bool isMobile, double fontSize, double spacing) {
-    final String submitTime = _formatSubmitTimeToCambodia(item['submitTime']);
-    
-    return Card(
-      margin: EdgeInsets.symmetric(horizontal: spacing / 2, vertical: spacing / 2),
-      elevation: 2,
-      child: Container(
-        padding: EdgeInsets.all(isMobile ? 12 : 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Row with avatar, name, position and status
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: isMobile ? 18 : 24,
-                  backgroundColor: _getStatusColor(item['status'] ?? 'pending').withOpacity(0.2),
-                  child: Icon(
-                    item['status']?.toLowerCase() == 'approved' ? Icons.check_circle :
-                    item['status']?.toLowerCase() == 'rejected' ? Icons.cancel :
-                    Icons.pending,
-                    color: _getStatusColor(item['status'] ?? 'pending'),
-                    size: isMobile ? 16 : 20,
-                  ),
-                ),
-                SizedBox(width: isMobile ? 10 : 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item['userName'] ?? 'Unknown User',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: isMobile ? fontSize : fontSize + 2,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        item['position'] ?? 'Staff',
-                        style: TextStyle(
-                          fontSize: isMobile ? fontSize * 0.75 : fontSize,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 6 : 12,
-                    vertical: isMobile ? 2 : 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(item['status'] ?? 'pending'),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    item['status']?.toString().toUpperCase() ?? 'PENDING',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: isMobile ? fontSize * 0.7 : fontSize,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            SizedBox(height: isMobile ? 6 : 8),
-            
-            // Reason
-            Text(
-              'Reason: ${item['reason'] ?? 'No reason'}',
-              style: TextStyle(
-                fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                fontWeight: FontWeight.w500,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-            
-            SizedBox(height: isMobile ? 4 : 6),
-            
-            // Date range and total days
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: isMobile ? 12 : 14, color: Colors.grey[600]),
-                SizedBox(width: 4),
-                Text(
-                  '${_formatDate(item['startDate'])} - ${_formatDate(item['endDate'])}',
-                  style: TextStyle(
-                    fontSize: isMobile ? fontSize * 0.8 : fontSize,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                if (item['totalDays'] != null && item['totalDays'] > 0) ...[
-                  SizedBox(width: isMobile ? 8 : 12),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${item['totalDays']} day${item['totalDays'] > 1 ? 's' : ''}',
-                      style: TextStyle(
-                        fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.8,
-                        color: Colors.blue[700],
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            
-            SizedBox(height: isMobile ? 4 : 6),
-            
-            // Submit time
-            Row(
-              children: [
-                Icon(Icons.access_time, size: isMobile ? 12 : 14, color: Colors.grey[500]),
-                SizedBox(width: 4),
-                Text(
-                  'Submitted: $submitTime',
-                  style: TextStyle(
-                    fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.8,
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ],
-            ),
-            
-            // Auto-approved badge
-            if (item['autoApproved'] == true)
-              Container(
-                margin: EdgeInsets.only(top: 4),
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.purple.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  'Auto-Approved',
-                  style: TextStyle(
-                    color: Colors.purple,
-                    fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.8,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
