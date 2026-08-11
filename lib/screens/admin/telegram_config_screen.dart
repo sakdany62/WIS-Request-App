@@ -20,12 +20,12 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
   final _managerChatIdController = TextEditingController();
   final _adminChatIdController = TextEditingController();
   final _botTokenController = TextEditingController();
-  
+
   // សម្រាប់ Additional Chat IDs
   final _newChatIdController = TextEditingController();
   final _newChatTypeController = TextEditingController();
   List<Map<String, String>> _additionalChatIds = [];
-  
+
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isAddingChat = false;
@@ -57,15 +57,17 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
       _managerChatIdController.text = configs['managerChatId'] ?? '';
       _adminChatIdController.text = configs['adminChatId'] ?? '';
       _botTokenController.text = configs['botToken'] ?? '';
-      
+
       // ដក Additional Chat IDs
       final additionalJson = configs['additionalChatIds'] ?? '[]';
       try {
         final List<dynamic> decoded = jsonDecode(additionalJson);
-        _additionalChatIds = decoded.map((item) => {
-          'chatId': item['chatId']?.toString() ?? '',
-          'type': item['type']?.toString() ?? 'Other',
-        }).toList();
+        _additionalChatIds = decoded
+            .map((item) => {
+                  'chatId': item['chatId']?.toString() ?? '',
+                  'type': item['type']?.toString() ?? 'Other',
+                })
+            .toList();
       } catch (e) {
         _additionalChatIds = [];
       }
@@ -82,7 +84,7 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
     try {
       // បំប្លែង Additional Chat IDs ទៅជា JSON
       final additionalJson = jsonEncode(_additionalChatIds);
-      
+
       final success = await TelegramConfigService.updateTelegramConfigs(
         groupChatId: _groupChatIdController.text.trim(),
         managerChatId: _managerChatIdController.text.trim(),
@@ -203,8 +205,7 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header
-                    
-                    
+
                     SizedBox(height: spacing * 2),
 
                     // Bot Token
@@ -290,10 +291,10 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
                     Container(
                       padding: EdgeInsets.all(spacing * 1.5),
                       decoration: BoxDecoration(
-                        color: Colors.purple.withOpacity(0.05),
+                        color: Colors.purple.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.purple.withOpacity(0.2),
+                          color: Colors.purple.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Column(
@@ -323,7 +324,7 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
                                     vertical: spacing / 3,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.purple.withOpacity(0.1),
+                                    color: Colors.purple.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
@@ -337,7 +338,7 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
                                 ),
                             ],
                           ),
-                          
+
                           SizedBox(height: spacing),
 
                           // បញ្ជី Chat IDs ដែលបានបន្ថែម
@@ -366,7 +367,7 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
                                         vertical: spacing / 3,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.purple.withOpacity(0.1),
+                                        color: Colors.purple.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
@@ -401,7 +402,7 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
                                   ],
                                 ),
                               );
-                            }).toList(),
+                            }),
 
                           // ទម្រង់បន្ថែម Chat ID
                           if (_isAddingChat)
@@ -525,7 +526,7 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.purple,
                                   side: BorderSide(
-                                    color: Colors.purple.withOpacity(0.3),
+                                    color: Colors.purple.withValues(alpha: 0.3),
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(8),
@@ -544,7 +545,7 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
                       Container(
                         padding: EdgeInsets.all(spacing),
                         decoration: BoxDecoration(
-                          color: _statusColor?.withOpacity(0.1),
+                          color: _statusColor?.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: _statusColor ?? Colors.grey,
@@ -633,42 +634,42 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
                     SizedBox(height: spacing * 2),
 
                     // Info Card
-Container(
-  padding: EdgeInsets.all(spacing * 1.5),
-  decoration: BoxDecoration(
-    color: Colors.grey.withOpacity(0.05),
-    borderRadius: BorderRadius.circular(12),
-    border: Border.all(color: Colors.grey.withOpacity(0.2)),
-  ),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        ' How to get IDs:',
-        style: TextStyle(
-          fontSize: isMobile ? fontSize : fontSize + 1,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      SizedBox(height: spacing / 2),
-      Text(
-        '1. For Personal Chat:\n'
-        '   - Open Telegram\n'
-        '   - Search @userinfobot\n'
-        '   - Click Start, bot will give your Chat ID\n\n'
-        '2. For Group Chat:\n'
-        '   - Open Telegram\n'
-        '   - Add @userinfobot to your group\n'
-        '   - Type /start in group, bot will give Group ID\n',
-        style: TextStyle(
-          fontSize: isMobile ? fontSize * 0.85 : fontSize,
-          color: Colors.grey[600],
-          height: 1.5,
-        ),
-      ),
-    ],
-  ),
-),
+                    Container(
+                      padding: EdgeInsets.all(spacing * 1.5),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ' How to get IDs:',
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize : fontSize + 1,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: spacing / 2),
+                          Text(
+                            '1. For Personal Chat:\n'
+                            '   - Open Telegram\n'
+                            '   - Search @userinfobot\n'
+                            '   - Click Start, bot will give your Chat ID\n\n'
+                            '2. For Group Chat:\n'
+                            '   - Open Telegram\n'
+                            '   - Add @userinfobot to your group\n'
+                            '   - Type /start in group, bot will give Group ID\n',
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                              color: Colors.grey[600],
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                     SizedBox(height: spacing * 2),
                   ],

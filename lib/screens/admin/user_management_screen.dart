@@ -36,13 +36,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   // ===== LOAD DEPARTMENTS FROM FIRESTORE =====
   Future<void> _loadDepartments() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('departments')
-          .orderBy('name')
-          .get();
+      final snapshot = await FirebaseFirestore.instance.collection('departments').orderBy('name').get();
 
       final List<Map<String, String>> loadedDepartments = [];
-      
+
       for (var doc in snapshot.docs) {
         final data = doc.data();
         loadedDepartments.add({
@@ -62,7 +59,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       setState(() {
         _departments = loadedDepartments;
       });
-      
+
       print('✅ Loaded ${_departments.length} departments from Firestore');
     } catch (e) {
       print('❌ Error loading departments: $e');
@@ -88,15 +85,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     });
 
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .orderBy('createdAt', descending: true)
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance.collection('users').orderBy('createdAt', descending: true).get();
 
       setState(() {
         _users = snapshot.docs.map((doc) {
           return UserModel.fromFirestore(
-            doc.data() as Map<String, dynamic>,
+            doc.data(),
             doc.id,
           );
         }).toList();
@@ -112,7 +107,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   List<UserModel> get _filteredUsers {
     var filtered = _users;
-    
+
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       filtered = filtered.where((user) {
@@ -124,13 +119,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             (user.position?.toLowerCase().contains(query) ?? false);
       }).toList();
     }
-    
+
     if (_filterDepartment != 'all') {
       filtered = filtered.where((user) {
         return user.departmentId == _filterDepartment;
       }).toList();
     }
-    
+
     return filtered;
   }
 
@@ -156,7 +151,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final phoneController = TextEditingController(text: user.phone);
     final emailController = TextEditingController(text: user.email);
     final positionController = TextEditingController(text: _getPositionDisplay(user));
-    
+
     String selectedRole = user.roleId;
     String selectedStatus = user.status;
     String selectedDepartmentId = user.departmentId ?? '';
@@ -212,7 +207,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       style: TextStyle(fontSize: fontSize, color: Colors.black),
                     ),
                     SizedBox(height: spacing * 1.5),
-
                     TextFormField(
                       controller: emailController,
                       decoration: InputDecoration(
@@ -246,7 +240,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       style: TextStyle(fontSize: fontSize, color: Colors.black),
                     ),
                     SizedBox(height: spacing * 1.5),
-
                     TextFormField(
                       controller: phoneController,
                       decoration: InputDecoration(
@@ -274,9 +267,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       style: TextStyle(fontSize: fontSize, color: Colors.black),
                     ),
                     SizedBox(height: spacing * 1.5),
-
                     DropdownButtonFormField<String>(
-                      value: selectedRole,
+                      initialValue: selectedRole,
                       decoration: InputDecoration(
                         labelText: 'Role',
                         labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
@@ -328,10 +320,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
                     ),
                     SizedBox(height: spacing * 1.5),
-
                     if (_showDepartmentField(selectedRole)) ...[
                       DropdownButtonFormField<String>(
-                        value: _departments.any((d) => d['id'] == selectedDepartmentId)
+                        initialValue: _departments.any((d) => d['id'] == selectedDepartmentId)
                             ? (selectedDepartmentId.isEmpty ? null : selectedDepartmentId)
                             : null,
                         decoration: InputDecoration(
@@ -386,7 +377,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       ),
                       SizedBox(height: spacing * 1.5),
                     ],
-
                     if (_showPositionField(selectedRole)) ...[
                       TextFormField(
                         controller: positionController,
@@ -424,9 +414,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       ),
                       SizedBox(height: spacing * 1.5),
                     ],
-
                     DropdownButtonFormField<String>(
-                      value: selectedStatus,
+                      initialValue: selectedStatus,
                       decoration: InputDecoration(
                         labelText: 'Status',
                         labelStyle: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
@@ -483,7 +472,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               ElevatedButton(
                 onPressed: () async {
                   if (!formKey.currentState!.validate()) return;
-                  
+
                   showDialog(
                     context: context,
                     barrierDismissible: false,
@@ -491,7 +480,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       child: CircularProgressIndicator(),
                     ),
                   );
-                  
+
                   try {
                     String departmentName = '';
                     if (selectedDepartmentId.isNotEmpty) {
@@ -522,14 +511,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       department: departmentName.isEmpty ? null : departmentName,
                       position: positionValue,
                     );
-                    
+
                     await _userService.updateUser(updatedUser);
-                    
+
                     Navigator.pop(context);
                     Navigator.pop(context);
-                    
+
                     _loadUsers();
-                    
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(' User updated successfully'),
@@ -538,7 +527,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     );
                   } catch (e) {
                     Navigator.pop(context);
-                    
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('❌ Error: $e'),
@@ -630,20 +619,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           child: CircularProgressIndicator(),
         ),
       );
-      
+
       try {
         await _userService.deleteUser(user.id, user.userId);
-        
+
         Navigator.pop(context);
         _loadUsers();
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(' User deleted from Database'),
             backgroundColor: Colors.green,
           ),
         );
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -656,7 +645,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         );
       } catch (e) {
         Navigator.pop(context);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ Error: $e'),
@@ -729,7 +718,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     hintText: '🔍 Search users...',
                     hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.9),
+                    fillColor: Colors.white.withValues(alpha: 0.9),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
@@ -886,7 +875,7 @@ class _UserCard extends StatelessWidget {
               userId: user.id,
               name: user.fullName,
               radius: isMobile ? 22 : 30,
-              backgroundColor: user.roleColor.withOpacity(0.2),
+              backgroundColor: user.roleColor.withValues(alpha: 0.2),
               textColor: user.roleColor,
             ),
             SizedBox(width: spacing * 1.5),
@@ -928,7 +917,7 @@ class _UserCard extends StatelessWidget {
                           vertical: spacing / 4,
                         ),
                         decoration: BoxDecoration(
-                          color: user.roleColor.withOpacity(0.1),
+                          color: user.roleColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -947,7 +936,7 @@ class _UserCard extends StatelessWidget {
                             vertical: spacing / 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.blue.withOpacity(0.1),
+                            color: Colors.blue.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -965,7 +954,7 @@ class _UserCard extends StatelessWidget {
                           vertical: spacing / 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.purple.withOpacity(0.1),
+                          color: Colors.purple.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -983,9 +972,8 @@ class _UserCard extends StatelessWidget {
                           vertical: spacing / 4,
                         ),
                         decoration: BoxDecoration(
-                          color: user.isActive
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.red.withOpacity(0.1),
+                          color:
+                              user.isActive ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(

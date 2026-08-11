@@ -6,7 +6,7 @@ import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import 'manager_home_screen.dart';
 import 'all_permission_today.dart' as permission;
-import 'manager_settings_screen.dart'; 
+import 'manager_settings_screen.dart';
 
 class ManagerDashboard extends StatefulWidget {
   const ManagerDashboard({super.key});
@@ -31,7 +31,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     _pages = [
       const ManagerHomeScreen(),
       const permission.ListStaffScreen(),
-      const ManagerSettingsScreen(), 
+      const ManagerSettingsScreen(),
     ];
   }
 
@@ -114,7 +114,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
         borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: isMobile ? 15 : 20,
             offset: const Offset(0, 8),
           ),
@@ -192,7 +192,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
         child: Container(
           padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
             borderRadius: BorderRadius.circular(isMobile ? 20 : 25),
           ),
           child: Column(

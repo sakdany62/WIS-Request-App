@@ -16,7 +16,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   PolicyModel? _currentPolicy;
-  
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -56,9 +56,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
     setState(() {
       _isLoading = true;
     });
-    
+
     _currentPolicy = await _policyService.getActivePolicy();
-    
+
     if (_currentPolicy != null) {
       _nameController.text = _currentPolicy!.name;
       _descriptionController.text = _currentPolicy!.description;
@@ -70,13 +70,13 @@ class _PolicyScreenState extends State<PolicyScreen> {
       _requireDocument = _currentPolicy!.requireDocument;
       _autoApprove = _currentPolicy!.autoApprove;
       _isActive = _currentPolicy!.isActive;
-      
+
       _autoApproveFirstCountController.text = _currentPolicy!.autoApproveFirstCount.toString();
       _autoApproveSecondCountController.text = _currentPolicy!.autoApproveSecondCount.toString();
       _firstRequestMessageController.text = _currentPolicy!.firstRequestMessage;
       _secondRequestMessageController.text = _currentPolicy!.secondRequestMessage;
       _thirdRequestMessageController.text = _currentPolicy!.thirdRequestMessage;
-      
+
       _enableNotifications = _currentPolicy!.enableNotifications;
       _notificationTitleController.text = _currentPolicy!.notificationTitle;
       _notificationBodyController.text = _currentPolicy!.notificationBody;
@@ -86,7 +86,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
       _notifyOnRejection = _currentPolicy!.notifyOnRejection;
       _notifyAdminOnNewRequest = _currentPolicy!.notifyAdminOnNewRequest;
     }
-    
+
     setState(() {
       _isLoading = false;
     });
@@ -94,11 +94,11 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
   Future<void> _savePolicy() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isSaving = true;
     });
-    
+
     final policy = PolicyModel(
       id: _currentPolicy?.id ?? '',
       name: _nameController.text,
@@ -128,10 +128,10 @@ class _PolicyScreenState extends State<PolicyScreen> {
       notifyOnRejection: _notifyOnRejection,
       notifyAdminOnNewRequest: _notifyAdminOnNewRequest,
     );
-    
+
     try {
       await _policyService.savePolicy(policy);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -163,7 +163,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
     final controller = TextEditingController();
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -344,16 +344,16 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                   _isActive = value;
                                 });
                               },
-                              activeColor: Colors.green,
+                              activeThumbColor: Colors.green,
                               contentPadding: EdgeInsets.zero,
                             ),
                           ],
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(height: spacing * 2),
-                    
+
                     //  Leave Limits Card with Border
                     _buildBorderedCard(
                       child: Padding(
@@ -406,9 +406,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(height: spacing * 2),
-                    
+
                     // Advance Notice Card with Border
                     _buildBorderedCard(
                       child: Padding(
@@ -461,9 +461,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(height: spacing * 2),
-                    
+
                     //  Allowed Reasons Card with Border
                     _buildBorderedCard(
                       child: Padding(
@@ -523,9 +523,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(height: spacing * 2),
-                    
+
                     //  Auto Approve Settings Card with Border
                     _buildBorderedCard(
                       child: Padding(
@@ -641,9 +641,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(height: spacing * 2),
-                    
+
                     //  Additional Settings Card with Border
                     _buildBorderedCard(
                       child: Padding(
@@ -682,7 +682,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                  
+
                     //  Notification Settings Card with Border
                     SizedBox(height: spacing * 2),
                     _buildBorderedCard(
@@ -716,12 +716,10 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                   _enableNotifications = value;
                                 });
                               },
-                              activeColor: Colors.blue,
+                              activeThumbColor: Colors.blue,
                               contentPadding: EdgeInsets.zero,
                             ),
-                            
                             const Divider(),
-                            
                             if (_enableNotifications) ...[
                               SizedBox(height: spacing),
                               TextFormField(
@@ -737,8 +735,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                     vertical: isMobile ? 10 : 14,
                                   ),
                                 ),
-                                validator: (value) => 
-                                    value?.isEmpty ?? true ? 'Title is required' : null,
+                                validator: (value) => value?.isEmpty ?? true ? 'Title is required' : null,
                               ),
                               SizedBox(height: spacing * 1.5),
                               TextFormField(
@@ -755,11 +752,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                   ),
                                 ),
                                 maxLines: 2,
-                                validator: (value) => 
-                                    value?.isEmpty ?? true ? 'Body is required' : null,
+                                validator: (value) => value?.isEmpty ?? true ? 'Body is required' : null,
                               ),
                               SizedBox(height: spacing * 2),
-                              
                               Text(
                                 'When to send notifications:',
                                 style: TextStyle(
@@ -784,7 +779,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                     _notifyOnRequestSubmit = value;
                                   });
                                 },
-                                activeColor: Colors.blue,
+                                activeThumbColor: Colors.blue,
                                 contentPadding: EdgeInsets.zero,
                               ),
                               SwitchListTile(
@@ -802,7 +797,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                     _notifyOnStatusChange = value;
                                   });
                                 },
-                                activeColor: Colors.blue,
+                                activeThumbColor: Colors.blue,
                                 contentPadding: EdgeInsets.zero,
                               ),
                               SwitchListTile(
@@ -820,7 +815,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                     _notifyOnApproval = value;
                                   });
                                 },
-                                activeColor: Colors.green,
+                                activeThumbColor: Colors.green,
                                 contentPadding: EdgeInsets.zero,
                               ),
                               SwitchListTile(
@@ -838,7 +833,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                     _notifyOnRejection = value;
                                   });
                                 },
-                                activeColor: Colors.red,
+                                activeThumbColor: Colors.red,
                                 contentPadding: EdgeInsets.zero,
                               ),
                               SwitchListTile(
@@ -856,7 +851,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                     _notifyAdminOnNewRequest = value;
                                   });
                                 },
-                                activeColor: Colors.orange,
+                                activeThumbColor: Colors.orange,
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ],
@@ -864,9 +859,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(height: spacing * 3),
-                    
+
                     // Save Button
                     SizedBox(
                       width: double.infinity,
@@ -899,7 +894,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                               ),
                       ),
                     ),
-                    
+
                     SizedBox(height: isMobile ? 60 : 80),
                   ],
                 ),

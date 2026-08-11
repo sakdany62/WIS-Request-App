@@ -1,10 +1,8 @@
 // lib/screens/admin/terms_management_screen.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/terms_service.dart';
-import '../../services/notification_service.dart'; 
+import '../../services/notification_service.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import 'terms_read_tracking_screen.dart';
@@ -20,7 +18,7 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _sectionTitleController = TextEditingController();
   final TextEditingController _sectionContentController = TextEditingController();
-  
+
   List<Map<String, String>> _sections = [];
   bool _isLoading = true;
   bool _isSaving = false;
@@ -39,7 +37,7 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
       _sections = [];
       _termsId = '';
       _titleController.clear();
-      
+
       final terms = await TermsService.getCurrentTerms();
       if (terms != null) {
         // Convert sections from List<Map<String, dynamic>> to List<Map<String, String>>
@@ -53,7 +51,7 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
             });
           }
         }
-        
+
         setState(() {
           _titleController.text = terms['title']?.toString() ?? '';
           _sections = convertedSections;
@@ -74,7 +72,7 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
   void _addSection() {
     final title = _sectionTitleController.text.trim();
     final content = _sectionContentController.text.trim();
-    
+
     if (title.isEmpty || content.isEmpty) {
       _showSnackBar('Please enter both section title and content', Colors.red);
       return;
@@ -100,7 +98,7 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
     final section = _sections[index];
     _sectionTitleController.text = section['title'] ?? '';
     _sectionContentController.text = section['content'] ?? '';
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -159,7 +157,7 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
 
   Future<void> _saveTerms() async {
     final title = _titleController.text.trim();
-    
+
     if (title.isEmpty) {
       _showSnackBar('Please enter a title', Colors.red);
       return;
@@ -182,7 +180,7 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
       String notificationTitle = '';
       String notificationBody = '';
       String? termsId;
-      
+
       if (_termsId.isNotEmpty) {
         // Update existing terms
         await TermsService.updateTerms(
@@ -209,13 +207,13 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
         notificationBody = 'Admin has published new Terms & Conditions. Please read and confirm.';
         _showSnackBar('Terms & Conditions created successfully!', Colors.green);
       }
-      
+
       //  Get the current terms ID after save
       final currentTerms = await TermsService.getCurrentTerms();
       if (currentTerms != null) {
         termsId = currentTerms['id'];
       }
-      
+
       //  Send notification to all staff
       if (termsId != null) {
         await NotificationService.sendNotificationToAllStaff(
@@ -231,13 +229,13 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
         );
         _showSnackBar('Notifications sent to all staff!', Colors.blue);
       }
-      
+
       // Force refresh data from server (clear cache)
       await TermsService.clearCache();
-      
+
       // Load current terms again
       await _loadCurrentTerms();
-      
+
       setState(() => _isSaving = false);
     } catch (e) {
       _showSnackBar('Error: $e', Colors.red);
@@ -306,9 +304,8 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
                   MaterialPageRoute(
                     builder: (context) => TermsReadTrackingScreen(
                       termsId: _termsId,
-                      termsTitle: _titleController.text.trim().isNotEmpty 
-                          ? _titleController.text.trim() 
-                          : 'Terms & Conditions',
+                      termsTitle:
+                          _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : 'Terms & Conditions',
                     ),
                   ),
                 );
@@ -589,7 +586,7 @@ class _TermsManagementScreenState extends State<TermsManagementScreen> {
 
   void _showPreviewDialog() {
     final title = _titleController.text.trim();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

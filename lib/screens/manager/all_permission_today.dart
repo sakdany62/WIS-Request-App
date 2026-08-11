@@ -58,7 +58,7 @@ class TodayRequest {
 
   factory TodayRequest.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    
+
     int requestNumber = 0;
     final requestNumberValue = data['requestNumber'];
     if (requestNumberValue != null) {
@@ -70,7 +70,7 @@ class TodayRequest {
         requestNumber = requestNumberValue.toInt();
       }
     }
-    
+
     int totalDays = 0;
     final totalDaysValue = data['totalDays'];
     if (totalDaysValue != null) {
@@ -82,7 +82,7 @@ class TodayRequest {
         totalDays = totalDaysValue.toInt();
       }
     }
-    
+
     return TodayRequest(
       requestId: doc.id,
       userId: data['userId'] ?? '',
@@ -118,15 +118,15 @@ class ListStaffScreen extends StatefulWidget {
 class _ListStaffScreenState extends State<ListStaffScreen> {
   final RequestService _requestService = RequestService();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   List<TodayRequest> _allRequests = [];
   List<TodayRequest> _filteredRequests = [];
   bool _isLoading = true;
   String _filterStatus = 'all';
-  
+
   String _selectedReportType = 'daily';
   DateTime _selectedDate = DateTime.now();
-  
+
   String _managerDepartment = '';
   bool _isManager = false;
 
@@ -144,13 +144,10 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   Future<String> _getUserFullName(String userId) async {
     if (userId.isEmpty) return 'Unknown';
-    
+
     try {
-      final docSnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .get();
-      
+      final docSnapshot = await _firestore.collection('users').doc(userId).get();
+
       if (docSnapshot.exists) {
         final data = docSnapshot.data();
         return data?['fullName'] ?? data?['username'] ?? 'Unknown';
@@ -164,11 +161,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   Future<String> _getUserFullNameCached(String userId) async {
     if (userId.isEmpty) return 'Unknown';
-    
+
     if (_userNameCache.containsKey(userId)) {
       return _userNameCache[userId]!;
     }
-    
+
     final name = await _getUserFullName(userId);
     _userNameCache[userId] = name;
     return name;
@@ -176,7 +173,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   String _formatSubmitTime(dynamic submitTime) {
     if (submitTime == null) return 'N/A';
-    
+
     try {
       if (submitTime is String) {
         String cleaned = submitTime.trim();
@@ -184,13 +181,13 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           return cleaned;
         }
       }
-      
+
       DateTime? parsedDateTime;
       bool isUTC = false;
-      
+
       if (submitTime is String) {
         String cleaned = submitTime.trim();
-        
+
         if (cleaned.contains('T') && cleaned.endsWith('Z')) {
           try {
             parsedDateTime = DateTime.parse(cleaned);
@@ -218,39 +215,36 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
             }
           }
         }
-      }
-      else if (submitTime is Timestamp) {
+      } else if (submitTime is Timestamp) {
         parsedDateTime = submitTime.toDate();
         isUTC = true;
-      }
-      else if (submitTime is DateTime) {
+      } else if (submitTime is DateTime) {
         parsedDateTime = submitTime;
         isUTC = submitTime.isUtc;
       }
-      
+
       if (parsedDateTime == null) {
         return submitTime.toString();
       }
-      
+
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
       } else {
         cambodiaTime = parsedDateTime;
       }
-      
+
       int hour = cambodiaTime.hour;
       final int minute = cambodiaTime.minute;
       final String period = hour >= 12 ? 'PM' : 'AM';
-      
+
       if (hour == 0) {
         hour = 12;
       } else if (hour > 12) {
         hour = hour - 12;
       }
-      
+
       return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
-      
     } catch (e) {
       return 'N/A';
     }
@@ -258,11 +252,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-    
+
     try {
       DateTime? parsedDateTime;
       bool isUTC = false;
-      
+
       if (timestamp is Timestamp) {
         parsedDateTime = timestamp.toDate();
         isUTC = true;
@@ -272,16 +266,15 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       } else {
         return 'N/A';
       }
-      
+
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
       } else {
         cambodiaTime = parsedDateTime;
       }
-      
+
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
-      
     } catch (e) {
       print('❌ Error formatting timestamp: $e');
       return 'N/A';
@@ -297,10 +290,13 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   DateTime _getEndOfWeek(DateTime date) {
     DateTime startOfWeek = _getStartOfWeek(date);
     return DateTime(
-      startOfWeek.year, 
-      startOfWeek.month, 
+      startOfWeek.year,
+      startOfWeek.month,
       startOfWeek.day + 6,
-      23, 59, 59, 999,
+      23,
+      59,
+      59,
+      999,
     );
   }
 
@@ -350,16 +346,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
 
     try {
-      final querySnapshot = await _firestore
-          .collection('users')
-          .where('userId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
+      final querySnapshot = await _firestore.collection('users').where('userId', isEqualTo: user.uid).limit(1).get();
 
       if (querySnapshot.docs.isNotEmpty) {
-        final data = querySnapshot.docs.first.data() as Map<String, dynamic>;
+        final data = querySnapshot.docs.first.data();
         final roleId = data['roleId']?.toString() ?? '2';
-        
+
         if (roleId == '3' || roleId == '4') {
           _isManager = true;
           _managerDepartment = data['department'] ?? '';
@@ -418,22 +410,20 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           .where('createdAt', isLessThan: endTimestamp);
 
       final querySnapshot = await query.get();
-      
+
       print('📊 Total requests: ${querySnapshot.docs.length}');
-      
-      List<TodayRequest> allRequests = querySnapshot.docs
-          .map((doc) => TodayRequest.fromFirestore(doc))
-          .toList();
-      
+
+      List<TodayRequest> allRequests = querySnapshot.docs.map((doc) => TodayRequest.fromFirestore(doc)).toList();
+
       if (_isManager && _managerDepartment.isNotEmpty) {
         allRequests = allRequests.where((r) {
           return r.department == _managerDepartment;
         }).toList();
-        
+
         print('🔍 Filtered by department: $_managerDepartment');
         print('📊 After filter: ${allRequests.length} requests');
       }
-      
+
       allRequests.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       setState(() {
@@ -442,7 +432,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         _isLoading = false;
         _userNameCache.clear();
       });
-      
+
       print('✅ Loaded ${_allRequests.length} requests');
     } catch (e) {
       print('❌ Error loading requests: $e');
@@ -546,7 +536,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         final r = _filteredRequests[i];
         final submitTimeDisplay = _formatSubmitTime(r.submitTime);
         final createdAtDisplay = _formatToCambodiaTime(r.createdAt);
-        
+
         String fullName = r.staffName;
         if (r.userId.isNotEmpty) {
           final cachedName = _userNameCache[r.userId];
@@ -558,7 +548,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
             fullName = fetchedName;
           }
         }
-        
+
         sheet.appendRow([
           (i + 1),
           r.requestId.substring(0, 8),
@@ -651,9 +641,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         horizontal: isMobile ? 2 : 4,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -688,14 +678,10 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
     final filtered = _filteredRequests;
     final summary = _calculateSummary(filtered);
-    final String departmentDisplay = _isManager && _managerDepartment.isNotEmpty
-        ? '$_managerDepartment'
-        : '';
+    final String departmentDisplay = _isManager && _managerDepartment.isNotEmpty ? _managerDepartment : '';
 
     // ===== Get visible items =====
-    final List<TodayRequest> visibleItems = _showAll 
-        ? filtered 
-        : filtered.take(_visibleCount).toList();
+    final List<TodayRequest> visibleItems = _showAll ? filtered : filtered.take(_visibleCount).toList();
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -743,7 +729,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                             children: [
                               Expanded(
                                 child: DropdownButtonFormField<String>(
-                                  value: _selectedReportType,
+                                  initialValue: _selectedReportType,
                                   decoration: InputDecoration(
                                     labelText: 'Report Type',
                                     labelStyle: TextStyle(
@@ -776,7 +762,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                     ),
                                     DropdownMenuItem(
                                       value: 'weekly',
-                                      child: Text(' Weekly'), 
+                                      child: Text(' Weekly'),
                                     ),
                                     DropdownMenuItem(
                                       value: 'monthly',
@@ -830,7 +816,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                             children: [
                               Expanded(
                                 child: DropdownButtonFormField<String>(
-                                  value: _filterStatus,
+                                  initialValue: _filterStatus,
                                   decoration: InputDecoration(
                                     labelText: 'Status Filter',
                                     labelStyle: TextStyle(
@@ -934,9 +920,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                       vertical: spacing,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.green.withOpacity(0.1),
+                                      color: Colors.green.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                                     ),
                                     child: Row(
                                       children: [
@@ -1019,9 +1005,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                         horizontal: spacing * 1.5,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.purple.withOpacity(0.1),
+                        color: Colors.purple.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                        border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -1047,7 +1033,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                               vertical: spacing / 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.purple.withOpacity(0.1),
+                              color: Colors.purple.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
@@ -1151,9 +1137,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                             ),
                                             SizedBox(width: spacing / 2),
                                             Icon(
-                                              _showAll 
-                                                  ? Icons.expand_less 
-                                                  : Icons.expand_more,
+                                              _showAll ? Icons.expand_less : Icons.expand_more,
                                               color: const Color(0xFF173B69),
                                               size: iconSize,
                                             ),
@@ -1227,7 +1211,7 @@ class _RequestCard extends StatelessWidget {
 
   String _formatSubmitTime(dynamic submitTime) {
     if (submitTime == null) return 'N/A';
-    
+
     try {
       if (submitTime is String) {
         String cleaned = submitTime.trim();
@@ -1235,13 +1219,13 @@ class _RequestCard extends StatelessWidget {
           return cleaned;
         }
       }
-      
+
       DateTime? parsedDateTime;
       bool isUTC = false;
-      
+
       if (submitTime is String) {
         String cleaned = submitTime.trim();
-        
+
         if (cleaned.contains('T') && cleaned.endsWith('Z')) {
           try {
             parsedDateTime = DateTime.parse(cleaned);
@@ -1269,39 +1253,36 @@ class _RequestCard extends StatelessWidget {
             }
           }
         }
-      }
-      else if (submitTime is Timestamp) {
+      } else if (submitTime is Timestamp) {
         parsedDateTime = submitTime.toDate();
         isUTC = true;
-      }
-      else if (submitTime is DateTime) {
+      } else if (submitTime is DateTime) {
         parsedDateTime = submitTime;
         isUTC = submitTime.isUtc;
       }
-      
+
       if (parsedDateTime == null) {
         return submitTime.toString();
       }
-      
+
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
       } else {
         cambodiaTime = parsedDateTime;
       }
-      
+
       int hour = cambodiaTime.hour;
       final int minute = cambodiaTime.minute;
       final String period = hour >= 12 ? 'PM' : 'AM';
-      
+
       if (hour == 0) {
         hour = 12;
       } else if (hour > 12) {
         hour = hour - 12;
       }
-      
+
       return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
-      
     } catch (e) {
       return 'N/A';
     }
@@ -1309,11 +1290,11 @@ class _RequestCard extends StatelessWidget {
 
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-    
+
     try {
       DateTime? parsedDateTime;
       bool isUTC = false;
-      
+
       if (timestamp is Timestamp) {
         parsedDateTime = timestamp.toDate();
         isUTC = true;
@@ -1323,16 +1304,15 @@ class _RequestCard extends StatelessWidget {
       } else {
         return 'N/A';
       }
-      
+
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
       } else {
         cambodiaTime = parsedDateTime;
       }
-      
+
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
-      
     } catch (e) {
       print('❌ Error formatting timestamp: $e');
       return 'N/A';
@@ -1361,7 +1341,7 @@ class _RequestCard extends StatelessWidget {
                   userId: request.userId,
                   name: request.staffName,
                   radius: isMobile ? 14 : 16,
-                  backgroundColor: _statusColor.withOpacity(0.2),
+                  backgroundColor: _statusColor.withValues(alpha: 0.2),
                   textColor: _statusColor,
                 ),
                 SizedBox(width: spacing),
@@ -1394,7 +1374,7 @@ class _RequestCard extends StatelessWidget {
                     vertical: spacing / 4,
                   ),
                   decoration: BoxDecoration(
-                    color: _statusColor.withOpacity(0.1),
+                    color: _statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -1455,7 +1435,7 @@ class _RequestCard extends StatelessWidget {
                     vertical: spacing / 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -1481,8 +1461,8 @@ class _RequestCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: request.autoApproved
-                        ? Colors.purple.withOpacity(0.1)
-                        : Colors.orange.withOpacity(0.1),
+                        ? Colors.purple.withValues(alpha: 0.1)
+                        : Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(

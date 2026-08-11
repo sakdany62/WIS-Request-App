@@ -12,22 +12,19 @@ class UserService {
     try {
       print('📝 Updating user: ${user.id}');
       print('📝 Position: ${user.position}');
-      
-      await _firestore
-          .collection('users')
-          .doc(user.id)
-          .update({
-            'fullName': user.fullName,
-            'phone': user.phone,
-            'email': user.email,
-            'roleId': user.roleId,
-            'status': user.status,
-            'departmentId': user.departmentId ?? '',
-            'department': user.department ?? '',
-            'position': user.position, // 👈 បន្ថែមបន្ទាត់នេះ!
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-      
+
+      await _firestore.collection('users').doc(user.id).update({
+        'fullName': user.fullName,
+        'phone': user.phone,
+        'email': user.email,
+        'roleId': user.roleId,
+        'status': user.status,
+        'departmentId': user.departmentId ?? '',
+        'department': user.department ?? '',
+        'position': user.position, // 👈 បន្ថែមបន្ទាត់នេះ!
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
       print('✅ User updated successfully');
     } catch (e) {
       print('❌ Failed to update user: $e');
@@ -43,11 +40,11 @@ class UserService {
       // 1. Delete from Firestore
       await _firestore.collection('users').doc(userId).delete();
       print('✅ User deleted from Firestore');
-      
+
       // 2. Delete from Firebase Auth
       if (authUid != null) {
         final currentUser = FirebaseAuth.instance.currentUser;
-        
+
         // If deleting current user
         if (currentUser != null && currentUser.uid == authUid) {
           await currentUser.delete();
@@ -59,7 +56,7 @@ class UserService {
           print('ℹ️ Please use Firebase Console or Admin SDK to delete auth users');
         }
       }
-      
+
       print('✅ User deletion process completed');
     } catch (e) {
       print('❌ Failed to delete user: $e');
@@ -73,27 +70,26 @@ class UserService {
   Future<void> deleteUserWithReauth(String userId, String password) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
-      
+
       if (currentUser == null) {
         throw Exception('No user logged in');
       }
-      
+
       // Re-authenticate before deleting
       final credential = EmailAuthProvider.credential(
         email: currentUser.email!,
         password: password,
       );
-      
+
       await currentUser.reauthenticateWithCredential(credential);
-      
+
       // Delete from Firestore
       await _firestore.collection('users').doc(userId).delete();
       print('✅ User deleted from Firestore');
-      
+
       // Delete from Firebase Auth
       await currentUser.delete();
       print('✅ User deleted from Firebase Auth');
-      
     } catch (e) {
       print('❌ Failed to delete user: $e');
       throw Exception('Failed to delete user: $e');
@@ -105,11 +101,8 @@ class UserService {
   // ============================================================
   Future<UserModel?> getUserById(String userId) async {
     try {
-      final docSnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .get();
-          
+      final docSnapshot = await _firestore.collection('users').doc(userId).get();
+
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
         return UserModel.fromFirestore(data, docSnapshot.id);
@@ -126,14 +119,11 @@ class UserService {
   // ============================================================
   Future<List<UserModel>> getAllUsers() async {
     try {
-      final querySnapshot = await _firestore
-          .collection('users')
-          .orderBy('createdAt', descending: true)
-          .get();
+      final querySnapshot = await _firestore.collection('users').orderBy('createdAt', descending: true).get();
 
       return querySnapshot.docs.map((doc) {
         return UserModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
+          doc.data(),
           doc.id,
         );
       }).toList();
@@ -158,12 +148,12 @@ class UserService {
         'active': 0,
         'inactive': 0,
       };
-      
+
       for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         final roleId = data['roleId']?.toString() ?? '2';
         final status = data['status'] ?? 'Active';
-        
+
         switch (roleId) {
           case '1':
             stats['admin'] = (stats['admin'] ?? 0) + 1;
@@ -178,14 +168,14 @@ class UserService {
             stats['head'] = (stats['head'] ?? 0) + 1;
             break;
         }
-        
+
         if (status == 'Active') {
           stats['active'] = (stats['active'] ?? 0) + 1;
         } else {
           stats['inactive'] = (stats['inactive'] ?? 0) + 1;
         }
       }
-      
+
       return stats;
     } catch (e) {
       print('❌ Failed to get user stats: $e');

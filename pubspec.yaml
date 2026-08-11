@@ -48,6 +48,9 @@ dependencies:
   # ===== IMAGE CACHING =====
   cached_network_image: ^3.3.1  
 
+  # ===== CHART =====
+  fl_chart: ^0.68.0  # ✅ ADD THIS LINE
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

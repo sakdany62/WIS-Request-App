@@ -44,10 +44,13 @@ class _ReportScreenState extends State<ReportScreen> {
   DateTime _getEndOfWeek(DateTime date) {
     DateTime startOfWeek = _getStartOfWeek(date);
     return DateTime(
-      startOfWeek.year, 
-      startOfWeek.month, 
+      startOfWeek.year,
+      startOfWeek.month,
       startOfWeek.day + 6,
-      23, 59, 59, 999,
+      23,
+      59,
+      59,
+      999,
     );
   }
 
@@ -59,11 +62,11 @@ class _ReportScreenState extends State<ReportScreen> {
 
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-    
+
     try {
       DateTime? parsedDateTime;
       bool isUTC = false;
-      
+
       if (timestamp is Timestamp) {
         parsedDateTime = timestamp.toDate();
         isUTC = true;
@@ -73,16 +76,15 @@ class _ReportScreenState extends State<ReportScreen> {
       } else {
         return 'N/A';
       }
-      
+
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
       } else {
         cambodiaTime = parsedDateTime;
       }
-      
+
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
-      
     } catch (e) {
       print('❌ Error formatting timestamp: $e');
       return 'N/A';
@@ -92,13 +94,10 @@ class _ReportScreenState extends State<ReportScreen> {
   //  Helper: Get user full name from Firestore
   Future<String> _getUserFullName(String userId) async {
     if (userId.isEmpty) return 'Unknown';
-    
+
     try {
-      final docSnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .get();
-      
+      final docSnapshot = await _firestore.collection('users').doc(userId).get();
+
       if (docSnapshot.exists) {
         final data = docSnapshot.data();
         return data?['fullName'] ?? data?['username'] ?? 'Unknown';
@@ -112,14 +111,14 @@ class _ReportScreenState extends State<ReportScreen> {
 
   //  Helper: Get user full name with caching
   final Map<String, String> _userNameCache = {};
-  
+
   Future<String> _getUserFullNameCached(String userId) async {
     if (userId.isEmpty) return 'Unknown';
-    
+
     if (_userNameCache.containsKey(userId)) {
       return _userNameCache[userId]!;
     }
-    
+
     final name = await _getUserFullName(userId);
     _userNameCache[userId] = name;
     return name;
@@ -179,14 +178,14 @@ class _ReportScreenState extends State<ReportScreen> {
 
       final data = querySnapshot.docs.map((doc) {
         final d = doc.data() as Map<String, dynamic>;
-        
+
         String department = d['department'] ?? '';
         String departmentId = d['departmentId'] ?? '';
-        
+
         if (departmentId.isEmpty && d['deptId'] != null) {
           departmentId = d['deptId'].toString();
         }
-        
+
         if (department.isEmpty && departmentId.isNotEmpty) {
           final dept = _departments.firstWhere(
             (d) => d['id'] == departmentId,
@@ -194,7 +193,7 @@ class _ReportScreenState extends State<ReportScreen> {
           );
           department = dept['name'] ?? '';
         }
-        
+
         return {
           'id': doc.id,
           'userId': d['userId'] ?? '',
@@ -221,16 +220,16 @@ class _ReportScreenState extends State<ReportScreen> {
         filteredData = data.where((d) {
           final deptId = d['departmentId'] ?? '';
           final deptName = d['department'] ?? '';
-          
+
           final selectedDept = _departments.firstWhere(
             (dept) => dept['id'] == _filterDepartment,
             orElse: () => {},
           );
           final selectedDeptName = selectedDept['name'] ?? '';
-          
-          return deptId == _filterDepartment || 
-                 deptName == selectedDeptName ||
-                 deptName.contains(selectedDeptName.replaceAll(' Department', ''));
+
+          return deptId == _filterDepartment ||
+              deptName == selectedDeptName ||
+              deptName.contains(selectedDeptName.replaceAll(' Department', ''));
         }).toList();
       }
 
@@ -288,9 +287,20 @@ class _ReportScreenState extends State<ReportScreen> {
       excel.Sheet sheet = excelFile['Report'];
 
       final headers = [
-        'No.', 'Staff Name', 'Email', 'Department', 'Start Date', 'End Date',
-        'Total Days', 'Reason', 'Status', 'Type', 'Request #',
-        'Created At (Cambodia Time)', 'Approved By', 'Rejection Reason',
+        'No.',
+        'Staff Name',
+        'Email',
+        'Department',
+        'Start Date',
+        'End Date',
+        'Total Days',
+        'Reason',
+        'Status',
+        'Type',
+        'Request #',
+        'Created At (Cambodia Time)',
+        'Approved By',
+        'Rejection Reason',
       ];
 
       sheet.appendRow(headers);
@@ -308,10 +318,10 @@ class _ReportScreenState extends State<ReportScreen> {
       for (int i = 0; i < _reportData.length; i++) {
         final r = _reportData[i];
         final String cambodiaTime = _formatToCambodiaTime(r['createdAt']);
-        
+
         //  Get full name from user account
         String fullName = r['userName'] ?? 'Unknown';
-        
+
         //  If we have userId, fetch the actual full name from users collection
         if (r['userId'] != null && r['userId'].isNotEmpty) {
           final cachedName = _userNameCache[r['userId']];
@@ -324,7 +334,7 @@ class _ReportScreenState extends State<ReportScreen> {
             fullName = fetchedName;
           }
         }
-        
+
         sheet.appendRow([
           (i + 1),
           fullName, //  Use full name from user account
@@ -504,7 +514,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                     Expanded(
                                       flex: isMobile ? 2 : 3,
                                       child: DropdownButtonFormField<String>(
-                                        value: _selectedReportType,
+                                        initialValue: _selectedReportType,
                                         decoration: InputDecoration(
                                           labelText: 'Report Type',
                                           labelStyle: TextStyle(
@@ -537,7 +547,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                           ),
                                           DropdownMenuItem(
                                             value: 'weekly',
-                                            child: Text(' Weekly'), 
+                                            child: Text(' Weekly'),
                                           ),
                                           DropdownMenuItem(
                                             value: 'monthly',
@@ -597,7 +607,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                     Expanded(
                                       flex: isMobile ? 2 : 3,
                                       child: DropdownButtonFormField<String>(
-                                        value: _filterDepartment,
+                                        initialValue: _filterDepartment,
                                         decoration: InputDecoration(
                                           labelText: 'Department',
                                           labelStyle: TextStyle(
@@ -700,10 +710,10 @@ class _ReportScreenState extends State<ReportScreen> {
                               vertical: spacing / 2,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF173B69).withOpacity(0.08),
+                              color: const Color(0xFF173B69).withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: const Color(0xFF173B69).withOpacity(0.2),
+                                color: const Color(0xFF173B69).withValues(alpha: 0.2),
                               ),
                             ),
                             child: Row(
@@ -800,9 +810,9 @@ class _ReportScreenState extends State<ReportScreen> {
                               horizontal: spacing,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.purple.withOpacity(0.1),
+                              color: Colors.purple.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.purple.withOpacity(0.3)),
+                              border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -828,7 +838,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                     vertical: spacing / 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.purple.withOpacity(0.1),
+                                    color: Colors.purple.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
@@ -858,8 +868,8 @@ class _ReportScreenState extends State<ReportScreen> {
                                       ),
                                       SizedBox(height: spacing * 2),
                                       Text(
-                                        _filterDepartment == 'all' 
-                                            ? 'No data found' 
+                                        _filterDepartment == 'all'
+                                            ? 'No data found'
                                             : 'No data found for ${_getCurrentDepartmentName()}',
                                         style: TextStyle(
                                           color: Colors.grey,
@@ -900,7 +910,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                     );
                                   },
                                 ),
-                          
+
                           SizedBox(height: isMobile ? 80 : 100),
                         ],
                       ),
@@ -925,9 +935,9 @@ class _ReportScreenState extends State<ReportScreen> {
         horizontal: isMobile ? 2 : 4,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -970,10 +980,14 @@ class _ReportCard extends StatelessWidget {
 
   Color get _statusColor {
     switch (data['status']) {
-      case 'approved': return Colors.green;
-      case 'rejected': return Colors.red;
-      case 'pending': return Colors.orange;
-      default: return Colors.grey;
+      case 'approved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      case 'pending':
+        return Colors.orange;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -988,11 +1002,11 @@ class _ReportCard extends StatelessWidget {
 
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-    
+
     try {
       DateTime? parsedDateTime;
       bool isUTC = false;
-      
+
       if (timestamp is Timestamp) {
         parsedDateTime = timestamp.toDate();
         isUTC = true;
@@ -1002,16 +1016,15 @@ class _ReportCard extends StatelessWidget {
       } else {
         return 'N/A';
       }
-      
+
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
       } else {
         cambodiaTime = parsedDateTime;
       }
-      
+
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
-      
     } catch (e) {
       print(' Error formatting timestamp: $e');
       return 'N/A';
@@ -1064,18 +1077,18 @@ class _ReportCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                
-                //  Department 
+
+                //  Department
                 if (hasDepartment && !isMobile) ...[
                   Expanded(
                     flex: 1,
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: _departmentColor.withOpacity(0.1),
+                        color: _departmentColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: _departmentColor.withOpacity(0.3),
+                          color: _departmentColor.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -1104,15 +1117,15 @@ class _ReportCard extends StatelessWidget {
                   ),
                   SizedBox(width: spacing / 2),
                 ],
-                
-                // Status 
+
+                // Status
                 Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: isMobile ? 4 : 8,
                     vertical: isMobile ? 2 : 3,
                   ),
                   decoration: BoxDecoration(
-                    color: _statusColor.withOpacity(0.1),
+                    color: _statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -1177,7 +1190,7 @@ class _ReportCard extends StatelessWidget {
                     vertical: spacing / 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -1205,8 +1218,8 @@ class _ReportCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: data['autoApproved']
-                        ? Colors.purple.withOpacity(0.1)
-                        : Colors.orange.withOpacity(0.1),
+                        ? Colors.purple.withValues(alpha: 0.1)
+                        : Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(

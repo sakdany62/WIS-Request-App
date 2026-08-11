@@ -39,7 +39,7 @@ class _WarningPopupState extends State<WarningPopup> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -54,7 +54,7 @@ class _WarningPopupState extends State<WarningPopup> {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [color, color.withOpacity(0.8)],
+                  colors: [color, color.withValues(alpha: 0.8)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -83,7 +83,7 @@ class _WarningPopupState extends State<WarningPopup> {
                   Text(
                     severity.toUpperCase(),
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: AppFonts.md,
                       fontWeight: FontWeight.w500,
                     ),
@@ -208,7 +208,7 @@ class _WarningPopupState extends State<WarningPopup> {
     try {
       // Mark warning as read
       await WarningService.markWarningAsRead(widget.warning['id']);
-      
+
       if (mounted) {
         Navigator.pop(context);
         widget.onDismiss?.call();

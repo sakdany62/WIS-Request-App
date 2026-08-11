@@ -30,11 +30,8 @@ class ManagerTelegramService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
+      final querySnapshot =
+          await FirebaseFirestore.instance.collection('users').where('userId', isEqualTo: user.uid).limit(1).get();
 
       if (querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data();
@@ -51,24 +48,29 @@ class ManagerTelegramService {
   static String formatTimeOnlyAMPM([DateTime? time]) {
     final DateTime now = time ?? DateTime.now();
     final cambodiaTime = now.toUtc().add(const Duration(hours: 7));
-    
+
     int hour = cambodiaTime.hour;
     final int minute = cambodiaTime.minute;
     final String period = hour >= 12 ? 'PM' : 'AM';
-    
-    if (hour == 0) hour = 12;
-    else if (hour > 12) hour = hour - 12;
-    
+
+    if (hour == 0) {
+      hour = 12;
+    } else if (hour > 12) hour = hour - 12;
+
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
   // ===== Format status =====
   static String _formatStatus(String status) {
     switch (status.toLowerCase()) {
-      case 'pending': return 'PENDING';
-      case 'approved': return 'APPROVED';
-      case 'rejected': return 'REJECTED';
-      default: return status.toUpperCase();
+      case 'pending':
+        return 'PENDING';
+      case 'approved':
+        return 'APPROVED';
+      case 'rejected':
+        return 'REJECTED';
+      default:
+        return status.toUpperCase();
     }
   }
 
@@ -139,7 +141,7 @@ class ManagerTelegramService {
     // ✅ Check if viewing as staff and is manager
     final bool isViewing = await _isViewingAsStaff();
     final bool isManagerUser = await _isManager();
-    
+
     // ✅ If not manager view as staff, don't use this service
     if (!isViewing || !isManagerUser) {
       return '';

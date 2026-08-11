@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'user_management_screen.dart';
 import 'policy_screen.dart';
 import 'warning_management_screen.dart' as warning;
-import 'terms_management_screen.dart'; 
-import 'telegram_config_screen.dart'; 
+import 'terms_management_screen.dart';
+import 'telegram_config_screen.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 
@@ -51,7 +51,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   SizedBox(height: isMobile ? 4 : 8),
                   Icon(
                     Icons.settings,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     size: isMobile ? 32 : 40,
                   ),
                   const SizedBox(height: 8),
@@ -175,7 +175,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => warning.WarningManagementScreen(), 
+                            builder: (context) => warning.WarningManagementScreen(),
                           ),
                         );
                       },
@@ -224,7 +224,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                 width: isMobile ? 48 : 56,
                 height: isMobile ? 48 : 56,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
                 ),
                 child: Icon(
@@ -234,7 +234,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                 ),
               ),
               SizedBox(width: isMobile ? 12 : 16),
-              
+
               // Title & Subtitle
               Expanded(
                 child: Column(
@@ -260,7 +260,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                   ],
                 ),
               ),
-              
+
               // Arrow Icon
               Icon(
                 Icons.arrow_forward_ios,

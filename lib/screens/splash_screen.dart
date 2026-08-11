@@ -28,25 +28,25 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
       // ✅ ស្នើសុំ notification permission
       await _requestNotificationPermission();
-      
+
       // ✅ ពន្យាពេលសម្រាប់ splash animation
       await Future.delayed(const Duration(seconds: 2));
-      
+
       if (!mounted) return;
-      
+
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       // ✅ ដំឡើងកម្មវិធី - ពិនិត្យមើល user ដែលកំពុង login
       await authProvider.initializeApp();
-      
+
       if (!mounted) return;
-      
+
       // ✅ ចូលទៅកាន់ទំព័រសមស្រប
       _navigateToNextScreen();
     } catch (e, stackTrace) {
       print('❌ Error in SplashScreen: $e');
       print('📚 Stack trace: $stackTrace');
-      
+
       if (mounted) {
         setState(() {
           _errorMessage = e.toString();
@@ -73,7 +73,7 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.currentUser;
-      
+
       if (user != null) {
         Navigator.pushReplacementNamed(context, _getDashboardRoute(user));
       } else {
@@ -130,7 +130,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       width: logoSize,
                       height: logoSize,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -143,7 +143,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 ),
               ),
               SizedBox(height: spacing * 3),
-              
+
               // ✅ Loading or Error
               if (_errorMessage != null)
                 Column(
@@ -184,10 +184,8 @@ class _SplashScreenState extends State<SplashScreen> {
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   strokeWidth: 3,
                 ),
-              
+
               SizedBox(height: spacing * 2),
-              
-            
             ],
           ),
         ),

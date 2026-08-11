@@ -1,7 +1,7 @@
 // lib/screens/staff/request_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // ✅ បន្ថែមសម្រាប់ Status Bar
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,6 +14,7 @@ import '../../services/manager_telegram_service.dart';
 import '../../services/policy_service.dart';
 import 'package:permission_system/app_fonts.dart';
 import '../../utils/responsive.dart';
+import 'dashboard.dart';
 
 class RequestScreen extends StatefulWidget {
   const RequestScreen({super.key});
@@ -23,7 +24,7 @@ class RequestScreen extends StatefulWidget {
 }
 
 class _RequestScreenState extends State<RequestScreen> {
-  String selectedReason = 'Sick';
+  String? selectedReason; // Changed to nullable
   final TextEditingController otherController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
@@ -65,8 +66,7 @@ class _RequestScreenState extends State<RequestScreen> {
   @override
   void initState() {
     super.initState();
-    
-    // ✅ កំណត់ Status Bar ឱ្យថ្លា និងអក្សរពណ៌ស
+
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -74,14 +74,13 @@ class _RequestScreenState extends State<RequestScreen> {
         statusBarBrightness: Brightness.dark,
       ),
     );
-    
+
     _loadUserData();
     _listenToPolicyChanges();
   }
 
   @override
   void dispose() {
-    // ✅ ស្តារ Status Bar មកដើមវិញ
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -89,7 +88,7 @@ class _RequestScreenState extends State<RequestScreen> {
         statusBarBrightness: Brightness.light,
       ),
     );
-    
+
     _reasonsSubscription?.cancel();
     _hideOverlayMessage();
     otherController.dispose();
@@ -102,10 +101,10 @@ class _RequestScreenState extends State<RequestScreen> {
         if (mounted) {
           setState(() {
             _allowedReasons = reasons;
-            if (_allowedReasons.isNotEmpty && !_allowedReasons.contains(selectedReason)) {
-              selectedReason = _allowedReasons.first;
-            } else if (_allowedReasons.isEmpty) {
-              selectedReason = 'Sick';
+            // Don't auto-select any reason
+            if (_allowedReasons.isNotEmpty && 
+                (selectedReason == null || !_allowedReasons.contains(selectedReason))) {
+              // Keep null if no selection
             }
             _isLoadingReasons = false;
           });
@@ -127,34 +126,35 @@ class _RequestScreenState extends State<RequestScreen> {
 
     try {
       QuerySnapshot? querySnapshot;
-      
+
       try {
-        querySnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .where('userId', isEqualTo: user.uid)
-            .get();
+        querySnapshot = await FirebaseFirestore.instance.collection('users').where('userId', isEqualTo: user.uid).get();
       } catch (e) {
         // ignore
       }
-      
+
       if (querySnapshot == null || querySnapshot.docs.isEmpty) {
         if (user.email != null && user.email!.isNotEmpty) {
-          querySnapshot = await FirebaseFirestore.instance
-              .collection('users')
-              .where('email', isEqualTo: user.email)
-              .get();
+          querySnapshot =
+              await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: user.email).get();
         }
       }
 
       if (querySnapshot != null && querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data() as Map<String, dynamic>;
-        
-        String name = data['fullName'] ?? data['name'] ?? data['displayName'] ?? data['username'] ?? user.displayName ?? user.email ?? 'Staff';
+
+        String name = data['fullName'] ??
+            data['name'] ??
+            data['displayName'] ??
+            data['username'] ??
+            user.displayName ??
+            user.email ??
+            'Staff';
         String position = data['position'] ?? data['jobTitle'] ?? data['role'] ?? 'Employee';
         String department = data['department'] ?? data['dept'] ?? data['division'] ?? 'N/A';
         String email = data['email'] ?? user.email ?? '';
         String departmentId = data['departmentId'] ?? data['deptId'] ?? _getDepartmentId(department);
-        
+
         if (mounted) {
           setState(() {
             _staffName = name;
@@ -168,7 +168,7 @@ class _RequestScreenState extends State<RequestScreen> {
         }
       } else {
         String name = user.displayName ?? (user.email != null ? user.email!.split('@').first : 'Staff');
-        
+
         if (mounted) {
           setState(() {
             _staffName = name;
@@ -199,17 +199,17 @@ class _RequestScreenState extends State<RequestScreen> {
 
   String _formatTimeWithAMPM(DateTime time) {
     final cambodiaTime = time;
-    
+
     int hour = cambodiaTime.hour;
     final int minute = cambodiaTime.minute;
     final String period = hour >= 12 ? 'PM' : 'AM';
-    
+
     if (hour == 0) {
       hour = 12;
     } else if (hour > 12) {
       hour = hour - 12;
     }
-    
+
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
@@ -272,6 +272,106 @@ class _RequestScreenState extends State<RequestScreen> {
     _showSuccess('Image removed');
   }
 
+  void _clearAllData() {
+    setState(() {
+      startDate = null;
+      endDate = null;
+      totalDays = 0;
+      selectedReason = null; // Set to null instead of default
+      otherController.clear();
+      _selectedImage = null;
+      _imageName = null;
+      _submitTime = null;
+      _submitTimeString = '';
+    });
+  }
+
+  void _showSuccessAndNavigate(String message) {
+    _hideOverlayMessage();
+
+    if (!mounted) return;
+
+    final overlay = Overlay.of(context);
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 10,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: GestureDetector(
+            onTap: () {
+              _hideOverlayMessage();
+              _navigateToHome();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.green,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.white, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      _hideOverlayMessage();
+                      _navigateToHome();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 18),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(_overlayEntry!);
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _hideOverlayMessage();
+      _navigateToHome();
+    });
+  }
+
+  void _navigateToHome() {
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const Dashboard()),
+        (route) => false,
+      );
+    }
+  }
+
   Future<void> _submitRequest() async {
     if (startDate == null) {
       _showError('Please select a start date');
@@ -289,12 +389,16 @@ class _RequestScreenState extends State<RequestScreen> {
       _showError('Request can only be for 1 day');
       return;
     }
+    if (selectedReason == null) {
+      _showError('Please select a reason');
+      return;
+    }
 
     final now = _getCurrentCambodiaTime();
     _submitTime = now;
     _submitTimeString = _formatTimeWithAMPM(now);
 
-    final String selectedReasonAtSubmit = selectedReason;
+    final String selectedReasonAtSubmit = selectedReason!;
     final String otherReasonAtSubmit = otherController.text.trim();
 
     if (mounted) {
@@ -306,7 +410,7 @@ class _RequestScreenState extends State<RequestScreen> {
     try {
       String reasonToSend = selectedReasonAtSubmit;
       String otherReasonToSend = '';
-      
+
       if (selectedReasonAtSubmit == 'Other') {
         otherReasonToSend = otherReasonAtSubmit;
         if (otherReasonToSend.isEmpty) {
@@ -321,12 +425,11 @@ class _RequestScreenState extends State<RequestScreen> {
         reasonToSend = 'Other';
       }
 
-      final String reasonTextForNotification = selectedReasonAtSubmit == 'Other' 
-          ? otherReasonAtSubmit 
-          : selectedReasonAtSubmit;
+      final String reasonTextForNotification =
+          selectedReasonAtSubmit == 'Other' ? otherReasonAtSubmit : selectedReasonAtSubmit;
 
       String? imageUrl;
-      
+
       final result = await _requestService.submitRequestWithAutoApprove(
         startDate: formatDate(startDate),
         endDate: formatDate(endDate),
@@ -352,31 +455,20 @@ class _RequestScreenState extends State<RequestScreen> {
         final status = result['status'];
         final message = result['message'];
 
-        final timeDisplay = _submitTimeString.isNotEmpty 
-            ? '\nSubmitted at: $_submitTimeString' 
-            : '';
+        final timeDisplay = _submitTimeString.isNotEmpty ? '\nSubmitted at: $_submitTimeString' : '';
+
+        _clearAllData();
+
+        setState(() {
+          _isSubmitting = false;
+        });
 
         if (status == 'approved') {
-          _showSuccess('Request automatically approved!$timeDisplay');
+          _showSuccessAndNavigate('Request automatically approved!$timeDisplay');
         } else if (message?.contains('contact') == true) {
-          _showWarning('${message ?? 'You must contact your manager directly'}$timeDisplay');
+          _showSuccessAndNavigate('${message ?? 'You must contact your manager directly'}$timeDisplay');
         } else {
-          _showWarning('${message ?? 'Request is pending manager approval'}$timeDisplay');
-        }
-
-        if (mounted) {
-          setState(() {
-            startDate = null;
-            endDate = null;
-            totalDays = 0;
-            selectedReason = _allowedReasons.isNotEmpty ? _allowedReasons.first : 'Sick';
-            otherController.clear();
-            _selectedImage = null;
-            _imageName = null;
-            _isSubmitting = false;
-            _submitTime = null;
-            _submitTimeString = '';
-          });
+          _showSuccessAndNavigate('${message ?? 'Request submitted successfully'}$timeDisplay');
         }
       }
     } on FirebaseException catch (e) {
@@ -416,13 +508,13 @@ class _RequestScreenState extends State<RequestScreen> {
 
       final String displayName = _staffName.isNotEmpty && !_staffName.contains('@')
           ? _staffName
-          : (FirebaseAuth.instance.currentUser?.displayName ?? 
-             FirebaseAuth.instance.currentUser?.email?.split('@').first ?? 
-             'Staff');
+          : (FirebaseAuth.instance.currentUser?.displayName ??
+              FirebaseAuth.instance.currentUser?.email?.split('@').first ??
+              'Staff');
 
       final bool isViewing = await _checkViewMode();
       final bool isManager = await _checkIsManager();
-      
+
       if (isViewing && isManager) {
         final String message = await ManagerTelegramService.formatManagerViewRequest(
           staffName: displayName,
@@ -432,7 +524,7 @@ class _RequestScreenState extends State<RequestScreen> {
           requestId: requestId,
           status: status,
         );
-        
+
         if (message.isNotEmpty) {
           await ManagerTelegramService.sendToAll(message);
         }
@@ -446,7 +538,7 @@ class _RequestScreenState extends State<RequestScreen> {
           requestId: requestId,
           status: status,
         );
-        
+
         await TelegramService.sendToAll(message);
       }
     } catch (e) {
@@ -468,11 +560,8 @@ class _RequestScreenState extends State<RequestScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('userId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
+      final querySnapshot =
+          await FirebaseFirestore.instance.collection('users').where('userId', isEqualTo: user.uid).limit(1).get();
 
       if (querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data();
@@ -503,7 +592,6 @@ class _RequestScreenState extends State<RequestScreen> {
     if (!mounted) return;
 
     final overlay = Overlay.of(context);
-    if (overlay == null) return;
 
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
@@ -521,7 +609,7 @@ class _RequestScreenState extends State<RequestScreen> {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -546,7 +634,7 @@ class _RequestScreenState extends State<RequestScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.close, color: Colors.white, size: 18),
@@ -581,7 +669,7 @@ class _RequestScreenState extends State<RequestScreen> {
     final EdgeInsets padding = Responsive.padding(context);
 
     return Scaffold(
-      extendBodyBehindAppBar: true, // ✅ ឱ្យមាតិកាគ្របដណ្តប់ដល់ Status Bar
+      extendBodyBehindAppBar: true,
       backgroundColor: const Color(0xFFF7F8FA),
       body: SafeArea(
         child: Column(
@@ -589,7 +677,7 @@ class _RequestScreenState extends State<RequestScreen> {
             Container(
               width: double.infinity,
               padding: EdgeInsets.only(
-                top: isMobile ? 8 : 12, // ✅ padding សម្រាប់ Status Bar
+                top: isMobile ? 8 : 12,
                 bottom: isMobile ? 14 : 20,
                 left: isMobile ? 12 : 24,
                 right: isMobile ? 12 : 24,
@@ -607,7 +695,7 @@ class _RequestScreenState extends State<RequestScreen> {
                   SizedBox(height: isMobile ? 4 : 8),
                   Icon(
                     Icons.assignment_outlined,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     size: isMobile ? iconSize * 0.8 : iconSize,
                   ),
                   SizedBox(height: isMobile ? 4 : 8),
@@ -619,11 +707,10 @@ class _RequestScreenState extends State<RequestScreen> {
                       fontSize: isMobile ? fontSize + 2 : fontSize + 6,
                     ),
                   ),
-                  SizedBox(height: isMobile ? 4 : 8), // ✅ បន្ថែម space ខាងក្រោម
+                  SizedBox(height: isMobile ? 4 : 8),
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: padding,
@@ -648,7 +735,6 @@ class _RequestScreenState extends State<RequestScreen> {
                               ),
                             ),
                             SizedBox(height: spacing * 2),
-                            
                             GestureDetector(
                               onTap: pickStartDate,
                               child: _buildDateBox(context, formatDate(startDate), spacing),
@@ -657,12 +743,13 @@ class _RequestScreenState extends State<RequestScreen> {
                             Container(
                               padding: EdgeInsets.all(spacing * 1.5),
                               decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.1),
+                                color: Colors.green.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
                                 children: [
-                                  Icon(Icons.calendar_today, color: Colors.green, size: Responsive.iconSize(context, 20)),
+                                  Icon(Icons.calendar_today,
+                                      color: Colors.green, size: Responsive.iconSize(context, 20)),
                                   SizedBox(width: spacing),
                                   Text(
                                     "Total Days: 1 day",
@@ -680,7 +767,6 @@ class _RequestScreenState extends State<RequestScreen> {
                       ),
                     ),
                     SizedBox(height: spacing * 2.5),
-
                     Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(
@@ -724,9 +810,7 @@ class _RequestScreenState extends State<RequestScreen> {
                                       SizedBox(width: spacing * 1.5),
                                       Expanded(
                                         child: Text(
-                                          _selectedImage != null 
-                                              ? _imageName ?? 'Image selected' 
-                                              : 'Select Image',
+                                          _selectedImage != null ? _imageName ?? 'Image selected' : 'Select Image',
                                           style: TextStyle(
                                             fontSize: Responsive.fontSize(context, AppFonts.md),
                                             color: _selectedImage != null ? Colors.black : Colors.grey.shade600,
@@ -758,7 +842,6 @@ class _RequestScreenState extends State<RequestScreen> {
                       ),
                     ),
                     SizedBox(height: spacing * 2.5),
-
                     Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(
@@ -777,7 +860,6 @@ class _RequestScreenState extends State<RequestScreen> {
                               ),
                             ),
                             SizedBox(height: spacing),
-                            
                             _isLoadingReasons
                                 ? Padding(
                                     padding: EdgeInsets.symmetric(vertical: spacing * 2),
@@ -791,14 +873,10 @@ class _RequestScreenState extends State<RequestScreen> {
                                   )
                                 : Column(
                                     children: [
-                                      ..._allowedReasons.map((reason) => 
-                                        _buildRadio(context, reason, spacing)
-                                      ).toList(),
+                                      ..._allowedReasons.map((reason) => _buildRadio(context, reason, spacing)),
                                     ],
                                   ),
-                            
                             SizedBox(height: spacing * 1.5),
-                            
                             Visibility(
                               visible: selectedReason == "Other",
                               child: Column(
@@ -842,9 +920,7 @@ class _RequestScreenState extends State<RequestScreen> {
                         ),
                       ),
                     ),
-                    
                     SizedBox(height: spacing * 4),
-
                     SizedBox(
                       width: double.infinity,
                       height: Responsive.buttonHeight(context),
@@ -880,7 +956,6 @@ class _RequestScreenState extends State<RequestScreen> {
                               ),
                       ),
                     ),
-                    
                     SizedBox(height: isMobile ? 80 : 100),
                   ],
                 ),
@@ -922,10 +997,16 @@ class _RequestScreenState extends State<RequestScreen> {
   }
 
   Widget _buildRadio(BuildContext context, String title, double spacing) {
+    final isSelected = selectedReason == title;
+    
     return InkWell(
       onTap: () {
         setState(() {
-          selectedReason = title;
+          if (selectedReason == title) {
+            selectedReason = null; // Deselect if already selected
+          } else {
+            selectedReason = title;
+          }
           if (title != "Other") {
             otherController.clear();
           }
@@ -940,7 +1021,11 @@ class _RequestScreenState extends State<RequestScreen> {
               groupValue: selectedReason,
               onChanged: (value) {
                 setState(() {
-                  selectedReason = value!;
+                  if (selectedReason == value) {
+                    selectedReason = null;
+                  } else {
+                    selectedReason = value;
+                  }
                   if (value != "Other") {
                     otherController.clear();
                   }
@@ -950,7 +1035,11 @@ class _RequestScreenState extends State<RequestScreen> {
             ),
             Text(
               title,
-              style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
+              style: TextStyle(
+                fontSize: Responsive.fontSize(context, AppFonts.md),
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? appBarColor : Colors.black87,
+              ),
             ),
           ],
         ),

@@ -18,12 +18,10 @@ class TermsReadTrackingScreen extends StatefulWidget {
   });
 
   @override
-  State<TermsReadTrackingScreen> createState() =>
-      _TermsReadTrackingScreenState();
+  State<TermsReadTrackingScreen> createState() => _TermsReadTrackingScreenState();
 }
 
-class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
-    with SingleTickerProviderStateMixin {
+class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen> with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   Map<String, dynamic>? _stats;
   String? _errorMessage;
@@ -39,23 +37,20 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadStats();
-    
+
     //  Listen to terms_read_status changes
     _readStatusSubscription = FirebaseFirestore.instance
         .collection('terms_read_status')
         .where('termsId', isEqualTo: widget.termsId)
         .snapshots()
         .listen((event) {
-          _loadStats();
-        });
-    
+      _loadStats();
+    });
+
     //  Listen to users changes (when staff status or role changes)
-    _usersSubscription = FirebaseFirestore.instance
-        .collection('users')
-        .snapshots()
-        .listen((event) {
-          _loadStats();
-        });
+    _usersSubscription = FirebaseFirestore.instance.collection('users').snapshots().listen((event) {
+      _loadStats();
+    });
   }
 
   @override
@@ -68,7 +63,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
 
   Future<void> _loadStats() async {
     if (!mounted) return;
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -97,7 +92,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
     if (timestamp == null) return 'Not read yet';
     try {
       DateTime dateTime;
-      
+
       if (timestamp is Timestamp) {
         dateTime = timestamp.toDate();
       } else if (timestamp is DateTime) {
@@ -105,10 +100,10 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
       } else {
         return timestamp.toString();
       }
-      
+
       //  បំប្លែងទៅម៉ោងកម្ពុជា (UTC+7)
       final cambodiaTime = dateTime.toUtc().add(const Duration(hours: 7));
-      
+
       //  ប្រើ DateFormat ដើម្បីបង្ហាញម៉ោងជាមួយ AM/PM
       return DateFormat('dd MMM yyyy, hh:mm a').format(cambodiaTime);
     } catch (e) {
@@ -130,7 +125,6 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            
             Text(
               widget.termsTitle,
               style: TextStyle(
@@ -280,9 +274,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
     final filteredTotalStaff = filteredReadList.length + filteredNotReadList.length;
     final filteredReadCount = filteredReadList.length;
     final filteredNotReadCount = filteredNotReadList.length;
-    final filteredReadPercentage = filteredTotalStaff > 0 
-        ? (filteredReadCount / filteredTotalStaff * 100) 
-        : 0;
+    final filteredReadPercentage = filteredTotalStaff > 0 ? (filteredReadCount / filteredTotalStaff * 100) : 0;
 
     // Determine which list to show based on selected tab
     List<dynamic> displayList = [];
@@ -305,7 +297,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
             borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -413,9 +405,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          _selectedTab == 'read'
-                              ? Icons.check_circle_outline
-                              : Icons.people_outline,
+                          _selectedTab == 'read' ? Icons.check_circle_outline : Icons.people_outline,
                           size: isMobile ? 40 : 56,
                           color: Colors.grey,
                         ),
@@ -444,14 +434,14 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
                   itemCount: displayList.length,
                   itemBuilder: (context, index) {
                     final staff = displayList[index];
-                    
+
                     //  Check if staff has read based on 'readAt' field
                     final isRead = staff.containsKey('readAt') && staff['readAt'] != null;
                     final status = staff['status'] ?? 'Active';
                     final isActive = status.toLowerCase() == 'active';
                     final role = staff['role'] ?? 'Staff';
                     final isManager = role.toLowerCase() == 'manager';
-                    
+
                     return Card(
                       margin: EdgeInsets.only(bottom: spacing),
                       elevation: 0,
@@ -541,14 +531,10 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: isManager 
-                                        ? Colors.purple.shade50 
-                                        : Colors.blue.shade50,
+                                    color: isManager ? Colors.purple.shade50 : Colors.blue.shade50,
                                     borderRadius: BorderRadius.circular(4),
                                     border: Border.all(
-                                      color: isManager 
-                                          ? Colors.purple.shade200 
-                                          : Colors.blue.shade200,
+                                      color: isManager ? Colors.purple.shade200 : Colors.blue.shade200,
                                       width: 0.5,
                                     ),
                                   ),
@@ -558,9 +544,7 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
                                       Icon(
                                         isManager ? Icons.people_alt : Icons.person,
                                         size: isMobile ? 10 : 12,
-                                        color: isManager 
-                                            ? Colors.purple.shade700 
-                                            : Colors.blue.shade700,
+                                        color: isManager ? Colors.purple.shade700 : Colors.blue.shade700,
                                       ),
                                       SizedBox(width: 2),
                                       Text(
@@ -568,16 +552,16 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
                                         style: TextStyle(
                                           fontSize: isMobile ? fontSize * 0.7 : AppFonts.md * 0.7,
                                           fontWeight: FontWeight.w600,
-                                          color: isManager 
-                                              ? Colors.purple.shade700 
-                                              : Colors.blue.shade700,
+                                          color: isManager ? Colors.purple.shade700 : Colors.blue.shade700,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                                 //  Department
-                                if (staff['department'] != null && staff['department'] != 'N/A' && staff['department'] != '')
+                                if (staff['department'] != null &&
+                                    staff['department'] != 'N/A' &&
+                                    staff['department'] != '')
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 6,
@@ -647,10 +631,10 @@ class _TermsReadTrackingScreenState extends State<TermsReadTrackingScreen>
   }
 
   Widget _buildStatCard(
-    String label, 
-    String value, 
-    IconData icon, 
-    Color color, 
+    String label,
+    String value,
+    IconData icon,
+    Color color,
     bool isMobile,
     double fontSize,
   ) {

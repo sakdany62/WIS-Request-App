@@ -9,7 +9,7 @@ import '../../utils/responsive.dart';
 import '../../services/terms_service.dart';
 import '../../services/warning_service.dart';
 import '../staff/warning_popup_settings_screen.dart';
-import '../staff/settings_screen.dart'; 
+import '../staff/settings_screen.dart';
 import '../staff/dashboard.dart' as staff;
 
 class ManagerSettingsScreen extends StatefulWidget {
@@ -64,7 +64,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
 
   Future<void> _toggleViewMode() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     if (_isViewingAsStaff) {
       //  ត្រឡប់ទៅមើលជា Manager វិញ
       await prefs.setBool('view_as_staff', false);
@@ -73,7 +73,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
           _isViewingAsStaff = false;
         });
       }
-      
+
       //  ត្រឡប់ទៅ Manager Dashboard
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/manager-dashboard');
@@ -93,7 +93,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
           _isViewingAsStaff = true;
         });
       }
-      
+
       //  ទៅកាន់ Staff Dashboard
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/staff-dashboard');
@@ -142,7 +142,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
                   SizedBox(height: isMobile ? 4 : 8),
                   Icon(
                     Icons.settings,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     size: isMobile ? iconSize * 0.8 : iconSize,
                   ),
                   SizedBox(height: isMobile ? 4 : 8),
@@ -187,8 +187,6 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
                 padding: padding,
                 child: Column(
                   children: [
-                   
-                    
                     // ---------- Other Settings Items ----------
                     ..._managerItems.map(
                       (item) => _buildItem(
@@ -266,14 +264,14 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              
+
               //  លុប view_as_staff mode ពេល logout
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('view_as_staff');
-              
+
               final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
               await authProvider.signOut();
-              
+
               if (mounted) {
                 Navigator.pushNamedAndRemoveUntil(
                   context,
@@ -329,7 +327,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
           trailing: Switch(
             value: _isViewingAsStaff,
             onChanged: (_) => _toggleViewMode(),
-            activeColor: Colors.orange,
+            activeThumbColor: Colors.orange,
             activeTrackColor: Colors.orange.shade200,
           ),
           onTap: _toggleViewMode,

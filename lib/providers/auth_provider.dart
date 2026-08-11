@@ -8,7 +8,7 @@ import '../models/user_model.dart';
 class AuthProvider extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   UserModel? _currentUser;
   bool _isLoading = false;
   bool _isInitialized = false;
@@ -47,7 +47,7 @@ class AuthProvider extends ChangeNotifier {
   // INITIALIZE APP
   Future<void> initializeApp() async {
     if (_isInitialized) return;
-    
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -73,12 +73,9 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _loadUserFromFirestore(String userId) async {
     try {
       print(' Loading user data for: $userId');
-      
-      final docSnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .get();
-      
+
+      final docSnapshot = await _firestore.collection('users').doc(userId).get();
+
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
         _currentUser = UserModel.fromFirestore(data, docSnapshot.id);
@@ -115,12 +112,12 @@ class AuthProvider extends ChangeNotifier {
         email: email.trim(),
         password: password,
       );
-      
+
       if (userCredential.user != null) {
         await _loadUserFromFirestore(userCredential.user!.uid);
         _isLoading = false;
         notifyListeners();
-        
+
         if (_currentUser != null) {
           print(' Sign in successful: ${_currentUser!.fullName}');
           return true;
@@ -130,11 +127,10 @@ class AuthProvider extends ChangeNotifier {
           return false;
         }
       }
-      
+
       _isLoading = false;
       notifyListeners();
       return false;
-      
     } on FirebaseAuthException catch (e) {
       print(' Firebase Auth Error: ${e.code}');
       _errorMessage = _handleAuthError(e);
@@ -156,7 +152,7 @@ class AuthProvider extends ChangeNotifier {
       //  លុប view_as_staff mode ពេល logout
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('view_as_staff');
-      
+
       await _auth.signOut();
       _currentUser = null;
       _isInitialized = false;
@@ -181,7 +177,7 @@ class AuthProvider extends ChangeNotifier {
       }
     }
   }
-  
+
   /// ពិនិត្យមើលថាតើកំពុង View as Staff ដែរឬទេ
   Future<bool> isViewingAsStaff() async {
     try {
@@ -211,7 +207,7 @@ class AuthProvider extends ChangeNotifier {
     if (isViewing) {
       return '/staff-dashboard';
     }
-    
+
     //  បើមិនមែន View Mode ប្រើ Role
     if (isAdmin) return '/admin-dashboard';
     if (isDirector) return '/director-dashboard';
@@ -228,18 +224,14 @@ class AuthProvider extends ChangeNotifier {
     }
 
     try {
-      await _firestore
-          .collection('users')
-          .doc(_currentUser!.userId)
-          .update({
-            ...data,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-      
+      await _firestore.collection('users').doc(_currentUser!.userId).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
       await refreshUser();
       print(' User updated successfully');
       return true;
-      
     } catch (e) {
       print(' Error updating user: $e');
       _errorMessage = 'Failed to update user: $e';
@@ -250,10 +242,7 @@ class AuthProvider extends ChangeNotifier {
   // GET USER BY ID
   Future<UserModel?> getUserById(String userId) async {
     try {
-      final docSnapshot = await _firestore
-          .collection('users')
-          .doc(userId)
-          .get();
+      final docSnapshot = await _firestore.collection('users').doc(userId).get();
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
@@ -269,14 +258,11 @@ class AuthProvider extends ChangeNotifier {
   // GET ALL USERS
   Future<List<UserModel>> getAllUsers() async {
     try {
-      final querySnapshot = await _firestore
-          .collection('users')
-          .orderBy('fullName')
-          .get();
+      final querySnapshot = await _firestore.collection('users').orderBy('fullName').get();
 
       return querySnapshot.docs.map((doc) {
         return UserModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
+          doc.data(),
           doc.id,
         );
       }).toList();
@@ -289,15 +275,12 @@ class AuthProvider extends ChangeNotifier {
   // GET USERS BY ROLE
   Future<List<UserModel>> getUsersByRole(String roleId) async {
     try {
-      final querySnapshot = await _firestore
-          .collection('users')
-          .where('roleId', isEqualTo: roleId)
-          .orderBy('fullName')
-          .get();
+      final querySnapshot =
+          await _firestore.collection('users').where('roleId', isEqualTo: roleId).orderBy('fullName').get();
 
       return querySnapshot.docs.map((doc) {
         return UserModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
+          doc.data(),
           doc.id,
         );
       }).toList();
@@ -310,9 +293,7 @@ class AuthProvider extends ChangeNotifier {
   // CHECK EMAIL EXISTS
   Future<bool> checkEmailExists(String email) async {
     try {
-      List<String> methods = await _auth.fetchSignInMethodsForEmail(
-        email.trim()
-      );
+      List<String> methods = await _auth.fetchSignInMethodsForEmail(email.trim());
       return methods.isNotEmpty;
     } catch (e) {
       print(' Check email error: $e');
@@ -368,8 +349,4 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // DISPOSE
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

@@ -106,10 +106,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     if (user == null) return;
 
     try {
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
@@ -130,10 +127,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
     if (user != null) {
       try {
-        final docSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
         if (docSnapshot.exists) {
           final data = docSnapshot.data()!;
@@ -178,19 +172,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       _totalUsers = userStats['total'] ?? 0;
 
       try {
-        final pendingSnapshot = await FirebaseFirestore.instance
-            .collection('leave_requests')
-            .where('status', isEqualTo: 'pending')
-            .get();
+        final pendingSnapshot =
+            await FirebaseFirestore.instance.collection('leave_requests').where('status', isEqualTo: 'pending').get();
         _pendingRequests = pendingSnapshot.docs.length;
       } catch (e) {
         _pendingRequests = 0;
       }
 
       try {
-        final totalSnapshot = await FirebaseFirestore.instance
-            .collection('leave_requests')
-            .get();
+        final totalSnapshot = await FirebaseFirestore.instance.collection('leave_requests').get();
         _totalRequests = totalSnapshot.docs.length;
       } catch (e) {
         _totalRequests = 0;
@@ -286,12 +276,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double safeAreaTop = MediaQuery.of(context).padding.top;
     final double safeAreaBottom = MediaQuery.of(context).padding.bottom;
-    
+
     final double headerHeight = isMobile ? 90 : 120;
-    
+
     final double totalAvailableHeight = screenHeight - safeAreaTop - safeAreaBottom - (spacing * 2);
     final double gridHeight = totalAvailableHeight * 0.7;
-    
+
     final double horizontalPadding = spacing * 2;
     final double gridWidth = screenWidth - horizontalPadding;
     final double itemWidth = (gridWidth - (gridSpacing * (crossAxisCount - 1))) / crossAxisCount;
@@ -520,7 +510,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ],
         ),
         child: FractionallySizedBox(
-          heightFactor: 0.95, 
+          heightFactor: 0.95,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -638,7 +628,7 @@ class _AdminUserHeader extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
             );
-            
+
             //  If changes were made, call callback to refresh
             if (result == true && onProfileUpdated != null) {
               onProfileUpdated!();
@@ -813,10 +803,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     }
 
     try {
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
+      final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(userId).get();
 
       Map<String, dynamic> userData = {};
       if (docSnapshot.exists) {
@@ -850,7 +837,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
 
   String _formatSubmitTimeLikeTelegram(dynamic submitTime) {
     if (submitTime == null) return 'N/A';
-    
+
     try {
       if (submitTime is String) {
         String cleaned = submitTime.trim();
@@ -858,31 +845,29 @@ class _DetailListScreenState extends State<_DetailListScreen> {
           return cleaned;
         }
       }
-      
+
       DateTime? parsedDateTime;
       bool isUTC = false;
-      
+
       if (submitTime is String) {
         String cleaned = submitTime.trim();
-        
+
         if (cleaned.contains('T') && cleaned.endsWith('Z')) {
           try {
             parsedDateTime = DateTime.parse(cleaned);
             isUTC = true;
           } catch (e) {}
-        }
-        else if (cleaned.contains('T')) {
+        } else if (cleaned.contains('T')) {
           try {
             parsedDateTime = DateTime.parse(cleaned);
             isUTC = false;
           } catch (e) {}
-        }
-        else if (cleaned.contains(' ') && cleaned.contains('-')) {
+        } else if (cleaned.contains(' ') && cleaned.contains('-')) {
           final parts = cleaned.split(' ');
           if (parts.length == 2) {
             final dateParts = parts[0].split('-');
             final timeParts = parts[1].split(':');
-            
+
             if (dateParts.length == 3 && timeParts.length >= 2) {
               final year = int.parse(dateParts[0]);
               final month = int.parse(dateParts[1]);
@@ -893,13 +878,12 @@ class _DetailListScreenState extends State<_DetailListScreen> {
               isUTC = false;
             }
           }
-        }
-        else if (cleaned.contains('/') && cleaned.contains(' ')) {
+        } else if (cleaned.contains('/') && cleaned.contains(' ')) {
           final parts = cleaned.split(' ');
           if (parts.length == 2) {
             final dateParts = parts[0].split('/');
             final timeParts = parts[1].split(':');
-            
+
             if (dateParts.length == 3 && timeParts.length >= 2) {
               final day = int.parse(dateParts[0]);
               final month = int.parse(dateParts[1]);
@@ -910,8 +894,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
               isUTC = false;
             }
           }
-        }
-        else if (cleaned.contains('-') && !cleaned.contains(' ')) {
+        } else if (cleaned.contains('-') && !cleaned.contains(' ')) {
           final parts = cleaned.split('-');
           if (parts.length == 3) {
             final year = int.parse(parts[0]);
@@ -921,42 +904,39 @@ class _DetailListScreenState extends State<_DetailListScreen> {
             isUTC = false;
           }
         }
-      }
-      else if (submitTime is Timestamp) {
+      } else if (submitTime is Timestamp) {
         parsedDateTime = submitTime.toDate();
         isUTC = true;
-      }
-      else if (submitTime is DateTime) {
+      } else if (submitTime is DateTime) {
         parsedDateTime = submitTime;
         isUTC = submitTime.isUtc;
       }
-      
+
       if (parsedDateTime == null) {
         return submitTime.toString();
       }
-      
+
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
       } else {
         cambodiaTime = parsedDateTime;
       }
-      
+
       final year = cambodiaTime.year;
       final month = cambodiaTime.month.toString().padLeft(2, '0');
       final day = cambodiaTime.day.toString().padLeft(2, '0');
       int hour = cambodiaTime.hour;
       final int minute = cambodiaTime.minute;
       final String period = hour >= 12 ? 'PM' : 'AM';
-      
+
       if (hour == 0) {
         hour = 12;
       } else if (hour > 12) {
         hour = hour - 12;
       }
-      
+
       return '$year-$month-$day $hour:${minute.toString().padLeft(2, '0')}$period';
-      
     } catch (e) {
       print(' Error formatting submitTime: $e');
       return 'N/A';
@@ -964,8 +944,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
   }
 
   Future<void> _loadRequests({String? status}) async {
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-        .collection('leave_requests');
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('leave_requests');
 
     if (status != null) {
       query = query.where('status', isEqualTo: status);
@@ -977,7 +956,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     List<Map<String, dynamic>> items = [];
 
     for (var doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
       final userId = data['userId'] ?? '';
 
       final userData = await _getUserData(userId);
@@ -1027,7 +1006,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     List<Map<String, dynamic>> items = [];
 
     for (var doc in snapshot.docs) {
-      final data = doc.data() as Map<String, dynamic>;
+      final data = doc.data();
       final userId = data['userId'] ?? '';
 
       final userData = await _getUserData(userId);
@@ -1263,7 +1242,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         contentPadding: EdgeInsets.all(isMobile ? 10 : 16),
         leading: CircleAvatar(
           radius: isMobile ? 18 : 24,
-          backgroundColor: _getStatusColor(item['status'] ?? 'pending').withOpacity(0.2),
+          backgroundColor: _getStatusColor(item['status'] ?? 'pending').withValues(alpha: 0.2),
           child: Icon(
             _getStatusIcon(item['status'] ?? 'pending'),
             color: _getStatusColor(item['status'] ?? 'pending'),
@@ -1352,7 +1331,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                 vertical: isMobile ? 1 : 4,
               ),
               decoration: BoxDecoration(
-                color: _getRoleColor(item['role'] ?? 'user').withOpacity(0.1),
+                color: _getRoleColor(item['role'] ?? 'user').withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _getRoleColor(item['role'] ?? 'user'),

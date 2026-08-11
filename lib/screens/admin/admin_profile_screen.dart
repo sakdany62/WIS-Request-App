@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../app_fonts.dart';  
+import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/profile_avatar.dart';
 
@@ -35,7 +35,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     if (user == null) {
       setState(() {
         errorMessage = 'No user logged in';
@@ -43,19 +43,16 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       });
       return;
     }
-    
+
     try {
       print(' Loading admin data for UID: ${user.uid}');
-      
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      
+
+      final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
         print(' Admin data found: $data');
-        
+
         setState(() {
           userData = Map<String, dynamic>.from(data);
           profileImageUrl = data['profileImageUrl'] ?? data['profileImage'] ?? '';
@@ -194,14 +191,11 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     });
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({
-            'profileImageUrl': imageUrl,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-      
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'profileImageUrl': imageUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
       setState(() {
         profileImageUrl = imageUrl;
         userData?['profileImageUrl'] = imageUrl;
@@ -209,10 +203,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       });
 
       _showSnackBar(' Profile image updated successfully!', Colors.green);
-      
+
       //  បញ្ជូន true ត្រឡប់ទៅ Home
       Navigator.pop(context, true);
-      
     } catch (e) {
       setState(() {
         isUploading = false;
@@ -269,13 +262,10 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     });
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({
-            'profileImageUrl': '',
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'profileImageUrl': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       setState(() {
         profileImageUrl = null;
@@ -284,10 +274,9 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
       });
 
       _showSnackBar('Profile image deleted successfully', Colors.orange);
-      
+
       //  បញ្ជូន true ត្រឡប់ទៅ Home
       Navigator.pop(context, true);
-      
     } catch (e) {
       setState(() {
         isUploading = false;
@@ -419,7 +408,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     final double iconSize = Responsive.iconSize(context, 24);
 
     final user = FirebaseAuth.instance.currentUser;
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
@@ -452,7 +441,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     if (errorMessage != null) {
       return Center(
         child: Column(
@@ -483,7 +472,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
         ),
       );
     }
-    
+
     if (userData == null) {
       return Center(
         child: Text(
@@ -492,7 +481,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
         ),
       );
     }
-    
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -599,9 +588,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             ],
           ),
           SizedBox(height: spacing * 1.5),
-          
-          
-          
           Text(
             userData?['fullName'] ?? userData?['username'] ?? 'Admin User',
             style: TextStyle(
@@ -610,7 +596,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             ),
           ),
           SizedBox(height: spacing / 2),
-          
           Text(
             userData?['email'] ?? user?.email ?? 'admin@westland.com',
             style: TextStyle(
@@ -619,14 +604,13 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             ),
           ),
           SizedBox(height: spacing),
-          
           Container(
             padding: EdgeInsets.symmetric(
               horizontal: spacing * 1.5,
               vertical: spacing / 2,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFF173B69).withOpacity(0.1),
+              color: const Color(0xFF173B69).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -644,11 +628,17 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
   String _getValue(String key, [String? fallbackKey]) {
     final String defaultValue = 'N/A';
-    
-    if (userData != null && userData!.containsKey(key) && userData![key] != null && userData![key]!.toString().isNotEmpty) {
+
+    if (userData != null &&
+        userData!.containsKey(key) &&
+        userData![key] != null &&
+        userData![key]!.toString().isNotEmpty) {
       return userData![key].toString();
     }
-    if (fallbackKey != null && userData != null && userData!.containsKey(fallbackKey) && userData![fallbackKey] != null) {
+    if (fallbackKey != null &&
+        userData != null &&
+        userData!.containsKey(fallbackKey) &&
+        userData![fallbackKey] != null) {
       return userData![fallbackKey].toString();
     }
     return defaultValue;
@@ -656,7 +646,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
   String _formatDate(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-    
+
     try {
       if (timestamp is Timestamp) {
         final date = timestamp.toDate();
@@ -683,7 +673,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

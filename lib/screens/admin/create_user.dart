@@ -46,13 +46,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   // ===== LOAD DEPARTMENTS FROM FIRESTORE =====
   Future<void> _loadDepartments() async {
     try {
-      final snapshot = await _firestore
-          .collection('departments')
-          .orderBy('name')
-          .get();
+      final snapshot = await _firestore.collection('departments').orderBy('name').get();
 
       final List<Map<String, String>> loadedDepartments = [];
-      
+
       for (var doc in snapshot.docs) {
         final data = doc.data();
         loadedDepartments.add({
@@ -78,7 +75,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       setState(() {
         _departments = loadedDepartments;
       });
-      
+
       print('✅ Loaded ${_departments.length} departments from Firestore');
     } catch (e) {
       print('❌ Error loading departments: $e');
@@ -114,7 +111,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 ),
               ],
             ),
-            content: Container(
+            content: SizedBox(
               width: isMobile ? double.maxFinite : 400,
               height: 400,
               child: Column(
@@ -137,7 +134,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     ),
                   ),
                   SizedBox(height: spacing * 1.5),
-                  
+
                   // Department List
                   Expanded(
                     child: _departments.isEmpty
@@ -169,7 +166,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                                 margin: EdgeInsets.only(bottom: spacing / 2),
                                 child: ListTile(
                                   leading: CircleAvatar(
-                                    backgroundColor: const Color(0xFF173B69).withOpacity(0.1),
+                                    backgroundColor: const Color(0xFF173B69).withValues(alpha: 0.1),
                                     child: Text(
                                       dept['name']![0].toUpperCase(),
                                       style: TextStyle(
@@ -469,13 +466,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
 
               try {
                 // Update in Firestore
-                await _firestore
-                    .collection('departments')
-                    .doc(department['id'])
-                    .update({
-                      'name': name,
-                      'updatedAt': FieldValue.serverTimestamp(),
-                    });
+                await _firestore.collection('departments').doc(department['id']).update({
+                  'name': name,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                });
 
                 // Update local list
                 setState(() {
@@ -565,10 +559,8 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
 
               try {
                 // 1. Remove department from all users
-                final usersSnapshot = await _firestore
-                    .collection('users')
-                    .where('departmentId', isEqualTo: department['id'])
-                    .get();
+                final usersSnapshot =
+                    await _firestore.collection('users').where('departmentId', isEqualTo: department['id']).get();
 
                 for (var doc in usersSnapshot.docs) {
                   await _firestore.collection('users').doc(doc.id).update({
@@ -635,14 +627,14 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       if (departmentId.isEmpty) {
         return false;
       }
-      
+
       final snapshot = await _firestore
           .collection('users')
           .where('roleId', isEqualTo: '3')
           .where('departmentId', isEqualTo: departmentId)
           .where('status', isEqualTo: 'Active')
           .get();
-      
+
       return snapshot.docs.isNotEmpty;
     } catch (e) {
       print('❌ Error checking manager exists in department: $e');
@@ -654,22 +646,22 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   Future<int> _generateUserNumber() async {
     try {
       final counterRef = _firestore.collection('counters').doc('user_counter');
-      
+
       final result = await _firestore.runTransaction((transaction) async {
         final snapshot = await transaction.get(counterRef);
-        
+
         int currentCount = 0;
         if (snapshot.exists) {
           final data = snapshot.data();
           currentCount = (data?['value'] as int?) ?? 0;
         }
-        
+
         final newCount = currentCount + 1;
         transaction.set(counterRef, {'value': newCount});
-        
+
         return newCount;
       });
-      
+
       return result;
     } catch (e) {
       print('❌ Error generating user number: $e');
@@ -710,9 +702,9 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
         '2': 'Staff',
         '3': 'Manager',
       };
-      
+
       final String roleName = roleNames[roleId] ?? 'User';
-      
+
       final String message = '''
 NEW USER CREATED!
 =================
@@ -733,13 +725,12 @@ IMPORTANT:
 ''';
 
       final bool sent = await TelegramService.sendToAll(message);
-      
+
       if (sent) {
         print(' Telegram sent to Group/Admin/Manager');
       } else {
         print('❌ Failed to send Telegram');
       }
-      
     } catch (e) {
       print('❌ Error sending Telegram: $e');
     }
@@ -759,7 +750,7 @@ IMPORTANT:
   // ==================== AUTO RE-LOGIN ADMIN ====================
   Future<bool> _autoReLoginAdmin() async {
     final credentials = await _getAdminCredentials();
-    
+
     if (credentials != null) {
       try {
         await _auth.signInWithEmailAndPassword(
@@ -794,7 +785,7 @@ IMPORTANT:
         }
         return;
       }
-      
+
       final managerExists = await _checkManagerExistsInDepartment(_selectedDepartmentId);
       if (managerExists) {
         String departmentName = '';
@@ -803,7 +794,7 @@ IMPORTANT:
           orElse: () => {},
         );
         departmentName = dept['name'] ?? 'this department';
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -829,14 +820,14 @@ IMPORTANT:
       final fullName = _fullNameController.text.trim();
       final username = _usernameController.text.trim();
       final phone = _phoneController.text.trim();
-      
+
       String position;
       if (_selectedRole == '3') {
         position = 'Manager';
       } else {
         position = _positionController.text.trim();
       }
-      
+
       try {
         final methods = await _auth.fetchSignInMethodsForEmail(email);
         if (methods.isNotEmpty) {
@@ -868,7 +859,7 @@ IMPORTANT:
           rethrow;
         }
       }
-      
+
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -887,7 +878,7 @@ IMPORTANT:
 
       final userNumberInt = await _generateUserNumber();
       final userNumberFormatted = _formatUserNumber(userNumberInt);
-      
+
       print('📝 User Number: $userNumberFormatted');
 
       await _firestore.collection('users').doc(newUserUid).set({
@@ -922,11 +913,11 @@ IMPORTANT:
       print('🔓 New user signed out');
 
       final reLoginSuccess = await _autoReLoginAdmin();
-      
+
       if (mounted) {
         String successMessage = ' User created successfully!';
         successMessage += '\n Telegram sent to Group/Admin/Manager';
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(successMessage),
@@ -949,7 +940,6 @@ IMPORTANT:
           Navigator.pushReplacementNamed(context, '/login');
         }
       }
-      
     } on FirebaseAuthException catch (e) {
       String message = 'Failed to create user';
       if (e.code == 'email-already-in-use') {
@@ -1295,7 +1285,7 @@ IMPORTANT:
               ),
               SizedBox(height: spacing * 0.6),
               DropdownButtonFormField<String>(
-                value: _selectedRole,
+                initialValue: _selectedRole,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -1391,7 +1381,7 @@ IMPORTANT:
                 SizedBox(height: spacing * 0.6),
                 DropdownButtonFormField<String>(
                   // ===== FIX: Check if value exists in items =====
-                  value: _departments.any((d) => d['id'] == _selectedDepartmentId) 
+                  initialValue: _departments.any((d) => d['id'] == _selectedDepartmentId)
                       ? (_selectedDepartmentId.isEmpty ? null : _selectedDepartmentId)
                       : null,
                   hint: Text(
@@ -1486,14 +1476,11 @@ IMPORTANT:
                   controller: _positionController,
                   readOnly: _isPositionReadOnly(),
                   decoration: InputDecoration(
-                    hintText: _isPositionReadOnly() 
-                        ? 'Manager (Default)' 
-                        : 'Enter position (e.g. Teacher, Accountant, etc.)',
+                    hintText:
+                        _isPositionReadOnly() ? 'Manager (Default)' : 'Enter position (e.g. Teacher, Accountant, etc.)',
                     hintStyle: TextStyle(
-                      fontSize: fontSize, 
-                      color: _isPositionReadOnly() 
-                          ? Colors.grey.shade600 
-                          : Colors.grey.shade400,
+                      fontSize: fontSize,
+                      color: _isPositionReadOnly() ? Colors.grey.shade600 : Colors.grey.shade400,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -1515,23 +1502,17 @@ IMPORTANT:
                       borderRadius: BorderRadius.circular(10),
                       borderSide: const BorderSide(color: Colors.red, width: 2.0),
                     ),
-                    suffixIcon: _isPositionReadOnly()
-                        ? const Icon(Icons.lock, color: Colors.grey, size: 20)
-                        : null,
+                    suffixIcon: _isPositionReadOnly() ? const Icon(Icons.lock, color: Colors.grey, size: 20) : null,
                     filled: true,
-                    fillColor: _isPositionReadOnly() 
-                        ? Colors.grey.shade100 
-                        : Colors.white,
+                    fillColor: _isPositionReadOnly() ? Colors.grey.shade100 : Colors.white,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: spacing * 1.5,
                       vertical: isMobile ? 12 : 14,
                     ),
                   ),
                   style: TextStyle(
-                    fontSize: fontSize, 
-                    color: _isPositionReadOnly() 
-                        ? Colors.grey.shade700 
-                        : Colors.black,
+                    fontSize: fontSize,
+                    color: _isPositionReadOnly() ? Colors.grey.shade700 : Colors.black,
                   ),
                   validator: (value) {
                     if (_selectedRole == '3') {
@@ -1557,7 +1538,7 @@ IMPORTANT:
               ),
               SizedBox(height: spacing * 0.6),
               DropdownButtonFormField<String>(
-                value: _selectedStatus,
+                initialValue: _selectedStatus,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),

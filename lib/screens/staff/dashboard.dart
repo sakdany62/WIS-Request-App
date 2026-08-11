@@ -52,7 +52,7 @@ class _DashboardState extends State<Dashboard> {
   Future<void> _returnToManagerView() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('view_as_staff', false);
-    
+
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/manager-dashboard');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -155,7 +155,7 @@ class _DashboardState extends State<Dashboard> {
         borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: isMobile ? 15 : 20,
             offset: const Offset(0, 8),
           ),
@@ -233,7 +233,7 @@ class _DashboardState extends State<Dashboard> {
         child: Container(
           padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
             borderRadius: BorderRadius.circular(isMobile ? 20 : 25),
           ),
           child: Column(

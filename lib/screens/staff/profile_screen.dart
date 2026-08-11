@@ -42,7 +42,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
 
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     if (user == null) {
       setState(() {
         errorMessage = 'No user logged in';
@@ -50,19 +50,16 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       });
       return;
     }
-    
+
     try {
       print('🔍 Loading staff data for UID: ${user.uid}');
-      
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      
+
+      final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
         print('✅ Staff data found: $data');
-        
+
         setState(() {
           userData = Map<String, dynamic>.from(data);
           profileImageUrl = data['profileImageUrl'] ?? data['profileImage'] ?? '';
@@ -136,17 +133,17 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         email: user.email!,
         password: currentPassword,
       );
-      
+
       await user.reauthenticateWithCredential(credential);
-      
+
       // Change password
       await user.updatePassword(newPassword);
-      
+
       // Clear password fields
       currentPasswordController.clear();
       newPasswordController.clear();
       confirmPasswordController.clear();
-      
+
       setDialogState(() {
         isChangingPassword = false;
         _passwordError = '';
@@ -154,15 +151,14 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
 
       // Show success message
       _showSnackBar(' Password changed successfully!', Colors.green);
-      
+
       // Close dialog
       Navigator.pop(context);
-      
     } on FirebaseAuthException catch (e) {
       setDialogState(() {
         isChangingPassword = false;
       });
-      
+
       String errorMessage = 'Failed to change password';
       if (e.code == 'wrong-password') {
         errorMessage = 'Current password is incorrect';
@@ -173,11 +169,11 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       } else {
         errorMessage = e.message ?? 'Failed to change password';
       }
-      
+
       setDialogState(() {
         _passwordError = errorMessage;
       });
-      
+
       _showSnackBar(' $errorMessage', Colors.red);
     } catch (e) {
       setDialogState(() {
@@ -198,7 +194,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     currentPasswordController.clear();
     newPasswordController.clear();
     confirmPasswordController.clear();
-    
+
     // Reset password error and visibility states
     _passwordError = '';
     obscureCurrentPassword = true;
@@ -245,7 +241,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                           ),
                         ),
                       ),
-                    
+
                     // Current Password
                     Text(
                       'Current Password',
@@ -283,9 +279,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(height: spacing * 1.5),
-                    
+
                     // New Password
                     Text(
                       'New Password',
@@ -323,9 +319,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(height: spacing * 1.5),
-                    
+
                     // Confirm Password
                     Text(
                       'Confirm New Password',
@@ -364,7 +360,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                         ),
                       ),
                     ),
-                    
+
                     SizedBox(height: spacing / 2),
                     Text(
                       'Password must be at least 6 characters',
@@ -379,12 +375,14 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isChangingPassword ? null : () {
-                    setDialogState(() {
-                      _passwordError = '';
-                    });
-                    Navigator.pop(context);
-                  },
+                  onPressed: isChangingPassword
+                      ? null
+                      : () {
+                          setDialogState(() {
+                            _passwordError = '';
+                          });
+                          Navigator.pop(context);
+                        },
                   child: Text(
                     'Cancel',
                     style: TextStyle(
@@ -394,9 +392,11 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: isChangingPassword ? null : () {
-                    _changePasswordWithDialog(setDialogState);
-                  },
+                  onPressed: isChangingPassword
+                      ? null
+                      : () {
+                          _changePasswordWithDialog(setDialogState);
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF173B69),
                     foregroundColor: Colors.white,
@@ -546,14 +546,11 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     });
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({
-            'profileImageUrl': imageUrl,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-      
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'profileImageUrl': imageUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
       setState(() {
         profileImageUrl = imageUrl;
         userData?['profileImageUrl'] = imageUrl;
@@ -561,9 +558,8 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       });
 
       _showSnackBar(' Profile image updated successfully!', Colors.green);
-      
+
       Navigator.pop(context, true);
-      
     } catch (e) {
       setState(() {
         isUploading = false;
@@ -621,13 +617,10 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     });
 
     try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({
-            'profileImageUrl': '',
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'profileImageUrl': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       setState(() {
         profileImageUrl = null;
@@ -636,9 +629,8 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       });
 
       _showSnackBar('Profile image deleted successfully', Colors.orange);
-      
+
       Navigator.pop(context, true);
-      
     } catch (e) {
       setState(() {
         isUploading = false;
@@ -771,7 +763,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     final double iconSize = Responsive.iconSize(context, 24);
 
     final user = FirebaseAuth.instance.currentUser;
-    
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
@@ -804,7 +796,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     if (isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     if (errorMessage != null) {
       return Center(
         child: Column(
@@ -835,7 +827,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         ),
       );
     }
-    
+
     if (userData == null) {
       return Center(
         child: Text(
@@ -844,7 +836,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         ),
       );
     }
-    
+
     return SingleChildScrollView(
       child: Column(
         children: [
@@ -905,9 +897,8 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                 child: CircleAvatar(
                   radius: avatarSize / 2,
                   backgroundColor: const Color(0xFF173B69),
-                  backgroundImage: (profileImageUrl != null && profileImageUrl!.isNotEmpty)
-                      ? NetworkImage(profileImageUrl!)
-                      : null,
+                  backgroundImage:
+                      (profileImageUrl != null && profileImageUrl!.isNotEmpty) ? NetworkImage(profileImageUrl!) : null,
                   child: (profileImageUrl == null || profileImageUrl!.isEmpty)
                       ? Text(
                           getInitials(),
@@ -974,7 +965,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
               vertical: spacing / 2,
             ),
             decoration: BoxDecoration(
-              color: const Color(0xFF173B69).withOpacity(0.1),
+              color: const Color(0xFF173B69).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -992,11 +983,17 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
 
   String _getValue(String key, [String? fallbackKey]) {
     final String defaultValue = 'N/A';
-    
-    if (userData != null && userData!.containsKey(key) && userData![key] != null && userData![key]!.toString().isNotEmpty) {
+
+    if (userData != null &&
+        userData!.containsKey(key) &&
+        userData![key] != null &&
+        userData![key]!.toString().isNotEmpty) {
       return userData![key].toString();
     }
-    if (fallbackKey != null && userData != null && userData!.containsKey(fallbackKey) && userData![fallbackKey] != null) {
+    if (fallbackKey != null &&
+        userData != null &&
+        userData!.containsKey(fallbackKey) &&
+        userData![fallbackKey] != null) {
       return userData![fallbackKey].toString();
     }
     return defaultValue;
@@ -1004,7 +1001,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
 
   String _formatDate(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-    
+
     try {
       if (timestamp is Timestamp) {
         final date = timestamp.toDate();
@@ -1032,7 +1029,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1109,7 +1106,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             isMobile: isMobile,
             fontSize: fontSize,
           ),
-          
+
           // ===== CHANGE PASSWORD BUTTON =====
           SizedBox(height: spacing * 2),
           Divider(
@@ -1118,7 +1115,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             color: Colors.grey.shade300,
           ),
           SizedBox(height: spacing * 1.5),
-          
+
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -1148,9 +1145,8 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
               ),
             ),
           ),
-          
+
           SizedBox(height: spacing / 2),
-          
         ],
       ),
     );

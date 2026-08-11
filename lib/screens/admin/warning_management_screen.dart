@@ -17,7 +17,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _expiresAtController = TextEditingController();
-  
+
   String _selectedSeverity = 'info';
   String _selectedAudience = 'all';
   DateTime? _expiresAt;
@@ -71,7 +71,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
       );
 
       _showSnackBar(' Warning created successfully!', Colors.green);
-      
+
       _titleController.clear();
       _messageController.clear();
       _expiresAtController.clear();
@@ -109,7 +109,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          message, 
+          message,
           style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
         ),
         backgroundColor: color,
@@ -210,7 +210,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
     double iconSize,
   ) {
     final bool isMobile = Responsive.isMobile(context);
-    
+
     return SingleChildScrollView(
       padding: padding,
       child: Column(
@@ -473,14 +473,10 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                   SizedBox(width: spacing * 1.5),
                   Expanded(
                     child: Text(
-                      _expiresAtController.text.isEmpty
-                          ? 'No expiry date set'
-                          : _expiresAtController.text,
+                      _expiresAtController.text.isEmpty ? 'No expiry date set' : _expiresAtController.text,
                       style: TextStyle(
                         fontSize: fontSize,
-                        color: _expiresAtController.text.isEmpty
-                            ? Colors.grey.shade500
-                            : Colors.black87,
+                        color: _expiresAtController.text.isEmpty ? Colors.grey.shade500 : Colors.black87,
                       ),
                     ),
                   ),
@@ -559,7 +555,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
     EdgeInsets padding,
   ) {
     final bool isMobile = Responsive.isMobile(context);
-    
+
     return StreamBuilder<QuerySnapshot>(
       stream: WarningService.getAllWarnings(),
       builder: (context, snapshot) {
@@ -686,7 +682,6 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                   final isActive = data['isActive'] ?? true;
                   final severity = data['severity'] ?? 'info';
                   final color = _getSeverityColor(severity);
-                  
 
                   return Card(
                     margin: EdgeInsets.only(bottom: spacing),
@@ -737,7 +732,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                               _buildChip(
                                 context,
                                 severity.toUpperCase(),
-                                color.withOpacity(0.15),
+                                color.withValues(alpha: 0.15),
                                 color,
                               ),
                               _buildChip(
@@ -836,7 +831,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
 
   Widget _buildChip(BuildContext context, String label, Color bgColor, Color textColor) {
     final double fontSize = Responsive.fontSize(context, AppFonts.md);
-    
+
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: Responsive.spacing(context),
@@ -846,7 +841,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: textColor.withOpacity(0.2),
+          color: textColor.withValues(alpha: 0.2),
           width: 0.5,
         ),
       ),
@@ -864,7 +859,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
   Future<void> _confirmDelete(String warningId) async {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, AppFonts.md);
-    
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

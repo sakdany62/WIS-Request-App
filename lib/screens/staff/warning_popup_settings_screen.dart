@@ -40,7 +40,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          message, 
+          message,
           style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
         ),
         backgroundColor: color,
@@ -129,7 +129,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                     final warning = _warnings[index];
                     final severity = warning['severity'] ?? 'info';
                     final color = _getSeverityColor(severity);
-                    
+
                     return Card(
                       margin: EdgeInsets.only(bottom: spacing),
                       elevation: 2,
@@ -170,7 +170,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          backgroundColor: color.withOpacity(0.1),
+                          backgroundColor: color.withValues(alpha: 0.1),
                           side: BorderSide.none,
                         ),
                         onTap: () {
@@ -190,7 +190,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
     final double fontSize = Responsive.fontSize(context, AppFonts.md);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 22);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -231,7 +231,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
             Container(
               padding: EdgeInsets.all(spacing),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(

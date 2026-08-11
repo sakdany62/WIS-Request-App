@@ -1,6 +1,5 @@
 // lib/migration/update_policy_notifications.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
 
 class PolicyMigration {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -8,11 +7,9 @@ class PolicyMigration {
   Future<void> updateExistingPolicies() async {
     try {
       print('Starting policy migration...');
-      
+
       // ទាញយក Policy ទាំងអស់
-      final snapshot = await _firestore
-          .collection('permission_policies')
-          .get();
+      final snapshot = await _firestore.collection('permission_policies').get();
 
       if (snapshot.docs.isEmpty) {
         print('No policies found to update');
@@ -28,7 +25,7 @@ class PolicyMigration {
       for (var doc in snapshot.docs) {
         try {
           final data = doc.data();
-          
+
           // ពិនិត្យមើលថាតើមាន Notification Settings រួចហើយឬនៅ
           if (data.containsKey('enableNotifications')) {
             print('Policy ${doc.id} already has notification settings - skipping');
@@ -76,14 +73,14 @@ class PolicyMigration {
     try {
       final docRef = _firestore.collection('permission_policies').doc(policyId);
       final doc = await docRef.get();
-      
+
       if (!doc.exists) {
         print('Policy with ID $policyId not found');
         return;
       }
 
       final data = doc.data()!;
-      
+
       // ពិនិត្យមើលថាតើមាន Notification Settings រួចហើយឬនៅ
       if (data.containsKey('enableNotifications')) {
         print('Policy $policyId already has notification settings');
@@ -114,7 +111,7 @@ class PolicyMigration {
   Future<void> removeNotificationSettings(String policyId) async {
     try {
       final docRef = _firestore.collection('permission_policies').doc(policyId);
-      
+
       await docRef.update({
         'enableNotifications': FieldValue.delete(),
         'notificationTitle': FieldValue.delete(),
@@ -138,7 +135,7 @@ class PolicyMigration {
   Future<void> addNotificationSettingsToNewPolicy(String policyId) async {
     try {
       final docRef = _firestore.collection('permission_policies').doc(policyId);
-      
+
       await docRef.set({
         'enableNotifications': true,
         'notificationTitle': 'ការជូនដំណឹងអំពីសំណើឈប់',
@@ -166,7 +163,7 @@ Future<void> runMigration() async {
     // ត្រូវប្រាកដថា Firebase ត្រូវបាន Initialized រួច
     // ប្រសិនបើអ្នកហៅពី main.dart មិនចាំបាច់បន្ថែមទេ
     // await Firebase.initializeApp();
-    
+
     final migration = PolicyMigration();
     await migration.updateExistingPolicies();
   } catch (e) {

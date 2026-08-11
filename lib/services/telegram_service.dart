@@ -77,12 +77,14 @@ class TelegramService {
     try {
       final configs = await _getConfigs();
       final additionalJson = configs['additionalChatIds'] ?? '[]';
-      
+
       final List<dynamic> decoded = jsonDecode(additionalJson);
-      return decoded.map((item) => {
-        'chatId': item['chatId']?.toString() ?? '',
-        'type': item['type']?.toString() ?? 'Other',
-      }).toList();
+      return decoded
+          .map((item) => {
+                'chatId': item['chatId']?.toString() ?? '',
+                'type': item['type']?.toString() ?? 'Other',
+              })
+          .toList();
     } catch (e) {
       print('❌ Error parsing additional chat IDs: $e');
       return [];
@@ -101,11 +103,8 @@ class TelegramService {
       print(' Current user email: ${user.email}');
       print(' Current user UID: ${user.uid}');
 
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: user.email)
-          .limit(1)
-          .get();
+      final querySnapshot =
+          await FirebaseFirestore.instance.collection('users').where('email', isEqualTo: user.email).limit(1).get();
 
       if (querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data();
@@ -141,25 +140,25 @@ class TelegramService {
   static Future<String> _getStaffPosition() async {
     try {
       final data = await _getCurrentUserData();
-      
+
       print(' _getStaffPosition() called');
-      
+
       if (data != null) {
         final String roleId = data['roleId']?.toString() ?? '';
         final String position = data['position'] ?? data['department'] ?? 'Employee';
-        
+
         print(' roleId: "$roleId"');
         print(' position from DB: "$position"');
-        
+
         if (roleId == '2') {
           print(' This is STAFF, returning position: "$position"');
           return position;
         }
-      
+
         print(' This is NOT STAFF (roleId: "$roleId"), returning "Manager"');
         return 'Manager';
       }
-      
+
       print(' No data found, returning "Manager"');
       return 'Manager';
     } catch (e) {
@@ -193,13 +192,13 @@ class TelegramService {
       if (data != null) {
         final String roleId = data['roleId']?.toString() ?? '';
         String position = data['position'] ?? data['department'] ?? 'Employee';
-        
+
         if (roleId == '2') {
           position = position;
         } else {
           position = 'Manager';
         }
-        
+
         return {
           'name': data['fullName'] ?? data['name'] ?? user.displayName ?? user.email ?? 'Staff',
           'position': position,
@@ -231,10 +230,14 @@ class TelegramService {
   // ===== Format status =====
   static String _formatStatus(String status) {
     switch (status.toLowerCase()) {
-      case 'pending': return 'PENDING';
-      case 'approved': return 'APPROVED';
-      case 'rejected': return 'REJECTED';
-      default: return status.toUpperCase();
+      case 'pending':
+        return 'PENDING';
+      case 'approved':
+        return 'APPROVED';
+      case 'rejected':
+        return 'REJECTED';
+      default:
+        return status.toUpperCase();
     }
   }
 
@@ -242,14 +245,15 @@ class TelegramService {
   static String formatTimeOnlyAMPM([DateTime? time]) {
     final DateTime now = time ?? DateTime.now();
     final cambodiaTime = now.toUtc().add(const Duration(hours: 7));
-    
+
     int hour = cambodiaTime.hour;
     final int minute = cambodiaTime.minute;
     final String period = hour >= 12 ? 'PM' : 'AM';
-    
-    if (hour == 0) hour = 12;
-    else if (hour > 12) hour = hour - 12;
-    
+
+    if (hour == 0) {
+      hour = 12;
+    } else if (hour > 12) hour = hour - 12;
+
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
@@ -257,17 +261,18 @@ class TelegramService {
   static String _formatDateTimeAMPM([DateTime? time]) {
     final DateTime now = time ?? DateTime.now();
     final cambodiaTime = now.toUtc().add(const Duration(hours: 7));
-    
+
     final day = cambodiaTime.day.toString().padLeft(2, '0');
     final month = cambodiaTime.month.toString().padLeft(2, '0');
     final year = cambodiaTime.year;
     int hour = cambodiaTime.hour;
     final int minute = cambodiaTime.minute;
     final String period = hour >= 12 ? 'PM' : 'AM';
-    
-    if (hour == 0) hour = 12;
-    else if (hour > 12) hour = hour - 12;
-    
+
+    if (hour == 0) {
+      hour = 12;
+    } else if (hour > 12) hour = hour - 12;
+
     return '$day/$month/$year ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
@@ -288,28 +293,28 @@ class TelegramService {
       final String groupChatId = chatIds['groupChatId'] ?? _defaultGroupChatId;
 
       final String correctPosition = await _getStaffPosition();
-      
+
       print('📨 Sending message with Position: "$correctPosition"');
-      
+
       final RegExp positionRegex = RegExp(r'Position: .+');
       String finalMessage = message.replaceAllMapped(positionRegex, (match) {
         return 'Position: $correctPosition';
       });
-      
+
       // 📨 ផ្ញើទៅកាន់ Chat IDs សំខាន់ៗ
       print('📨 Sending to main chats:');
       print('   👤 Manager: $managerChatId');
       print('   🛡️ Admin: $adminChatId');
       print('   👥 Group: $groupChatId');
-      
+
       bool managerSent = await _sendMessage(managerChatId, finalMessage);
       bool adminSent = await _sendMessage(adminChatId, finalMessage);
       bool groupSent = await _sendMessage(groupChatId, finalMessage);
-      
+
       // 📨 ផ្ញើទៅកាន់ Additional Chat IDs
       final additionalChatIds = await _getAdditionalChatIds();
       bool allAdditionalSent = true;
-      
+
       if (additionalChatIds.isNotEmpty) {
         print('📨 Sending to additional chats:');
         for (var chat in additionalChatIds) {
@@ -322,9 +327,10 @@ class TelegramService {
           }
         }
       }
-      
-      print('📨 Messages sent - Manager: $managerSent, Admin: $adminSent, Group: $groupSent, Additional: $allAdditionalSent');
-      
+
+      print(
+          '📨 Messages sent - Manager: $managerSent, Admin: $adminSent, Group: $groupSent, Additional: $allAdditionalSent');
+
       return managerSent && adminSent && groupSent && allAdditionalSent;
     } catch (e) {
       print(' Error in sendToAll: $e');
@@ -334,10 +340,7 @@ class TelegramService {
 
   // ===== Core send message =====
   static Future<bool> _sendMessage(String chatId, String message) async {
-    if (chatId.isEmpty || 
-        chatId == 'MANAGER_CHAT_ID' || 
-        chatId == 'ADMIN_CHAT_ID' || 
-        chatId == 'GROUP_CHAT_ID') {
+    if (chatId.isEmpty || chatId == 'MANAGER_CHAT_ID' || chatId == 'ADMIN_CHAT_ID' || chatId == 'GROUP_CHAT_ID') {
       print('⚠️ Invalid chat ID: $chatId');
       return false;
     }
@@ -357,7 +360,7 @@ class TelegramService {
           return 'Position: $correctPosition';
         });
       }
-      
+
       final response = await http.post(
         Uri.parse('$baseUrl/sendMessage'),
         headers: {'Content-Type': 'application/json'},
@@ -368,7 +371,7 @@ class TelegramService {
           'disable_web_page_preview': true,
         }),
       );
-      
+
       if (response.statusCode == 200) {
         print(' Message sent to $chatId');
         return true;
@@ -421,7 +424,7 @@ class TelegramService {
 
     final roleNames = {'1': 'Admin', '2': 'Staff', '3': 'Manager'};
     final String roleName = roleNames[roleId] ?? 'User';
-    
+
     final String message = '''
 WELCOME TO LEAVE REQUEST SYSTEM!
 ===============================
@@ -463,9 +466,9 @@ IMPORTANT:
     String duration = details['duration']?.toString() ?? 'N/A';
 
     final String actualPosition = await _getStaffPosition();
-    
+
     print(' Formatting permission request with Position: "$actualPosition"');
-    
+
     return '''
 NEW PERMISSION REQUEST
 
@@ -542,7 +545,7 @@ This is a test message sent to:
         print('❌ Bot token is empty, cannot check status');
         return false;
       }
-      
+
       print('🔍 Checking bot status...');
       final response = await http.get(Uri.parse('$baseUrl/getMe'));
       if (response.statusCode == 200) {

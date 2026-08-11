@@ -27,7 +27,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   String? errorMessage;
   int _staffCount = 0;
   List<Map<String, dynamic>> _staffList = [];
-  
+
   int _totalRequests = 0;
   int _pendingRequests = 0;
   int _approvedRequests = 0;
@@ -67,10 +67,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     if (user == null) return;
 
     try {
-      final docSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
@@ -91,10 +88,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
 
     if (user != null) {
       try {
-        final docSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
         if (docSnapshot.exists) {
           final data = docSnapshot.data()!;
@@ -147,7 +141,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
 
       List<Map<String, dynamic>> staffList = [];
       for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data();
         staffList.add({
           'id': doc.id,
           'name': data['fullName'] ?? data['username'] ?? 'Unknown',
@@ -212,7 +206,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                       vertical: spacing / 2,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -233,7 +227,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   vertical: spacing / 2,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.05),
+                  color: Colors.blue.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -309,7 +303,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                               vertical: spacing / 3,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
+                              color: Colors.green.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -349,27 +343,27 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   Future<void> _loadStatistics() async {
     try {
       Query query = FirebaseFirestore.instance.collection('leave_requests');
-      
+
       if (managerDepartment.isNotEmpty) {
         query = query.where('department', isEqualTo: managerDepartment);
       }
-      
+
       final snapshot = await query.get();
-      
+
       int total = 0;
       int pending = 0;
       int approved = 0;
       int rejected = 0;
       int autoApproved = 0;
       int totalDays = 0;
-      
+
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         total++;
-        
+
         final status = data['status'] ?? 'pending';
         final autoApprovedValue = data['autoApproved'] ?? false;
-        
+
         int days = 0;
         final daysValue = data['totalDays'];
         if (daysValue != null) {
@@ -383,7 +377,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
             days = daysValue.toInt();
           }
         }
-        
+
         if (status == 'pending') {
           pending++;
         } else if (status == 'approved') {
@@ -394,10 +388,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
         } else if (status == 'rejected') {
           rejected++;
         }
-        
+
         totalDays += days;
       }
-      
+
       if (mounted) {
         setState(() {
           _totalRequests = total;
@@ -408,7 +402,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
           _totalDays = totalDays;
         });
       }
-      
+
       print('📊 Statistics loaded: Total=$total, Pending=$pending, Approved=$approved, Rejected=$rejected');
     } catch (e) {
       print('❌ Error loading statistics: $e');
@@ -416,298 +410,288 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   }
 
   // ================= SHOW REQUEST DETAIL DIALOG =================
-void _showRequestDetailDialog({
-  required String requestId,
-  required String employeeName,
-  required String reason,
-  required String startDate,
-  required String endDate,
-  required int totalDays,
-  required String department,
-  required String permissionType,
-}) {
-  final bool isMobile = Responsive.isMobile(context);
-  final double fontSize = Responsive.fontSize(context, 14);
-  final double spacing = Responsive.spacing(context);
+  void _showRequestDetailDialog({
+    required String requestId,
+    required String employeeName,
+    required String reason,
+    required String startDate,
+    required String endDate,
+    required int totalDays,
+    required String department,
+    required String permissionType,
+  }) {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
 
-  showDialog(
-    context: context,
-    barrierDismissible: true,
-    builder: (context) => Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Container(
-        width: isMobile ? double.infinity : 420,
-        padding: EdgeInsets.all(spacing * 2),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(
-                vertical: spacing,
-                horizontal: spacing * 1.5,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                'PENDING REQUEST',
-                style: TextStyle(
-                  fontSize: isMobile ? fontSize + 2 : fontSize + 4,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange[700],
-                  letterSpacing: 0.5,
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Container(
+          width: isMobile ? double.infinity : 420,
+          padding: EdgeInsets.all(spacing * 2),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(
+                  vertical: spacing,
+                  horizontal: spacing * 1.5,
                 ),
-              ),
-            ),
-            
-            SizedBox(height: spacing * 2),
-
-            // Employee Name
-            _buildDetailRow(
-              label: 'Staff Name',
-              value: employeeName,
-              isMobile: isMobile,
-              fontSize: fontSize,
-              spacing: spacing,
-              isBold: true,
-            ),
-            
-            SizedBox(height: spacing * 1.5),
-
-
-            // Reason
-            _buildDetailRow(
-              label: 'Reason',
-              value: reason,
-              isMobile: isMobile,
-              fontSize: fontSize,
-              spacing: spacing,
-              isMultiline: true,
-            ),
-            
-            SizedBox(height: spacing * 1.5),
-
-            // Date Range
-            _buildDetailRow(
-              label: 'Date Range',
-              value: '$startDate - $endDate',
-              isMobile: isMobile,
-              fontSize: fontSize,
-              spacing: spacing,
-            ),
-            
-            SizedBox(height: spacing * 1.5),
-
-            // Total Days
-            Row(
-              children: [
-                
-  
-                Expanded(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: spacing * 1.5,
-                      vertical: spacing,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.orange.withOpacity(0.2),
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Total Days',
-                          style: TextStyle(
-                            fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.75,
-                            color: Colors.grey[600],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          '$totalDays day${totalDays > 1 ? 's' : ''}',
-                          style: TextStyle(
-                            fontSize: isMobile ? fontSize + 2 : fontSize + 4,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                SizedBox(width: spacing),
-                
-              ],
-            ),
-
-            SizedBox(height: spacing * 2.5),
-
-            // Divider
-            Divider(
-              color: Colors.grey[300],
-              thickness: 1,
-            ),
-            
-            SizedBox(height: spacing * 1.5),
-
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: isMobile ? 44 : 48,
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _showRejectDialog(
-                          requestId,
-                          employeeName,
-                          totalDays,
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red, width: 1.5),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        'Reject',
-                        style: TextStyle(
-                          fontSize: isMobile ? fontSize : fontSize + 1,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: spacing),
-                Expanded(
-                  child: SizedBox(
-                    height: isMobile ? 44 : 48,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _approveRequest(
-                          requestId,
-                          employeeName,
-                          totalDays,
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: Text(
-                        'Approve',
-                        style: TextStyle(
-                          fontSize: isMobile ? fontSize : fontSize + 1,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            
-            SizedBox(height: spacing),
-            
-            // Close Button
-            Center(
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
                 child: Text(
-                  'Close',
+                  'PENDING REQUEST',
                   style: TextStyle(
-                    fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
+                    fontSize: isMobile ? fontSize + 2 : fontSize + 4,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange[700],
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
-            ),
-          ],
+
+              SizedBox(height: spacing * 2),
+
+              // Employee Name
+              _buildDetailRow(
+                label: 'Staff Name',
+                value: employeeName,
+                isMobile: isMobile,
+                fontSize: fontSize,
+                spacing: spacing,
+                isBold: true,
+              ),
+
+              SizedBox(height: spacing * 1.5),
+
+              // Reason
+              _buildDetailRow(
+                label: 'Reason',
+                value: reason,
+                isMobile: isMobile,
+                fontSize: fontSize,
+                spacing: spacing,
+                isMultiline: true,
+              ),
+
+              SizedBox(height: spacing * 1.5),
+
+              // Date Range
+              _buildDetailRow(
+                label: 'Date Range',
+                value: '$startDate - $endDate',
+                isMobile: isMobile,
+                fontSize: fontSize,
+                spacing: spacing,
+              ),
+
+              SizedBox(height: spacing * 1.5),
+
+              // Total Days
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: spacing * 1.5,
+                        vertical: spacing,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total Days',
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.75,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            '$totalDays day${totalDays > 1 ? 's' : ''}',
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize + 2 : fontSize + 4,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: spacing),
+                ],
+              ),
+
+              SizedBox(height: spacing * 2.5),
+
+              // Divider
+              Divider(
+                color: Colors.grey[300],
+                thickness: 1,
+              ),
+
+              SizedBox(height: spacing * 1.5),
+
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: isMobile ? 44 : 48,
+                      child: OutlinedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _showRejectDialog(
+                            requestId,
+                            employeeName,
+                            totalDays,
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red, width: 1.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          'Reject',
+                          style: TextStyle(
+                            fontSize: isMobile ? fontSize : fontSize + 1,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: spacing),
+                  Expanded(
+                    child: SizedBox(
+                      height: isMobile ? 44 : 48,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _approveRequest(
+                            requestId,
+                            employeeName,
+                            totalDays,
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'Approve',
+                          style: TextStyle(
+                            fontSize: isMobile ? fontSize : fontSize + 1,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: spacing),
+
+              // Close Button
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Close',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.85 : fontSize,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
 // ================= BUILD DETAIL ROW =================
-Widget _buildDetailRow({
-  required String label,
-  required String value,
-  required bool isMobile,
-  required double fontSize,
-  required double spacing,
-  bool isBold = false,
-  bool isMultiline = false,
-}) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: TextStyle(
-          fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.8,
-          color: Colors.grey[600],
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.3,
-        ),
-      ),
-      SizedBox(height: 4),
-      Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: spacing * 1.5,
-          vertical: isMultiline ? spacing : spacing * 0.6,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.grey.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: Colors.grey.withOpacity(0.15),
-          ),
-        ),
-        child: Text(
-          value,
+  Widget _buildDetailRow({
+    required String label,
+    required String value,
+    required bool isMobile,
+    required double fontSize,
+    required double spacing,
+    bool isBold = false,
+    bool isMultiline = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
           style: TextStyle(
-            fontSize: isMobile 
-                ? (isBold ? fontSize + 1 : fontSize)
-                : (isBold ? fontSize + 3 : fontSize + 1),
-            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color: isBold ? const Color(0xFF173B69) : Colors.black87,
+            fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.8,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.3,
           ),
         ),
-      ),
-    ],
-  );
-}
+        SizedBox(height: 4),
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: spacing * 1.5,
+            vertical: isMultiline ? spacing : spacing * 0.6,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.grey.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Colors.grey.withValues(alpha: 0.15),
+            ),
+          ),
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: isMobile ? (isBold ? fontSize + 1 : fontSize) : (isBold ? fontSize + 3 : fontSize + 1),
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: isBold ? const Color(0xFF173B69) : Colors.black87,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-  Future<void> _approveRequest(
-      String requestId, String userName, int totalDays) async {
+  Future<void> _approveRequest(String requestId, String userName, int totalDays) async {
     try {
-      final requestDoc = await FirebaseFirestore.instance
-          .collection('leave_requests')
-          .doc(requestId)
-          .get();
-      
+      final requestDoc = await FirebaseFirestore.instance.collection('leave_requests').doc(requestId).get();
+
       final requestData = requestDoc.data() as Map<String, dynamic>;
       final permissionType = requestData['permissionType'] ?? 'Leave';
       final reason = requestData['reason'] ?? 'No reason provided';
@@ -735,9 +719,9 @@ Time: ${TelegramService.formatTimeOnlyAMPM()}
 
 Status: APPROVED 
       ''';
-      
+
       await TelegramService.sendToAll(approvalMessage);
-      
+
       print('📨 Telegram notifications sent for approval');
 
       await _loadStatistics();
@@ -783,10 +767,9 @@ Status: APPROVED
     }
   }
 
-  Future<void> _showRejectDialog(
-      String requestId, String userName, int totalDays) async {
+  Future<void> _showRejectDialog(String requestId, String userName, int totalDays) async {
     final reasonController = TextEditingController();
-    
+
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
 
@@ -836,19 +819,14 @@ Status: APPROVED
             onPressed: () async {
               Navigator.pop(context);
               try {
-                final requestDoc = await FirebaseFirestore.instance
-                    .collection('leave_requests')
-                    .doc(requestId)
-                    .get();
-                
+                final requestDoc = await FirebaseFirestore.instance.collection('leave_requests').doc(requestId).get();
+
                 final requestData = requestDoc.data() as Map<String, dynamic>;
                 final permissionType = requestData['permissionType'] ?? 'Leave';
                 final reason = requestData['reason'] ?? 'No reason provided';
                 final startDate = requestData['startDate'] ?? 'N/A';
                 final endDate = requestData['endDate'] ?? 'N/A';
-                final rejectionReason = reasonController.text.isNotEmpty
-                    ? reasonController.text
-                    : 'No reason provided';
+                final rejectionReason = reasonController.text.isNotEmpty ? reasonController.text : 'No reason provided';
 
                 await _requestService.rejectRequestAsManager(
                   requestId,
@@ -873,9 +851,9 @@ Rejection Reason: $rejectionReason
 
 Status: REJECTED 
                 ''';
-                
+
                 await TelegramService.sendToAll(rejectionMessage);
-                
+
                 print('📨 Telegram notifications sent for rejection');
 
                 await _loadStatistics();
@@ -978,9 +956,7 @@ Status: REJECTED
       );
     }
 
-    String departmentDisplay = managerDepartment.isNotEmpty
-        ? ' $managerDepartment'
-        : ' No department assigned';
+    String departmentDisplay = managerDepartment.isNotEmpty ? ' $managerDepartment' : ' No department assigned';
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -1040,7 +1016,7 @@ Status: REJECTED
                               vertical: spacing / 1.5,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
+                              color: Colors.blue.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -1072,10 +1048,10 @@ Status: REJECTED
                                 vertical: spacing / 1.5,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.1),
+                                color: Colors.green.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: Colors.green.withOpacity(0.3),
+                                  color: Colors.green.withValues(alpha: 0.3),
                                   width: 1,
                                 ),
                               ),
@@ -1108,7 +1084,7 @@ Status: REJECTED
                         ],
                       ),
                       SizedBox(height: spacing * 2),
-                      
+
                       // Row 1: Total, Pending, Approved
                       Row(
                         children: [
@@ -1135,9 +1111,9 @@ Status: REJECTED
                           ),
                         ],
                       ),
-                      
+
                       SizedBox(height: spacing),
-                      
+
                       // Row 2: Rejected, Auto Approved, Total Days
                       Row(
                         children: [
@@ -1164,9 +1140,9 @@ Status: REJECTED
                           ),
                         ],
                       ),
-                      
+
                       SizedBox(height: spacing * 3),
-                      
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -1184,7 +1160,7 @@ Status: REJECTED
                                 vertical: spacing / 3,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.1),
+                                color: Colors.green.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -1199,17 +1175,15 @@ Status: REJECTED
                         ],
                       ),
                       SizedBox(height: spacing * 1.5),
-                      
+
                       StreamBuilder<QuerySnapshot>(
-                        stream: _requestService
-                            .getPendingRequestsForManager(managerDepartment),
+                        stream: _requestService.getPendingRequestsForManager(managerDepartment),
                         builder: (context, snapshot) {
                           if (snapshot.hasError) {
                             return Center(
                               child: Column(
                                 children: [
-                                  const Icon(Icons.error_outline,
-                                      size: 48, color: Colors.red),
+                                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
                                   SizedBox(height: spacing),
                                   Text(
                                     'Error: ${snapshot.error}',
@@ -1268,8 +1242,7 @@ Status: REJECTED
                           return Column(
                             children: requests.map((doc) {
                               final data = doc.data() as Map<String, dynamic>;
-                              final requestDepartment =
-                                  data['department'] ?? 'No Department';
+                              final requestDepartment = data['department'] ?? 'No Department';
 
                               return _PendingCard(
                                 requestId: doc.id,
@@ -1328,9 +1301,9 @@ Status: REJECTED
           horizontal: 4,
         ),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1568,7 +1541,7 @@ class _PendingCard extends StatelessWidget {
   final bool isMobile;
   final double fontSize;
   final double spacing;
-  final VoidCallback onTap; 
+  final VoidCallback onTap;
 
   const _PendingCard({
     required this.requestId,
@@ -1620,7 +1593,7 @@ class _PendingCard extends StatelessWidget {
                     vertical: spacing,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF173B69).withOpacity(0.1),
+                    color: const Color(0xFF173B69).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -1666,7 +1639,7 @@ class _PendingCard extends StatelessWidget {
                               vertical: spacing / 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.blue.withOpacity(0.1),
+                              color: Colors.blue.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -1685,7 +1658,7 @@ class _PendingCard extends StatelessWidget {
                               vertical: spacing / 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.2),
+                              color: Colors.orange.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -1717,7 +1690,7 @@ class _PendingCard extends StatelessWidget {
                           vertical: spacing / 3,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.1),
+                          color: Colors.orange.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(

@@ -1,7 +1,7 @@
 // lib/screens/staff/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../app_fonts.dart';
 import '../../providers/auth_provider.dart' as app_auth;
@@ -11,8 +11,7 @@ import '../../services/warning_service.dart';
 import '../../widgets/warning_popup.dart';
 import 'warning_popup_settings_screen.dart';
 import '../admin/warning_management_screen.dart' as warning;
-import '../admin/terms_read_tracking_screen.dart'; 
-
+import '../admin/terms_read_tracking_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -61,7 +60,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               width: double.infinity,
               padding: EdgeInsets.symmetric(
-                vertical: isMobile ? 14 : 20, 
+                vertical: isMobile ? 14 : 20,
                 horizontal: isMobile ? 12 : 24,
               ),
               decoration: const BoxDecoration(
@@ -77,7 +76,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SizedBox(height: isMobile ? 4 : 8),
                   Icon(
                     Icons.settings,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                     size: isMobile ? iconSize * 0.8 : iconSize,
                   ),
                   SizedBox(height: isMobile ? 4 : 8),
@@ -99,13 +98,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: padding,
                 child: Column(
                   children: [
-                   
-                    
                     // ---------- Other Settings Items ----------
                     ..._allItems.map(
                       (item) => _buildItem(
-                        item.icon, 
-                        item.title, 
+                        item.icon,
+                        item.title,
                         context,
                         isMobile,
                         fontSize,
@@ -178,10 +175,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              
+
               final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
               await authProvider.signOut();
-              
+
               if (mounted) {
                 Navigator.pushNamedAndRemoveUntil(
                   context,
@@ -205,14 +202,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ---------- Build Regular Item ----------
   Widget _buildItem(
-    IconData icon, 
-    String title, 
+    IconData icon,
+    String title,
     BuildContext context,
     bool isMobile,
     double fontSize,
   ) {
     final isAdmin = _isUserAdmin();
-    
+
     return Card(
       margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
       elevation: 0,
@@ -222,7 +219,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       color: Colors.white,
       child: ListTile(
         leading: Icon(
-          icon, 
+          icon,
           color: primary,
           size: isMobile ? 20 : 24,
         ),
@@ -431,14 +428,14 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
-    
+
     try {
       final terms = await TermsService.getCurrentTerms();
       setState(() {
         _termsData = terms;
         _isLoading = false;
       });
-      
+
       if (terms != null && _staffId != null) {
         _checkIfRead(terms['id']);
       }
@@ -464,7 +461,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
 
   Future<void> _onCheckboxChanged(bool? value) async {
     if (value == null) return;
-    
+
     if (_staffId == null || _termsData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -495,12 +492,12 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
       try {
         final termsId = _termsData!['id'];
         await TermsService.markTermsAsRead(_staffId!, termsId);
-        
+
         setState(() {
           _hasRead = true;
           _isMarkingRead = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(' Thank you for confirming you have read the Terms & Conditions'),
@@ -536,9 +533,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          _termsData != null 
-              ? _termsData!['title'] ?? 'Terms & Conditions' 
-              : 'Terms & Conditions',
+          _termsData != null ? _termsData!['title'] ?? 'Terms & Conditions' : 'Terms & Conditions',
           style: TextStyle(
             fontSize: isMobile ? fontSize : AppFonts.md,
             fontWeight: FontWeight.bold,
@@ -656,10 +651,10 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                             width: double.infinity,
                             padding: EdgeInsets.all(isMobile ? 12 : 16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E457E).withOpacity(0.05),
+                              color: const Color(0xFF1E457E).withValues(alpha: 0.05),
                               borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
                               border: Border.all(
-                                color: const Color(0xFF1E457E).withOpacity(0.1),
+                                color: const Color(0xFF1E457E).withValues(alpha: 0.1),
                               ),
                             ),
                             child: Column(
@@ -691,7 +686,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                               ],
                             ),
                           ),
-                          
+
                           SizedBox(height: isMobile ? 16 : 24),
 
                           // Sections
@@ -702,7 +697,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                               isMobile: isMobile,
                               fontSize: fontSize,
                             );
-                          }).toList(),
+                          }),
 
                           SizedBox(height: isMobile ? 24 : 32),
 
@@ -748,8 +743,8 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                                   SizedBox(width: spacing),
                                   Expanded(
                                     child: Text(
-                                      _hasRead 
-                                          ? ' You have confirmed reading these Terms & Conditions' 
+                                      _hasRead
+                                          ? ' You have confirmed reading these Terms & Conditions'
                                           : ' Please check the box to confirm you have read and agree to these Terms & Conditions',
                                       style: TextStyle(
                                         fontSize: isMobile ? fontSize : AppFonts.md,
@@ -815,7 +810,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
             width: isMobile ? 30 : 40,
             height: 3,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E457E).withOpacity(0.3),
+              color: const Color(0xFF1E457E).withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -842,7 +837,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
-    final double logoSize = isMobile ? 90 : 120; 
+    final double logoSize = isMobile ? 90 : 120;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -870,33 +865,33 @@ class AboutScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: isMobile ? 20 : 32), 
-            
+            SizedBox(height: isMobile ? 20 : 32),
+
             Center(
               child: Container(
                 width: logoSize,
                 height: logoSize,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF173B69), 
+                  color: const Color(0xFF173B69),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 8,
                       offset: const Offset(0, 3),
                     ),
                   ],
                 ),
-                padding: EdgeInsets.all(isMobile ? 12 : 16), 
+                padding: EdgeInsets.all(isMobile ? 12 : 16),
                 child: Image.asset(
                   'assets/img/logo.png',
                   fit: BoxFit.contain,
                 ),
               ),
             ),
-            
+
             SizedBox(height: isMobile ? 10 : 14),
-            
+
             Text(
               "Leave Request Mobile App",
               style: TextStyle(
@@ -915,7 +910,7 @@ class AboutScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: isMobile ? 16 : 24), // បន្ថយបន្តិច
-            
+
             Padding(
               padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20),
               child: Card(
@@ -949,21 +944,21 @@ class AboutScreen extends StatelessWidget {
                       ),
                       Divider(height: isMobile ? 16 : 24, thickness: 0.5),
                       _buildInfoRow(
-                        "Institution:", 
+                        "Institution:",
                         "Westland International School",
                         isMobile,
                         fontSize,
                       ),
                       SizedBox(height: isMobile ? 4 : 8),
                       _buildInfoRow(
-                        "Academic Year:", 
+                        "Academic Year:",
                         "2025 - 2026",
                         isMobile,
                         fontSize,
                       ),
                       SizedBox(height: isMobile ? 4 : 8),
                       _buildInfoRow(
-                        "Developed by:", 
+                        "Developed by:",
                         "WIS IT Team",
                         isMobile,
                         fontSize,
@@ -973,9 +968,9 @@ class AboutScreen extends StatelessWidget {
                 ),
               ),
             ),
-            
-            SizedBox(height: isMobile ? 20 : 32), 
-            
+
+            SizedBox(height: isMobile ? 20 : 32),
+
             Text(
               "© 2026 Westland International School. All Rights Reserved.",
               style: TextStyle(

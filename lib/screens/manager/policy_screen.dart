@@ -15,7 +15,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
   final PolicyService _policyService = PolicyService();
   bool _isLoading = true;
   PolicyModel? _currentPolicy;
-  
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -39,9 +39,9 @@ class _PolicyScreenState extends State<PolicyScreen> {
     setState(() {
       _isLoading = true;
     });
-    
+
     _currentPolicy = await _policyService.getActivePolicy();
-    
+
     if (_currentPolicy != null) {
       _nameController.text = _currentPolicy!.name;
       _descriptionController.text = _currentPolicy!.description;
@@ -55,7 +55,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
       _applicableTo = _currentPolicy!.applicableTo;
       _isActive = _currentPolicy!.isActive;
     }
-    
+
     setState(() {
       _isLoading = false;
     });
@@ -63,11 +63,11 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
   Future<void> _savePolicy() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _isLoading = true;
     });
-    
+
     final policy = PolicyModel(
       id: _currentPolicy?.id ?? '',
       name: _nameController.text,
@@ -84,10 +84,10 @@ class _PolicyScreenState extends State<PolicyScreen> {
       createdAt: _currentPolicy?.createdAt ?? DateTime.now(),
       updatedAt: DateTime.now(),
     );
-    
+
     try {
       await _policyService.savePolicy(policy);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -243,15 +243,13 @@ class _PolicyScreenState extends State<PolicyScreen> {
                                   _isActive = value;
                                 });
                               },
-                              activeColor: Colors.green,
+                              activeThumbColor: Colors.green,
                             ),
                           ],
                         ),
                       ),
                     ),
-                    
                     const SizedBox(height: 16),
-                    
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -293,9 +291,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                    
                     const SizedBox(height: 16),
-                    
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -337,9 +333,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                    
                     const SizedBox(height: 16),
-                    
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -382,9 +376,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                    
                     const SizedBox(height: 16),
-                    
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -435,9 +427,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                         ),
                       ),
                     ),
-                    
                     const SizedBox(height: 24),
-                    
                     SizedBox(
                       width: double.infinity,
                       height: 50,

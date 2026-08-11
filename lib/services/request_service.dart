@@ -6,33 +6,30 @@ import '../models/policy_model.dart';
 
 class RequestService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final CollectionReference _requestsCollection = 
-      FirebaseFirestore.instance.collection('leave_requests');
-  final CollectionReference _notificationsCollection = 
-      FirebaseFirestore.instance.collection('notifications');
-  final CollectionReference _policiesCollection = 
-      FirebaseFirestore.instance.collection('permission_policies');
+  final CollectionReference _requestsCollection = FirebaseFirestore.instance.collection('leave_requests');
+  final CollectionReference _notificationsCollection = FirebaseFirestore.instance.collection('notifications');
+  final CollectionReference _policiesCollection = FirebaseFirestore.instance.collection('permission_policies');
 
   // ==================== GENERATE REQUEST NUMBER ====================
   Future<int> _generateRequestNumber() async {
     try {
       final counterRef = _firestore.collection('counters').doc('request_counter');
-      
+
       final result = await _firestore.runTransaction((transaction) async {
         final snapshot = await transaction.get(counterRef);
-        
+
         int currentCount = 0;
         if (snapshot.exists) {
           final data = snapshot.data();
           currentCount = (data?['value'] as int?) ?? 0;
         }
-        
+
         final newCount = currentCount + 1;
         transaction.set(counterRef, {'value': newCount});
-        
+
         return newCount;
       });
-      
+
       return result;
     } catch (e) {
       print('❌ Error generating request number: $e');
@@ -57,17 +54,13 @@ class RequestService {
     DateTime? submitTime,
     String? department,
     String? departmentId,
-    String? userName,      // ✅ បន្ថែម
-    String? userEmail,     // ✅ បន្ថែម
+    String? userName, // ✅ បន្ថែម
+    String? userEmail, // ✅ បន្ថែម
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    final userDoc = await _firestore
-        .collection('users')
-        .where('userId', isEqualTo: user.uid)
-        .limit(1)
-        .get();
+    final userDoc = await _firestore.collection('users').where('userId', isEqualTo: user.uid).limit(1).get();
 
     // ✅ ប្រើ userName និង userEmail ដែលបញ្ជូនមក
     String finalUserName = userName ?? user.email?.split('@').first ?? 'Staff';
@@ -75,9 +68,9 @@ class RequestService {
     String userDepartment = department ?? '';
     String userDepartmentId = departmentId ?? '';
     String userRoleId = '2';
-    
+
     if (userDoc.docs.isNotEmpty) {
-      final data = userDoc.docs.first.data() as Map<String, dynamic>;
+      final data = userDoc.docs.first.data();
       // ✅ ប្រើ userName ដែលបញ្ជូនមកមុន បើមិនមានទើបយកពី Firestore
       if (userName == null || userName.isEmpty) {
         finalUserName = data['fullName'] ?? data['username'] ?? finalUserName;
@@ -102,23 +95,21 @@ class RequestService {
 
     String reasonForValidation = reason;
     String reasonForStorage = reason;
-    
+
     if (reason == 'Other') {
       reasonForStorage = otherReason ?? reason;
       reasonForValidation = 'Other';
     }
-    
+
     final policy = await _getActivePolicy();
     final requestCountInMonth = await _getUserRequestCountInCurrentMonth(user.uid);
-    
+
     final currentYear = DateTime.now().year;
     final daysUsedThisYear = await getTotalDaysUsedByStaff(user.uid, currentYear);
-    
+
     final startDateTime = _parseDateString(startDate);
-    final daysAdvance = startDateTime != null 
-        ? startDateTime.difference(DateTime.now()).inDays 
-        : 0;
-    
+    final daysAdvance = startDateTime != null ? startDateTime.difference(DateTime.now()).inDays : 0;
+
     if (policy != null) {
       final errors = _validateRequestAgainstPolicy(
         policy: policy,
@@ -128,17 +119,17 @@ class RequestService {
         daysUsedThisYear: daysUsedThisYear,
         daysAdvance: daysAdvance,
       );
-      
+
       if (errors.isNotEmpty) {
         throw Exception(errors.join('\n'));
       }
     }
-    
+
     String status;
     String? autoMessage;
     bool needManagerApproval = false;
     int requestCountInMonthValue = requestCountInMonth + 1;
-    
+
     if (policy != null && policy.autoApprove) {
       if (requestCountInMonthValue == 1) {
         status = 'approved';
@@ -165,13 +156,13 @@ class RequestService {
 
     final requestNumberInt = await _generateRequestNumber();
     final requestNumberFormatted = _formatRequestNumber(requestNumberInt);
-    
+
     print('📝 Request Number: $requestNumberFormatted');
 
     final requestData = {
       'userId': user.uid,
-      'userEmail': finalUserEmail,          // ✅ ប្រើ finalUserEmail
-      'userName': finalUserName,            // ✅ ប្រើ finalUserName
+      'userEmail': finalUserEmail, // ✅ ប្រើ finalUserEmail
+      'userName': finalUserName, // ✅ ប្រើ finalUserName
       'department': userDepartment,
       'departmentId': userDepartmentId,
       'startDate': startDate,
@@ -196,7 +187,7 @@ class RequestService {
     };
 
     final docRef = await _requestsCollection.add(requestData);
-    
+
     await docRef.update({
       'requestId': requestNumberFormatted,
     });
@@ -207,7 +198,7 @@ class RequestService {
     print('🔔 Need Manager Approval: $needManagerApproval');
     print('🔔 Department: "$userDepartment"');
     print('🔔 Department ID: "$userDepartmentId"');
-    
+
     await _sendNotificationToUser(
       userId: user.uid,
       userEmail: finalUserEmail,
@@ -244,7 +235,8 @@ class RequestService {
   }
 
   // ==================== NOTIFY MANAGERS FOR NEW REQUEST ====================
-  Future<void> _notifyManagersForNewRequest(Map<String, dynamic> requestData, String requestId, String status, String? submitTimeString) async {
+  Future<void> _notifyManagersForNewRequest(
+      Map<String, dynamic> requestData, String requestId, String status, String? submitTimeString) async {
     final department = requestData['department'] ?? '';
     final departmentId = requestData['departmentId'] ?? '';
     final isAutoApproved = status == 'approved';
@@ -252,7 +244,7 @@ class RequestService {
     final requestNumber = requestData['requestNumber'] ?? '0000';
     final totalDays = requestData['totalDays'] ?? 0;
     final userEmail = requestData['userEmail'] ?? '';
-    
+
     print('🔔 ----- Notifying Managers for New Request -----');
     print('🔔 Department: "$department"');
     print('🔔 Department ID: "$departmentId"');
@@ -260,28 +252,28 @@ class RequestService {
     print('🔔 Request #: $requestNumber');
     print('🔔 Total Days: $totalDays');
     print('🔔 Is Auto Approved: $isAutoApproved');
-    
+
     try {
       final managerSnapshot = await _firestore
           .collection('users')
           .where('roleId', isEqualTo: '3')
           .where('status', isEqualTo: 'Active')
           .get();
-      
+
       print(' Total managers found (roleId=3): ${managerSnapshot.docs.length}');
-      
+
       QuerySnapshot directorSnapshot = await _firestore
           .collection('users')
           .where('roleId', isEqualTo: '4')
           .where('status', isEqualTo: 'Active')
           .get();
-      
+
       print(' Total directors found (roleId=4): ${directorSnapshot.docs.length}');
-      
+
       List<QueryDocumentSnapshot> allManagers = [];
       allManagers.addAll(managerSnapshot.docs);
       allManagers.addAll(directorSnapshot.docs);
-      
+
       Set<String> userIds = {};
       List<QueryDocumentSnapshot> uniqueManagers = [];
       for (var doc in allManagers) {
@@ -292,16 +284,16 @@ class RequestService {
           uniqueManagers.add(doc);
         }
       }
-      
+
       print(' Total unique managers/directors: ${uniqueManagers.length}');
-      
+
       if (uniqueManagers.isEmpty) {
         print('❌ No managers found in the system at all!');
         return;
       }
-      
+
       print(' Sending notifications to ${uniqueManagers.length} managers/directors');
-      
+
       int sentCount = 0;
       for (var doc in uniqueManagers) {
         final data = doc.data() as Map<String, dynamic>;
@@ -310,23 +302,23 @@ class RequestService {
         final managerName = data['fullName'] ?? 'Manager';
         final managerDepartment = data['department'] ?? 'No Department';
         final roleId = data['roleId']?.toString() ?? '';
-        
+
         if (userId.isEmpty) {
           print('⚠️ Manager has no userId: $managerEmail');
           continue;
         }
-        
+
         if (userId == requestData['userId']) {
           print('⚠️ Skipping self notification for: $managerEmail');
           continue;
         }
-        
+
         print('📨 Sending to manager: $managerEmail ($managerName) - Dept: $managerDepartment - Role: $roleId');
-        
+
         String deptInfo = department.isNotEmpty ? ' ($department)' : '';
         String statusText = isAutoApproved ? 'Auto-approved' : 'Needs approval';
         String timeInfo = submitTimeString != null ? ' Submitted: $submitTimeString' : '';
-        
+
         await _sendNotificationToUser(
           userId: userId,
           userEmail: managerEmail,
@@ -350,9 +342,8 @@ class RequestService {
         );
         sentCount++;
       }
-      
+
       print(' Successfully sent $sentCount notifications to managers/directors');
-      
     } catch (e) {
       print('❌ Error in _notifyManagersForNewRequest: $e');
     }
@@ -367,7 +358,7 @@ class RequestService {
             .orderBy('createdAt', descending: true)
             .snapshots();
       }
-      
+
       return _requestsCollection
           .where('status', isEqualTo: 'pending')
           .where('department', isEqualTo: managerDepartment)
@@ -381,37 +372,34 @@ class RequestService {
 
   // ==================== GET ALL PENDING REQUESTS ====================
   Stream<QuerySnapshot> getPendingRequests() {
-    return _requestsCollection
-        .where('status', isEqualTo: 'pending')
-        .orderBy('createdAt', descending: true)
-        .snapshots();
+    return _requestsCollection.where('status', isEqualTo: 'pending').orderBy('createdAt', descending: true).snapshots();
   }
 
   // ==================== APPROVE REQUEST AS MANAGER ====================
   Future<void> approveRequestAsManager(
-    String requestId, 
-    String managerId, 
+    String requestId,
+    String managerId,
     String managerName,
     String managerDepartment,
   ) async {
     try {
       final requestDoc = await _requestsCollection.doc(requestId).get();
       final requestData = requestDoc.data() as Map<String, dynamic>?;
-      
+
       if (requestData == null) {
         throw Exception('Request not found');
       }
-      
+
       final requestDepartment = requestData['department'] ?? '';
-      
+
       if (managerDepartment.isNotEmpty && requestDepartment != managerDepartment) {
         throw Exception('You cannot approve requests from staff outside your department');
       }
-      
+
       if (requestData['status'] != 'pending') {
         throw Exception('This request has already been processed');
       }
-      
+
       await _requestsCollection.doc(requestId).update({
         'status': 'approved',
         'approvedBy': managerId,
@@ -434,7 +422,7 @@ class RequestService {
       );
 
       await _notifyAdminsForRequestApproved(requestData, managerName, requestId);
-      
+
       print(' Request approved by Manager: $managerName');
     } on FirebaseException catch (e) {
       print('❌ Firebase Error: ${e.code} - ${e.message}');
@@ -448,31 +436,26 @@ class RequestService {
   }
 
   // ==================== REJECT REQUEST AS MANAGER ====================
-  Future<void> rejectRequestAsManager(
-    String requestId, 
-    String managerId, 
-    String managerName,
-    String managerDepartment,
-    {String? reason}
-  ) async {
+  Future<void> rejectRequestAsManager(String requestId, String managerId, String managerName, String managerDepartment,
+      {String? reason}) async {
     try {
       final requestDoc = await _requestsCollection.doc(requestId).get();
       final requestData = requestDoc.data() as Map<String, dynamic>?;
-      
+
       if (requestData == null) {
         throw Exception('Request not found');
       }
-      
+
       final requestDepartment = requestData['department'] ?? '';
-      
+
       if (managerDepartment.isNotEmpty && requestDepartment != managerDepartment) {
         throw Exception('You cannot reject requests from staff outside your department');
       }
-      
+
       if (requestData['status'] != 'pending') {
         throw Exception('This request has already been processed');
       }
-      
+
       await _requestsCollection.doc(requestId).update({
         'status': 'rejected',
         'rejectedBy': managerId,
@@ -486,7 +469,8 @@ class RequestService {
         userId: requestData['userId'],
         userEmail: requestData['userEmail'],
         title: 'Request Rejected',
-        message: 'Your request for ${requestData['totalDays']} day(s) has been rejected${reason != null ? '. Reason: $reason' : ''}',
+        message:
+            'Your request for ${requestData['totalDays']} day(s) has been rejected${reason != null ? '. Reason: $reason' : ''}',
         type: 'request_rejected',
         requestId: requestId,
         extraData: {
@@ -497,7 +481,7 @@ class RequestService {
       );
 
       await _notifyAdminsForRequestRejected(requestData, managerName, reason, requestId);
-      
+
       print(' Request rejected by Manager: $managerName');
     } on FirebaseException catch (e) {
       print('❌ Firebase Error: ${e.code} - ${e.message}');
@@ -515,11 +499,11 @@ class RequestService {
     try {
       final requestDoc = await _requestsCollection.doc(requestId).get();
       final requestData = requestDoc.data() as Map<String, dynamic>?;
-      
+
       if (requestData == null) {
         throw Exception('Request not found');
       }
-      
+
       await _requestsCollection.doc(requestId).update({
         'status': 'approved',
         'approvedBy': adminId,
@@ -545,7 +529,8 @@ class RequestService {
         await _notifyManagersInDepartment(
           department: requestData['department'],
           title: 'Request Approved',
-          message: '${requestData['userName']}\'s request (${requestData['totalDays']} day(s)) has been approved by $adminName',
+          message:
+              '${requestData['userName']}\'s request (${requestData['totalDays']} day(s)) has been approved by $adminName',
           type: 'request_approved',
           requestId: requestId,
           extraData: {
@@ -555,7 +540,7 @@ class RequestService {
           },
         );
       }
-      
+
       print('Request approved by Admin: $adminName');
     } catch (e) {
       throw Exception('Failed to approve request: $e');
@@ -567,11 +552,11 @@ class RequestService {
     try {
       final requestDoc = await _requestsCollection.doc(requestId).get();
       final requestData = requestDoc.data() as Map<String, dynamic>?;
-      
+
       if (requestData == null) {
         throw Exception('Request not found');
       }
-      
+
       await _requestsCollection.doc(requestId).update({
         'status': 'rejected',
         'rejectedBy': adminId,
@@ -585,7 +570,8 @@ class RequestService {
         userId: requestData['userId'],
         userEmail: requestData['userEmail'],
         title: 'Request Rejected',
-        message: 'Your request for ${requestData['totalDays']} day(s) has been rejected${reason != null ? '. Reason: $reason' : ''}',
+        message:
+            'Your request for ${requestData['totalDays']} day(s) has been rejected${reason != null ? '. Reason: $reason' : ''}',
         type: 'request_rejected',
         requestId: requestId,
         extraData: {
@@ -599,7 +585,8 @@ class RequestService {
         await _notifyManagersInDepartment(
           department: requestData['department'],
           title: 'Request Rejected',
-          message: '${requestData['userName']}\'s request (${requestData['totalDays']} day(s)) has been rejected by $adminName',
+          message:
+              '${requestData['userName']}\'s request (${requestData['totalDays']} day(s)) has been rejected by $adminName',
           type: 'request_rejected',
           requestId: requestId,
           extraData: {
@@ -609,7 +596,7 @@ class RequestService {
           },
         );
       }
-      
+
       print(' Request rejected by Admin: $adminName');
     } catch (e) {
       throw Exception('Failed to reject request: $e');
@@ -630,7 +617,7 @@ class RequestService {
     try {
       print('📨 Sending notification to: $userEmail');
       print('📨 Title: $title');
-      
+
       final notificationRef = _notificationsCollection.doc();
       final notificationData = {
         'notificationId': notificationRef.id,
@@ -664,16 +651,13 @@ class RequestService {
     try {
       print('🔔 ----- Notifying Managers in Department -----');
       print('🔔 Department: "$department"');
-      
-      Query query = _firestore
-          .collection('users')
-          .where('roleId', isEqualTo: '3')
-          .where('status', isEqualTo: 'Active');
-      
+
+      Query query = _firestore.collection('users').where('roleId', isEqualTo: '3').where('status', isEqualTo: 'Active');
+
       if (department.isNotEmpty) {
         query = query.where('department', isEqualTo: department);
       }
-      
+
       final managerSnapshot = await query.get();
 
       if (managerSnapshot.docs.isEmpty) {
@@ -685,16 +669,16 @@ class RequestService {
 
       final batch = _firestore.batch();
       int count = 0;
-      
+
       for (var managerDoc in managerSnapshot.docs) {
         final data = managerDoc.data() as Map<String, dynamic>;
         final managerUserId = data['userId'];
-        
+
         if (managerUserId == null || managerUserId.isEmpty) {
           print('⚠️ Manager has no userId: ${data['email']}');
           continue;
         }
-        
+
         final notificationRef = _notificationsCollection.doc();
         final notificationData = {
           'notificationId': notificationRef.id,
@@ -746,16 +730,16 @@ class RequestService {
 
       final batch = _firestore.batch();
       int count = 0;
-      
+
       for (var adminDoc in adminSnapshot.docs) {
-        final data = adminDoc.data() as Map<String, dynamic>;
+        final data = adminDoc.data();
         final adminUserId = data['userId'];
-        
+
         if (adminUserId == null || adminUserId.isEmpty) {
           print('⚠️ Admin has no userId: ${data['email']}');
           continue;
         }
-        
+
         final notificationRef = _notificationsCollection.doc();
         final notificationData = {
           'notificationId': notificationRef.id,
@@ -787,7 +771,8 @@ class RequestService {
     await _notifyManagersInDepartment(
       department: department,
       title: 'New Request Needs Approval',
-      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s))',
+      message:
+          '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s))',
       type: 'need_approval',
       requestId: requestId,
       extraData: {
@@ -799,12 +784,14 @@ class RequestService {
     );
   }
 
-  Future<void> _notifyAdminsForApproval(Map<String, dynamic> requestData, String requestId, String? submitTimeString) async {
+  Future<void> _notifyAdminsForApproval(
+      Map<String, dynamic> requestData, String requestId, String? submitTimeString) async {
     final department = requestData['department'] ?? '';
     String timeInfo = submitTimeString != null ? ' Submitted: $submitTimeString' : '';
     await _notifyAllAdmins(
       title: 'New Request Needs Approval',
-      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s))$timeInfo',
+      message:
+          '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s))$timeInfo',
       type: 'need_approval',
       requestId: requestId,
       extraData: {
@@ -817,12 +804,14 @@ class RequestService {
     );
   }
 
-  Future<void> _notifyAdminsForAutoApproval(Map<String, dynamic> requestData, String requestId, String? submitTimeString) async {
+  Future<void> _notifyAdminsForAutoApproval(
+      Map<String, dynamic> requestData, String requestId, String? submitTimeString) async {
     final department = requestData['department'] ?? '';
     String timeInfo = submitTimeString != null ? ' Submitted: $submitTimeString' : '';
     await _notifyAllAdmins(
       title: 'Request Auto-Approved',
-      message: '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s)) and was auto-approved$timeInfo',
+      message:
+          '${requestData['userName']}${department.isNotEmpty ? " ($department)" : ""} submitted request #${requestData['requestNumber']} (${requestData['totalDays']} day(s)) and was auto-approved$timeInfo',
       type: 'auto_approved',
       requestId: requestId,
       extraData: {
@@ -835,11 +824,13 @@ class RequestService {
     );
   }
 
-  Future<void> _notifyAdminsForRequestApproved(Map<String, dynamic> requestData, String approvedBy, String requestId) async {
+  Future<void> _notifyAdminsForRequestApproved(
+      Map<String, dynamic> requestData, String approvedBy, String requestId) async {
     final department = requestData['department'] ?? '';
     await _notifyAllAdmins(
       title: 'Request Approved',
-      message: '${requestData['userName']}\'s request${department.isNotEmpty ? " ($department)" : ""} (${requestData['totalDays']} day(s)) was approved by $approvedBy',
+      message:
+          '${requestData['userName']}\'s request${department.isNotEmpty ? " ($department)" : ""} (${requestData['totalDays']} day(s)) was approved by $approvedBy',
       type: 'request_approved',
       requestId: requestId,
       extraData: {
@@ -851,11 +842,13 @@ class RequestService {
     );
   }
 
-  Future<void> _notifyAdminsForRequestRejected(Map<String, dynamic> requestData, String rejectedBy, String? reason, String requestId) async {
+  Future<void> _notifyAdminsForRequestRejected(
+      Map<String, dynamic> requestData, String rejectedBy, String? reason, String requestId) async {
     final department = requestData['department'] ?? '';
     await _notifyAllAdmins(
       title: 'Request Rejected',
-      message: '${requestData['userName']}\'s request${department.isNotEmpty ? " ($department)" : ""} (${requestData['totalDays']} day(s)) was rejected by $rejectedBy${reason != null ? ". Reason: $reason" : ""}',
+      message:
+          '${requestData['userName']}\'s request${department.isNotEmpty ? " ($department)" : ""} (${requestData['totalDays']} day(s)) was rejected by $rejectedBy${reason != null ? ". Reason: $reason" : ""}',
       type: 'request_rejected',
       requestId: requestId,
       extraData: {
@@ -873,13 +866,13 @@ class RequestService {
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
     final endOfMonth = DateTime(now.year, now.month + 1, 0);
-    
+
     final snapshot = await _requestsCollection
         .where('userId', isEqualTo: userId)
         .where('createdAt', isGreaterThanOrEqualTo: startOfMonth)
         .where('createdAt', isLessThanOrEqualTo: endOfMonth)
         .get();
-    
+
     return snapshot.docs.length;
   }
 
@@ -890,7 +883,7 @@ class RequestService {
           .orderBy('createdAt', descending: true)
           .limit(1)
           .get();
-      
+
       if (snapshot.docs.isNotEmpty) {
         final data = snapshot.docs.first.data() as Map<String, dynamic>;
         return PolicyModel.fromFirestore(data, snapshot.docs.first.id);
@@ -919,32 +912,32 @@ class RequestService {
     required int daysAdvance,
   }) {
     final errors = <String>[];
-    
+
     if (totalDays > policy.maxDaysPerRequest) {
       errors.add('Cannot request more than ${policy.maxDaysPerRequest} day(s) per request');
     }
-    
+
     final remainingDays = policy.maxDaysPerYear - daysUsedThisYear;
     if (totalDays > remainingDays) {
       errors.add('Only $remainingDays day(s) remaining this year');
     }
-    
+
     if (reason != 'Other' && !policy.allowedReasons.contains(reason)) {
       errors.add('Reason "$reason" is not allowed');
     }
-    
+
     if (policy.requireDocument && !hasDocument) {
       errors.add('Document attachment is required');
     }
-    
+
     if (daysAdvance < policy.minDaysAdvance) {
       errors.add('Must request at least ${policy.minDaysAdvance} day(s) in advance');
     }
-    
+
     if (daysAdvance > policy.maxDaysAdvance) {
       errors.add('Cannot request more than ${policy.maxDaysAdvance} day(s) in advance');
     }
-    
+
     return errors;
   }
 
@@ -952,17 +945,17 @@ class RequestService {
     try {
       final startDate = DateTime(year, 1, 1);
       final endDate = DateTime(year, 12, 31);
-      
+
       final startTimestamp = Timestamp.fromDate(startDate);
       final endTimestamp = Timestamp.fromDate(endDate);
-      
+
       final snapshot = await _requestsCollection
           .where('userId', isEqualTo: userId)
           .where('status', isEqualTo: 'approved')
           .where('createdAt', isGreaterThanOrEqualTo: startTimestamp)
           .where('createdAt', isLessThanOrEqualTo: endTimestamp)
           .get();
-      
+
       int totalDays = 0;
       for (var doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
@@ -977,7 +970,7 @@ class RequestService {
           }
         }
       }
-      
+
       return totalDays;
     } catch (e) {
       print('Error getting total days used: $e');
@@ -986,7 +979,7 @@ class RequestService {
   }
 
   // ==================== NOTIFICATION CRUD METHODS ====================
-  
+
   Stream<QuerySnapshot> getUserNotifications(String userId) {
     return _notificationsCollection
         .where('userId', isEqualTo: userId)
@@ -1009,10 +1002,8 @@ class RequestService {
 
   Future<void> markAllNotificationsAsRead(String userId) async {
     try {
-      final snapshot = await _notificationsCollection
-          .where('userId', isEqualTo: userId)
-          .where('isRead', isEqualTo: false)
-          .get();
+      final snapshot =
+          await _notificationsCollection.where('userId', isEqualTo: userId).where('isRead', isEqualTo: false).get();
 
       if (snapshot.docs.isEmpty) {
         print('ℹNo unread notifications to mark as read');
@@ -1036,10 +1027,8 @@ class RequestService {
 
   Future<int> getUnreadNotificationCount(String userId) async {
     try {
-      final snapshot = await _notificationsCollection
-          .where('userId', isEqualTo: userId)
-          .where('isRead', isEqualTo: false)
-          .get();
+      final snapshot =
+          await _notificationsCollection.where('userId', isEqualTo: userId).where('isRead', isEqualTo: false).get();
       return snapshot.docs.length;
     } catch (e) {
       print('❌ Error getting unread notification count: $e');
@@ -1059,9 +1048,7 @@ class RequestService {
 
   Future<void> deleteAllNotifications(String userId) async {
     try {
-      final snapshot = await _notificationsCollection
-          .where('userId', isEqualTo: userId)
-          .get();
+      final snapshot = await _notificationsCollection.where('userId', isEqualTo: userId).get();
 
       if (snapshot.docs.isEmpty) return;
 

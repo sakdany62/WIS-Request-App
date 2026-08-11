@@ -5,7 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import 'admin_home_screen.dart';
-import 'admin_setting.dart';  
+import 'admin_setting.dart';
 import 'report_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -31,7 +31,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _pages = const [
       AdminHomeScreen(),
       ReportScreen(),
-      AdminSettingsScreen(),  
+      AdminSettingsScreen(),
     ];
   }
 
@@ -114,7 +114,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         borderRadius: BorderRadius.circular(isMobile ? 24 : 30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: isMobile ? 15 : 20,
             offset: const Offset(0, 8),
           ),
@@ -155,7 +155,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                   _buildNavItem(
                     2,
-                    Icons.settings_outlined,  //  Settings Icon
+                    Icons.settings_outlined, //  Settings Icon
                     Icons.settings,
                     'Settings',
                     isMobile,
@@ -188,7 +188,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         child: Container(
           padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white.withOpacity(0.2) : Colors.transparent,
+            color: isSelected ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
             borderRadius: BorderRadius.circular(isMobile ? 20 : 25),
           ),
           child: Column(
