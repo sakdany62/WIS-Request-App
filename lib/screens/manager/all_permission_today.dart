@@ -1,3 +1,4 @@
+// lib/screens/manager/list_staff_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
@@ -122,7 +123,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   List<TodayRequest> _allRequests = [];
   List<TodayRequest> _filteredRequests = [];
   bool _isLoading = true;
-  String _filterStatus = 'all';
+  int _currentSegment = 0;
 
   String _selectedReportType = 'daily';
   DateTime _selectedDate = DateTime.now();
@@ -130,11 +131,18 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   String _managerDepartment = '';
   bool _isManager = false;
 
-  // ===== SEE MORE =====
   int _visibleCount = 3;
   bool _showAll = false;
 
   final Map<String, String> _userNameCache = {};
+
+  final List<String> _segmentLabels = [
+    'All',
+    'Pending',
+    'Approved',
+    'Rejected',
+    'Auto-App',
+  ];
 
   @override
   void initState() {
@@ -144,28 +152,23 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   Future<String> _getUserFullName(String userId) async {
     if (userId.isEmpty) return 'Unknown';
-
     try {
       final docSnapshot = await _firestore.collection('users').doc(userId).get();
-
       if (docSnapshot.exists) {
         final data = docSnapshot.data();
         return data?['fullName'] ?? data?['username'] ?? 'Unknown';
       }
       return 'Unknown';
     } catch (e) {
-      print('❌ Error fetching user name: $e');
       return 'Unknown';
     }
   }
 
   Future<String> _getUserFullNameCached(String userId) async {
     if (userId.isEmpty) return 'Unknown';
-
     if (_userNameCache.containsKey(userId)) {
       return _userNameCache[userId]!;
     }
-
     final name = await _getUserFullName(userId);
     _userNameCache[userId] = name;
     return name;
@@ -173,31 +176,18 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   String _formatSubmitTime(dynamic submitTime) {
     if (submitTime == null) return 'N/A';
-
     try {
-      if (submitTime is String) {
-        String cleaned = submitTime.trim();
-        if (cleaned.contains('AM') || cleaned.contains('PM')) {
-          return cleaned;
-        }
+      if (submitTime is String && (submitTime.contains('AM') || submitTime.contains('PM'))) {
+        return submitTime;
       }
-
       DateTime? parsedDateTime;
       bool isUTC = false;
-
       if (submitTime is String) {
         String cleaned = submitTime.trim();
-
         if (cleaned.contains('T') && cleaned.endsWith('Z')) {
-          try {
-            parsedDateTime = DateTime.parse(cleaned);
-            isUTC = true;
-          } catch (e) {}
+          try { parsedDateTime = DateTime.parse(cleaned); isUTC = true; } catch (_) {}
         } else if (cleaned.contains('T')) {
-          try {
-            parsedDateTime = DateTime.parse(cleaned);
-            isUTC = false;
-          } catch (e) {}
+          try { parsedDateTime = DateTime.parse(cleaned); } catch (_) {}
         } else if (cleaned.contains(' ') && cleaned.contains('-')) {
           final parts = cleaned.split(' ');
           if (parts.length == 2) {
@@ -211,7 +201,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                 int.parse(timeParts[0]),
                 int.parse(timeParts[1]),
               );
-              isUTC = false;
             }
           }
         }
@@ -222,41 +211,22 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         parsedDateTime = submitTime;
         isUTC = submitTime.isUtc;
       }
-
-      if (parsedDateTime == null) {
-        return submitTime.toString();
-      }
-
-      DateTime cambodiaTime;
-      if (isUTC) {
-        cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
-      } else {
-        cambodiaTime = parsedDateTime;
-      }
-
+      if (parsedDateTime == null) return submitTime.toString();
+      DateTime cambodiaTime = isUTC ? parsedDateTime.toUtc().add(const Duration(hours: 7)) : parsedDateTime;
       int hour = cambodiaTime.hour;
       final int minute = cambodiaTime.minute;
       final String period = hour >= 12 ? 'PM' : 'AM';
-
-      if (hour == 0) {
-        hour = 12;
-      } else if (hour > 12) {
-        hour = hour - 12;
-      }
-
+      if (hour == 0) hour = 12;
+      else if (hour > 12) hour -= 12;
       return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
-    } catch (e) {
-      return 'N/A';
-    }
+    } catch (_) { return 'N/A'; }
   }
 
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-
     try {
       DateTime? parsedDateTime;
       bool isUTC = false;
-
       if (timestamp is Timestamp) {
         parsedDateTime = timestamp.toDate();
         isUTC = true;
@@ -266,38 +236,19 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       } else {
         return 'N/A';
       }
-
-      DateTime cambodiaTime;
-      if (isUTC) {
-        cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
-      } else {
-        cambodiaTime = parsedDateTime;
-      }
-
+      DateTime cambodiaTime = isUTC ? parsedDateTime.toUtc().add(const Duration(hours: 7)) : parsedDateTime;
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
-    } catch (e) {
-      print('❌ Error formatting timestamp: $e');
-      return 'N/A';
-    }
+    } catch (_) { return 'N/A'; }
   }
 
   DateTime _getStartOfWeek(DateTime date) {
     int weekday = date.weekday;
-    int daysToSubtract = weekday - 1;
-    return DateTime(date.year, date.month, date.day - daysToSubtract);
+    return DateTime(date.year, date.month, date.day - (weekday - 1));
   }
 
   DateTime _getEndOfWeek(DateTime date) {
     DateTime startOfWeek = _getStartOfWeek(date);
-    return DateTime(
-      startOfWeek.year,
-      startOfWeek.month,
-      startOfWeek.day + 6,
-      23,
-      59,
-      59,
-      999,
-    );
+    return DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day + 6, 23, 59, 59, 999);
   }
 
   String _getWeekLabel(DateTime date) {
@@ -308,16 +259,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   String _getDateLabel() {
     switch (_selectedReportType) {
-      case 'daily':
-        return DateFormat('dd MMM yyyy').format(_selectedDate);
-      case 'weekly':
-        return _getWeekLabel(_selectedDate);
-      case 'monthly':
-        return DateFormat('MMMM yyyy').format(_selectedDate);
-      case 'yearly':
-        return DateFormat('yyyy').format(_selectedDate);
-      default:
-        return '';
+      case 'daily': return DateFormat('dd MMM yyyy').format(_selectedDate);
+      case 'weekly': return _getWeekLabel(_selectedDate);
+      case 'monthly': return DateFormat('MMMM yyyy').format(_selectedDate);
+      case 'yearly': return DateFormat('yyyy').format(_selectedDate);
+      default: return '';
     }
   }
 
@@ -329,9 +275,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       lastDate: DateTime(2030),
     );
     if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-      });
+      setState(() => _selectedDate = picked);
       _loadAllRequests();
     }
   }
@@ -339,32 +283,22 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   Future<void> _checkManagerDepartment() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
+      if (mounted) Navigator.pushReplacementNamed(context, '/login');
       return;
     }
-
     try {
       final querySnapshot = await _firestore.collection('users').where('userId', isEqualTo: user.uid).limit(1).get();
-
       if (querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data();
         final roleId = data['roleId']?.toString() ?? '2';
-
         if (roleId == '3' || roleId == '4') {
           _isManager = true;
           _managerDepartment = data['department'] ?? '';
-          print('Manager department: $_managerDepartment');
-        } else {
-          _isManager = false;
-          _managerDepartment = '';
         }
       }
     } catch (e) {
       print('Error checking manager department: $e');
     }
-
     _loadAllRequests();
   }
 
@@ -374,11 +308,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       _showAll = false;
       _visibleCount = 3;
     });
-
     try {
-      DateTime startDate;
-      DateTime endDate;
-
+      DateTime startDate, endDate;
       switch (_selectedReportType) {
         case 'daily':
           startDate = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
@@ -401,27 +332,16 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           endDate = DateTime.now().add(const Duration(days: 1));
       }
 
-      final startTimestamp = Timestamp.fromDate(startDate);
-      final endTimestamp = Timestamp.fromDate(endDate);
-
-      Query query = _firestore
+      final querySnapshot = await _firestore
           .collection('leave_requests')
-          .where('createdAt', isGreaterThanOrEqualTo: startTimestamp)
-          .where('createdAt', isLessThan: endTimestamp);
-
-      final querySnapshot = await query.get();
-
-      print('📊 Total requests: ${querySnapshot.docs.length}');
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('createdAt', isLessThan: Timestamp.fromDate(endDate))
+          .get();
 
       List<TodayRequest> allRequests = querySnapshot.docs.map((doc) => TodayRequest.fromFirestore(doc)).toList();
 
       if (_isManager && _managerDepartment.isNotEmpty) {
-        allRequests = allRequests.where((r) {
-          return r.department == _managerDepartment;
-        }).toList();
-
-        print('🔍 Filtered by department: $_managerDepartment');
-        print('📊 After filter: ${allRequests.length} requests');
+        allRequests = allRequests.where((r) => r.department == _managerDepartment).toList();
       }
 
       allRequests.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -432,10 +352,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         _isLoading = false;
         _userNameCache.clear();
       });
-
-      print('✅ Loaded ${_allRequests.length} requests');
     } catch (e) {
-      print('❌ Error loading requests: $e');
+      print('Error loading requests: $e');
       setState(() {
         _allRequests = [];
         _filteredRequests = [];
@@ -446,16 +364,14 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   void _applyFilters() {
     var filtered = _allRequests;
-
-    if (_filterStatus != 'all') {
-      filtered = filtered.where((r) {
-        if (_filterStatus == 'auto_approved') {
-          return r.autoApproved;
-        }
-        return r.status == _filterStatus;
-      }).toList();
+    if (_currentSegment != 0) {
+      switch (_currentSegment) {
+        case 1: filtered = filtered.where((r) => r.status == 'pending').toList(); break;
+        case 2: filtered = filtered.where((r) => r.status == 'approved').toList(); break;
+        case 3: filtered = filtered.where((r) => r.status == 'rejected').toList(); break;
+        case 4: filtered = filtered.where((r) => r.autoApproved == true).toList(); break;
+      }
     }
-
     setState(() {
       _filteredRequests = filtered;
       _visibleCount = 3;
@@ -463,210 +379,20 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     });
   }
 
-  Future<void> _refresh() async {
-    await _loadAllRequests();
-  }
+  Future<void> _refresh() async => _loadAllRequests();
 
-  void _clearFilter() {
-    setState(() {
-      _filterStatus = 'all';
-    });
-    _applyFilters();
-  }
-
-  void _showMore() {
-    setState(() {
-      _showAll = true;
-      _visibleCount = _filteredRequests.length;
-    });
-  }
-
-  void _showLess() {
-    setState(() {
-      _showAll = false;
-      _visibleCount = 3;
-    });
-  }
-
-  Future<void> _exportToExcel() async {
-    if (_filteredRequests.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No data to export'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    try {
-      var excelFile = excel.Excel.createExcel();
-      excel.Sheet sheet = excelFile['Permission List'];
-
-      final headers = [
-        'No.',
-        'Request ID',
-        'Staff Name',
-        'Email',
-        'Start Date',
-        'End Date',
-        'Total Days',
-        'Reason',
-        'Status',
-        'Approval Type',
-        'Request Number',
-        'Created At (Cambodia Time)',
-        'Submit Time',
-        'Department',
-      ];
-
-      sheet.appendRow(headers);
-      for (int col = 0; col < headers.length; col++) {
-        var cell = sheet.cell(
-          excel.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0),
-        );
-        cell.cellStyle = excel.CellStyle(
-          bold: true,
-          backgroundColorHex: '#173B69',
-          fontColorHex: '#FFFFFF',
-        );
-      }
-
-      for (int i = 0; i < _filteredRequests.length; i++) {
-        final r = _filteredRequests[i];
-        final submitTimeDisplay = _formatSubmitTime(r.submitTime);
-        final createdAtDisplay = _formatToCambodiaTime(r.createdAt);
-
-        String fullName = r.staffName;
-        if (r.userId.isNotEmpty) {
-          final cachedName = _userNameCache[r.userId];
-          if (cachedName != null) {
-            fullName = cachedName;
-          } else {
-            final fetchedName = await _getUserFullName(r.userId);
-            _userNameCache[r.userId] = fetchedName;
-            fullName = fetchedName;
-          }
-        }
-
-        sheet.appendRow([
-          (i + 1),
-          r.requestId.substring(0, 8),
-          fullName,
-          r.userEmail,
-          r.startDate,
-          r.endDate,
-          r.totalDays,
-          r.reason,
-          r.status.toUpperCase(),
-          r.approvalType,
-          r.requestNumber,
-          createdAtDisplay,
-          submitTimeDisplay,
-          r.department ?? '',
-        ]);
-      }
-
-      final colWidths = [6, 12, 20, 25, 15, 15, 12, 25, 14, 14, 16, 25, 18, 20];
-      for (int i = 0; i < colWidths.length; i++) {
-        sheet.setColWidth(i, colWidths[i].toDouble());
-      }
-
-      final dir = await getTemporaryDirectory();
-      final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
-      final filePath = '${dir.path}/$fileName';
-
-      final fileBytes = excelFile.encode();
-      if (fileBytes != null) {
-        File(filePath)
-          ..createSync(recursive: true)
-          ..writeAsBytesSync(fileBytes);
-
-        final result = await OpenFile.open(filePath);
-        if (result.type != ResultType.done) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not open file: ${result.message}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(' Exported: $fileName'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Export error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
+  void _showMore() => setState(() { _showAll = true; _visibleCount = _filteredRequests.length; });
+  void _showLess() => setState(() { _showAll = false; _visibleCount = 3; });
 
   Map<String, dynamic> _calculateSummary(List<TodayRequest> data) {
-    int total = data.length;
-    int pending = data.where((r) => r.status == 'pending').length;
-    int approved = data.where((r) => r.status == 'approved').length;
-    int rejected = data.where((r) => r.status == 'rejected').length;
-    int autoApproved = data.where((r) => r.autoApproved == true).length;
-    int totalDays = data.fold(0, (sum, r) => sum + r.totalDays);
-
     return {
-      'total': total,
-      'pending': pending,
-      'approved': approved,
-      'rejected': rejected,
-      'autoApproved': autoApproved,
-      'totalDays': totalDays,
+      'total': data.length,
+      'pending': data.where((r) => r.status == 'pending').length,
+      'approved': data.where((r) => r.status == 'approved').length,
+      'rejected': data.where((r) => r.status == 'rejected').length,
+      'autoApproved': data.where((r) => r.autoApproved == true).length,
+      'totalDays': data.fold(0, (sum, r) => sum + r.totalDays),
     };
-  }
-
-  Widget _buildSummaryCard({
-    required String label,
-    required String value,
-    required Color color,
-    required bool isMobile,
-    required double fontSize,
-  }) {
-    return Container(
-      width: isMobile ? 60 : 70,
-      padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 4 : 6,
-        horizontal: isMobile ? 2 : 4,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isMobile ? fontSize : fontSize + 2,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: isMobile ? 10 : 12,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -675,496 +401,292 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 20);
+    double bottomPadding = MediaQuery.of(context).padding.bottom + 24;
 
     final filtered = _filteredRequests;
     final summary = _calculateSummary(filtered);
-    final String departmentDisplay = _isManager && _managerDepartment.isNotEmpty ? _managerDepartment : '';
-
-    // ===== Get visible items =====
     final List<TodayRequest> visibleItems = _showAll ? filtered : filtered.take(_visibleCount).toList();
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: Text(
+        backgroundColor: const Color(0xFF173B69),
+        elevation: 2,
+        title: const Text(
           'Permission List',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: isMobile ? 16 : 18,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+        ),
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(icon: Icon(Icons.refresh, size: iconSize), onPressed: _refresh, tooltip: 'Refresh'),
+          IconButton(icon: Icon(Icons.file_download, size: iconSize), onPressed: () => _exportToExcel(), tooltip: 'Export'),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                children: List.generate(_segmentLabels.length, (index) {
+                  final isSelected = _currentSegment == index;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() => _currentSegment = index);
+                        _applyFilters();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))] : null,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _segmentLabels[index],
+                            style: TextStyle(
+                              color: isSelected ? const Color(0xFF173B69) : Colors.white,
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
           ),
         ),
-        backgroundColor: const Color(0xFF173B69),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, size: iconSize),
-            onPressed: _refresh,
-            tooltip: 'Refresh',
-          ),
-          IconButton(
-            icon: Icon(Icons.file_download, size: iconSize),
-            onPressed: _exportToExcel,
-            tooltip: 'Export to Excel',
-          ),
-        ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                return Column(
-                  children: [
-                    // ===== HEADER SECTION (FIXED) =====
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        vertical: spacing * 2,
-                        horizontal: spacing,
-                      ),
-                      color: Colors.grey[100],
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: _selectedReportType,
-                                  decoration: InputDecoration(
-                                    labelText: 'Report Type',
-                                    labelStyle: TextStyle(
-                                      fontSize: fontSize,
-                                      color: Colors.grey[700],
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: spacing,
-                                      vertical: isMobile ? 6 : 8,
-                                    ),
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'daily',
-                                      child: Text(' Daily'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'weekly',
-                                      child: Text(' Weekly'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'monthly',
-                                      child: Text(' Monthly'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'yearly',
-                                      child: Text(' Yearly'),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() {
-                                        _selectedReportType = value;
-                                      });
-                                      _loadAllRequests();
-                                    }
-                                  },
-                                  style: TextStyle(
-                                    fontSize: fontSize,
-                                    color: Colors.black,
-                                  ),
-                                  dropdownColor: Colors.white,
-                                  icon: const Icon(
-                                    Icons.arrow_drop_down,
-                                    color: Color(0xFF173B69),
-                                  ),
-                                ),
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF173B69))))
+            : Column(
+                children: [
+                  // Filter Row
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF173B69).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedReportType,
+                                icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF173B69)),
+                                isExpanded: true,
+                                items: const [
+                                  DropdownMenuItem(value: 'daily', child: Text(' Daily')),
+                                  DropdownMenuItem(value: 'weekly', child: Text(' Weekly')),
+                                  DropdownMenuItem(value: 'monthly', child: Text(' Monthly')),
+                                  DropdownMenuItem(value: 'yearly', child: Text(' Yearly')),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() => _selectedReportType = value);
+                                    _loadAllRequests();
+                                  }
+                                },
+                                style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500, color: const Color(0xFF173B69)),
                               ),
-                              SizedBox(width: spacing),
-                              SizedBox(
-                                height: isMobile ? 44 : 50,
-                                child: ElevatedButton.icon(
-                                  onPressed: _selectDate,
-                                  icon: Icon(Icons.calendar_today, size: iconSize - 2),
-                                  label: Text(
-                                    _getDateLabel(),
-                                    style: TextStyle(fontSize: isMobile ? 11 : 13),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF173B69),
-                                    foregroundColor: Colors.white,
-                                    padding: EdgeInsets.symmetric(horizontal: spacing),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                          SizedBox(height: spacing),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: _filterStatus,
-                                  decoration: InputDecoration(
-                                    labelText: 'Status Filter',
-                                    labelStyle: TextStyle(
-                                      fontSize: fontSize,
-                                      color: Colors.grey[700],
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: spacing,
-                                      vertical: isMobile ? 6 : 8,
-                                    ),
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'all',
-                                      child: Text('All'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'pending',
-                                      child: Text(' Pending'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'approved',
-                                      child: Text(' Approved'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'auto_approved',
-                                      child: Text(' Auto Approved'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'rejected',
-                                      child: Text(' Rejected'),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() {
-                                        _filterStatus = value;
-                                      });
-                                      _applyFilters();
-                                    }
-                                  },
-                                  style: TextStyle(
-                                    fontSize: fontSize,
-                                    color: Colors.black,
-                                  ),
-                                  dropdownColor: Colors.white,
-                                  icon: const Icon(
-                                    Icons.arrow_drop_down,
-                                    color: Color(0xFF173B69),
-                                  ),
-                                ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 3,
+                          child: GestureDetector(
+                            onTap: _selectDate,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF173B69).withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(20),
                               ),
-                              if (_filterStatus != 'all') ...[
-                                SizedBox(width: spacing),
-                                SizedBox(
-                                  height: isMobile ? 44 : 50,
-                                  child: ElevatedButton(
-                                    onPressed: _clearFilter,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red.shade50,
-                                      foregroundColor: Colors.red.shade700,
-                                      padding: EdgeInsets.symmetric(horizontal: spacing),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        side: BorderSide(color: Colors.red.shade200),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'Clear',
-                                      style: TextStyle(
-                                        fontSize: isMobile ? 11 : 13,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          if (departmentDisplay.isNotEmpty)
-                            Padding(
-                              padding: EdgeInsets.only(top: spacing),
                               child: Row(
                                 children: [
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: spacing * 1.5,
-                                      vertical: spacing,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.business,
-                                          size: iconSize - 2,
-                                          color: Colors.green,
-                                        ),
-                                        SizedBox(width: spacing / 2),
-                                        Text(
-                                          ' $departmentDisplay',
-                                          style: TextStyle(
-                                            fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.green,
-                                          ),
-                                        ),
-                                      ],
+                                  const Icon(Icons.calendar_today, size: 16, color: Color(0xFF173B69)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _getDateLabel(),
+                                      style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500, color: const Color(0xFF173B69)),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                        ],
-                      ),
+                          ),
+                        ),
+                      ],
                     ),
-
-                    // ===== SUMMARY CARDS (FIXED) =====
+                  ),
+                  // Total Only - No summary chips
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF173B69).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF173B69).withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.assignment_rounded, size: 14, color: const Color(0xFF173B69)),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Total: ${summary['total']}',
+                                style: TextStyle(
+                                  fontSize: fontSize,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF173B69),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_isManager && _managerDepartment.isNotEmpty)
                     Container(
-                      padding: EdgeInsets.symmetric(
-                        vertical: spacing,
-                        horizontal: spacing * 1.5,
-                      ),
-                      child: SizedBox(
-                        height: isMobile ? 60 : 70,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            _buildSummaryCard(
-                              label: 'Total',
-                              value: summary['total'].toString(),
-                              color: const Color(0xFF173B69),
-                              isMobile: isMobile,
-                              fontSize: fontSize,
-                            ),
-                            SizedBox(width: spacing / 2),
-                            _buildSummaryCard(
-                              label: 'Pending',
-                              value: summary['pending'].toString(),
-                              color: Colors.orange,
-                              isMobile: isMobile,
-                              fontSize: fontSize,
-                            ),
-                            SizedBox(width: spacing / 2),
-                            _buildSummaryCard(
-                              label: 'Approved',
-                              value: summary['approved'].toString(),
-                              color: Colors.green,
-                              isMobile: isMobile,
-                              fontSize: fontSize,
-                            ),
-                            SizedBox(width: spacing / 2),
-                            _buildSummaryCard(
-                              label: 'Rejected',
-                              value: summary['rejected'].toString(),
-                              color: Colors.red,
-                              isMobile: isMobile,
-                              fontSize: fontSize,
+                            Icon(Icons.business, size: 14, color: Colors.green[700]),
+                            const SizedBox(width: 4),
+                            Text(
+                              _managerDepartment,
+                              style: TextStyle(fontSize: fontSize * 0.85, color: Colors.green[700], fontWeight: FontWeight.w500),
                             ),
                           ],
                         ),
                       ),
                     ),
-
-                    // ===== TOTAL DAYS (FIXED) =====
-                    Container(
-                      margin: EdgeInsets.symmetric(horizontal: spacing * 1.5),
-                      padding: EdgeInsets.symmetric(
-                        vertical: spacing,
-                        horizontal: spacing * 1.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.calendar_today,
-                            color: Colors.purple,
-                            size: iconSize - 2,
-                          ),
-                          SizedBox(width: spacing / 2),
-                          Text(
-                            ' Total Days: ${summary['totalDays']}',
-                            style: TextStyle(
-                              fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.purple,
+                  // List
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+                                const SizedBox(height: 12),
+                                Text('No data found', style: TextStyle(color: Colors.grey.shade500, fontSize: fontSize)),
+                              ],
                             ),
-                          ),
-                          SizedBox(width: spacing),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: spacing / 2,
-                              vertical: spacing / 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.purple.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              '${summary['autoApproved']} Auto',
-                              style: TextStyle(
-                                fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                                color: Colors.purple,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    SizedBox(height: spacing),
-
-                    // ===== LIST VIEW (SCROLLABLE) =====
-                    Expanded(
-                      child: filtered.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.inbox,
-                                    size: iconSize * 3,
-                                    color: Colors.grey,
-                                  ),
-                                  SizedBox(height: spacing * 2),
-                                  Text(
-                                    ' No requests found',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: fontSize,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  if (_isManager && _managerDepartment.isNotEmpty)
-                                    Text(
-                                      'Department: $_managerDepartment',
-                                      style: TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: fontSize * 0.85,
-                                      ),
-                                    ),
-                                  SizedBox(height: spacing * 2),
-                                  ElevatedButton.icon(
-                                    onPressed: _refresh,
-                                    icon: Icon(Icons.refresh, size: iconSize),
-                                    label: Text(
-                                      'Refresh',
-                                      style: TextStyle(fontSize: fontSize),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF173B69),
-                                      foregroundColor: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : ListView.builder(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: spacing * 1.5,
-                                vertical: spacing / 1.5,
-                              ),
-                              itemCount: visibleItems.length + (filtered.length > 3 ? 1 : 0),
-                              itemBuilder: (context, index) {
-                                // ===== SEE MORE BUTTON =====
-                                if (index == visibleItems.length && filtered.length > 3) {
-                                  return Padding(
-                                    padding: EdgeInsets.symmetric(vertical: spacing),
-                                    child: Center(
-                                      child: TextButton(
-                                        onPressed: _showAll ? _showLess : _showMore,
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: const Color(0xFF173B69),
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: spacing * 3,
-                                            vertical: spacing,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            side: const BorderSide(
-                                              color: Color(0xFF173B69),
-                                              width: 1.5,
-                                            ),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              _showAll ? 'See Less' : 'See More',
-                                              style: TextStyle(
-                                                fontSize: fontSize,
-                                                fontWeight: FontWeight.w600,
-                                                color: const Color(0xFF173B69),
-                                              ),
-                                            ),
-                                            SizedBox(width: spacing / 2),
-                                            Icon(
-                                              _showAll ? Icons.expand_less : Icons.expand_more,
-                                              color: const Color(0xFF173B69),
-                                              size: iconSize,
-                                            ),
-                                          ],
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.only(left: 16, right: 16, top: 8, bottom: bottomPadding),
+                            itemCount: visibleItems.length + (filtered.length > 3 ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == visibleItems.length && filtered.length > 3) {
+                                return Padding(
+                                  padding: EdgeInsets.symmetric(vertical: spacing),
+                                  child: Center(
+                                    child: TextButton(
+                                      onPressed: _showAll ? _showLess : _showMore,
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: const Color(0xFF173B69),
+                                        padding: EdgeInsets.symmetric(horizontal: spacing * 3, vertical: spacing),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                          side: const BorderSide(color: Color(0xFF173B69), width: 1.5),
                                         ),
                                       ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(_showAll ? 'Show Less' : 'See More', style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600, color: const Color(0xFF173B69))),
+                                          const SizedBox(width: 4),
+                                          Icon(_showAll ? Icons.expand_less : Icons.expand_more, color: const Color(0xFF173B69), size: iconSize),
+                                        ],
+                                      ),
                                     ),
-                                  );
-                                }
-
-                                // ===== REQUEST CARD =====
-                                final r = visibleItems[index];
-                                return _RequestCard(
-                                  request: r,
-                                  isMobile: isMobile,
-                                  fontSize: fontSize,
-                                  spacing: spacing,
-                                  iconSize: iconSize,
+                                  ),
                                 );
-                              },
-                            ),
-                    ),
-                  ],
-                );
-              },
-            ),
+                              }
+                              final r = visibleItems[index];
+                              return _RequestCard(request: r, isMobile: isMobile, fontSize: fontSize, spacing: spacing);
+                            },
+                          ),
+                  ),
+                ],
+              ),
+      ),
     );
+  }
+
+  Future<void> _exportToExcel() async {
+    if (_filteredRequests.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No data to export'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+    try {
+      var excelFile = excel.Excel.createExcel();
+      excel.Sheet sheet = excelFile['Permission List'];
+      final headers = ['No.', 'Request ID', 'Staff Name', 'Email', 'Start Date', 'End Date', 'Total Days', 'Reason', 'Status', 'Approval Type', 'Request #', 'Created At', 'Submit Time', 'Department'];
+      sheet.appendRow(headers);
+      for (int i = 0; i < headers.length; i++) {
+        var cell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+        cell.cellStyle = excel.CellStyle(bold: true, backgroundColorHex: '#173B69', fontColorHex: '#FFFFFF');
+      }
+      for (int i = 0; i < _filteredRequests.length; i++) {
+        final r = _filteredRequests[i];
+        String fullName = r.staffName;
+        if (r.userId.isNotEmpty && _userNameCache.containsKey(r.userId)) {
+          fullName = _userNameCache[r.userId]!;
+        }
+        sheet.appendRow([
+          (i + 1), r.requestId.substring(0, 8), fullName, r.userEmail, r.startDate, r.endDate,
+          r.totalDays, r.reason, r.status.toUpperCase(), r.approvalType, r.requestNumber,
+          _formatToCambodiaTime(r.createdAt), _formatSubmitTime(r.submitTime), r.department ?? ''
+        ]);
+      }
+      final dir = await getTemporaryDirectory();
+      final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+      final filePath = '${dir.path}/$fileName';
+      final fileBytes = excelFile.encode();
+      if (fileBytes != null) {
+        File(filePath)..createSync(recursive: true)..writeAsBytesSync(fileBytes);
+        await OpenFile.open(filePath);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(' Exported: $fileName'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export error: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 }
 
@@ -1173,365 +695,167 @@ class _RequestCard extends StatelessWidget {
   final bool isMobile;
   final double fontSize;
   final double spacing;
-  final double iconSize;
 
-  const _RequestCard({
-    required this.request,
-    required this.isMobile,
-    required this.fontSize,
-    required this.spacing,
-    required this.iconSize,
-  });
+  const _RequestCard({required this.request, required this.isMobile, required this.fontSize, required this.spacing});
 
   Color get _statusColor {
-    switch (request.status) {
-      case 'approved':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      case 'pending':
-        return Colors.orange;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  IconData get _statusIcon {
-    switch (request.status) {
-      case 'approved':
-        return Icons.check_circle;
-      case 'rejected':
-        return Icons.cancel;
-      case 'pending':
-        return Icons.hourglass_empty;
-      default:
-        return Icons.help_outline;
-    }
-  }
-
-  String _formatSubmitTime(dynamic submitTime) {
-    if (submitTime == null) return 'N/A';
-
-    try {
-      if (submitTime is String) {
-        String cleaned = submitTime.trim();
-        if (cleaned.contains('AM') || cleaned.contains('PM')) {
-          return cleaned;
-        }
-      }
-
-      DateTime? parsedDateTime;
-      bool isUTC = false;
-
-      if (submitTime is String) {
-        String cleaned = submitTime.trim();
-
-        if (cleaned.contains('T') && cleaned.endsWith('Z')) {
-          try {
-            parsedDateTime = DateTime.parse(cleaned);
-            isUTC = true;
-          } catch (e) {}
-        } else if (cleaned.contains('T')) {
-          try {
-            parsedDateTime = DateTime.parse(cleaned);
-            isUTC = false;
-          } catch (e) {}
-        } else if (cleaned.contains(' ') && cleaned.contains('-')) {
-          final parts = cleaned.split(' ');
-          if (parts.length == 2) {
-            final dateParts = parts[0].split('-');
-            final timeParts = parts[1].split(':');
-            if (dateParts.length == 3 && timeParts.length >= 2) {
-              parsedDateTime = DateTime(
-                int.parse(dateParts[0]),
-                int.parse(dateParts[1]),
-                int.parse(dateParts[2]),
-                int.parse(timeParts[0]),
-                int.parse(timeParts[1]),
-              );
-              isUTC = false;
-            }
-          }
-        }
-      } else if (submitTime is Timestamp) {
-        parsedDateTime = submitTime.toDate();
-        isUTC = true;
-      } else if (submitTime is DateTime) {
-        parsedDateTime = submitTime;
-        isUTC = submitTime.isUtc;
-      }
-
-      if (parsedDateTime == null) {
-        return submitTime.toString();
-      }
-
-      DateTime cambodiaTime;
-      if (isUTC) {
-        cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
-      } else {
-        cambodiaTime = parsedDateTime;
-      }
-
-      int hour = cambodiaTime.hour;
-      final int minute = cambodiaTime.minute;
-      final String period = hour >= 12 ? 'PM' : 'AM';
-
-      if (hour == 0) {
-        hour = 12;
-      } else if (hour > 12) {
-        hour = hour - 12;
-      }
-
-      return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
-    } catch (e) {
-      return 'N/A';
-    }
+    if (request.status == 'approved') return Colors.green;
+    if (request.status == 'rejected') return Colors.red;
+    return Colors.orange;
   }
 
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-
     try {
       DateTime? parsedDateTime;
-      bool isUTC = false;
-
-      if (timestamp is Timestamp) {
-        parsedDateTime = timestamp.toDate();
-        isUTC = true;
-      } else if (timestamp is DateTime) {
-        parsedDateTime = timestamp;
-        isUTC = timestamp.isUtc;
-      } else {
-        return 'N/A';
-      }
-
-      DateTime cambodiaTime;
-      if (isUTC) {
-        cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
-      } else {
-        cambodiaTime = parsedDateTime;
-      }
-
+      if (timestamp is Timestamp) parsedDateTime = timestamp.toDate();
+      else if (timestamp is DateTime) parsedDateTime = timestamp;
+      else return 'N/A';
+      DateTime cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
-    } catch (e) {
-      print('❌ Error formatting timestamp: $e');
-      return 'N/A';
-    }
+    } catch (_) { return 'N/A'; }
   }
 
   @override
   Widget build(BuildContext context) {
-    final submitTimeDisplay = _formatSubmitTime(request.submitTime);
-    final createdAtDisplay = _formatToCambodiaTime(request.createdAt);
-
-    return Card(
-      margin: EdgeInsets.only(bottom: spacing / 2),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Padding(
-        padding: EdgeInsets.all(isMobile ? 8 : 10),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                ProfileAvatar(
-                  userId: request.userId,
-                  name: request.staffName,
-                  radius: isMobile ? 14 : 16,
-                  backgroundColor: _statusColor.withValues(alpha: 0.2),
-                  textColor: _statusColor,
-                ),
-                SizedBox(width: spacing),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          ProfileAvatar(
+                            userId: request.userId,
+                            name: request.staffName,
+                            radius: isMobile ? 14 : 18,
+                            backgroundColor: _statusColor.withValues(alpha: 0.1),
+                            textColor: _statusColor,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  request.staffName,
+                                  style: TextStyle(fontSize: isMobile ? fontSize : fontSize + 2, fontWeight: FontWeight.bold, color: Colors.black87),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (request.department != null && request.department!.isNotEmpty)
+                                  Text(
+                                    request.department!,
+                                    style: TextStyle(fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85, color: Colors.grey.shade600),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
                       Text(
-                        request.staffName,
-                        style: TextStyle(
-                          fontSize: isMobile ? fontSize * 0.85 : fontSize,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        'Reason: ${request.reason}',
+                        style: TextStyle(fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.9),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        request.userEmail,
-                        style: TextStyle(
-                          fontSize: isMobile ? fontSize * 0.7 : 12,
-                          color: Colors.grey[600],
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade500),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${request.startDate} → ${request.endDate}',
+                              style: TextStyle(fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.9, color: Colors.grey.shade700),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${request.totalDays}d',
+                              style: TextStyle(fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85, fontWeight: FontWeight.bold, color: Colors.blue),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: request.autoApproved ? Colors.purple.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              request.autoApproved ? 'Auto' : 'Manual',
+                              style: TextStyle(
+                                fontSize: isMobile ? fontSize * 0.65 : fontSize * 0.8,
+                                color: request.autoApproved ? Colors.purple : Colors.orange,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '#${request.requestNumber}',
+                            style: TextStyle(fontSize: isMobile ? fontSize * 0.65 : fontSize * 0.8, color: Colors.grey.shade500),
+                          ),
+                          Text(
+                            _formatToCambodiaTime(request.createdAt),
+                            style: TextStyle(fontSize: isMobile ? fontSize * 0.65 : fontSize * 0.8, color: Colors.blue.shade700, fontWeight: FontWeight.w500),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spacing / 2,
-                    vertical: spacing / 4,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    color: _statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     request.status.toUpperCase(),
-                    style: TextStyle(
-                      color: _statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: isMobile ? fontSize * 0.6 : 11,
-                    ),
+                    style: TextStyle(color: _statusColor, fontWeight: FontWeight.bold, fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85),
                   ),
                 ),
               ],
             ),
-            SizedBox(height: spacing / 2),
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: isMobile ? 10 : 12,
-                  color: Colors.grey[600],
-                ),
-                SizedBox(width: spacing / 3),
-                Expanded(
-                  child: Text(
-                    '${request.startDate} → ${request.endDate}',
-                    style: TextStyle(
-                      fontSize: isMobile ? fontSize * 0.7 : 12,
-                      color: Colors.grey[700],
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: spacing / 4),
-            Row(
-              children: [
-                Icon(
-                  Icons.note,
-                  size: isMobile ? 10 : 12,
-                  color: Colors.grey[600],
-                ),
-                SizedBox(width: spacing / 3),
-                Expanded(
-                  child: Text(
-                    request.reason,
-                    style: TextStyle(
-                      fontSize: isMobile ? fontSize * 0.7 : 12,
-                      color: Colors.grey[700],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spacing / 2,
-                    vertical: spacing / 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '${request.totalDays} days',
-                    style: TextStyle(
-                      fontSize: isMobile ? fontSize * 0.65 : 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: spacing / 4),
-            Wrap(
-              spacing: spacing / 2,
-              runSpacing: spacing / 4,
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spacing / 2,
-                    vertical: spacing / 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: request.autoApproved
-                        ? Colors.purple.withValues(alpha: 0.1)
-                        : Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    request.autoApproved ? ' Auto' : ' Manual',
-                    style: TextStyle(
-                      fontSize: isMobile ? fontSize * 0.6 : 11,
-                      color: request.autoApproved ? Colors.purple : Colors.orange,
-                    ),
-                  ),
-                ),
-                Text(
-                  '#${request.requestNumber}',
-                  style: TextStyle(
-                    fontSize: isMobile ? fontSize * 0.6 : 11,
-                    color: Colors.grey[500],
-                  ),
-                ),
-                Text(
-                  createdAtDisplay,
-                  style: TextStyle(
-                    fontSize: isMobile ? fontSize * 0.6 : 11,
-                    color: Colors.blue[700],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-            if (request.status == 'rejected' && request.rejectionReason != null)
+            if (request.rejectionReason != null && request.rejectionReason!.isNotEmpty)
               Padding(
-                padding: EdgeInsets.only(top: spacing / 2),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: isMobile ? 14 : 16,
-                      color: Colors.red[700],
-                    ),
-                    SizedBox(width: spacing / 2),
-                    Expanded(
-                      child: Text(
-                        request.rejectionReason!,
-                        style: TextStyle(
-                          fontSize: isMobile ? fontSize * 0.7 : 12,
-                          color: Colors.red[700],
-                        ),
-                      ),
-                    ),
-                  ],
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Rejected: ${request.rejectionReason}',
+                  style: TextStyle(fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85, color: Colors.red.shade700),
                 ),
               ),
             if (request.approvedByName != null && request.approvedByName!.isNotEmpty)
               Padding(
-                padding: EdgeInsets.only(top: spacing / 4),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      size: isMobile ? 14 : 16,
-                      color: Colors.green[700],
-                    ),
-                    SizedBox(width: spacing / 2),
-                    Text(
-                      'Approved by: ${request.approvedByName}',
-                      style: TextStyle(
-                        fontSize: isMobile ? fontSize * 0.7 : 12,
-                        color: Colors.green[700],
-                      ),
-                    ),
-                  ],
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Approved by: ${request.approvedByName}',
+                  style: TextStyle(fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85, color: Colors.green.shade700),
                 ),
               ),
           ],

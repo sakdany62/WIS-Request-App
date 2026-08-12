@@ -24,6 +24,7 @@ class _ReportScreenState extends State<ReportScreen> {
   List<Map<String, dynamic>> _allReportData = [];
   Map<String, dynamic> _summary = {};
   String _filterDepartment = 'all';
+  int _currentSegment = 0;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -34,7 +35,13 @@ class _ReportScreenState extends State<ReportScreen> {
     {'id': 'dept_service', 'name': 'Service Department'},
   ];
 
-  //  មុខងារគណនាថ្ងៃដំបូង និងថ្ងៃចុងក្រោយនៃសប្តាហ៍
+  final List<String> _segmentLabels = [
+    'All',
+    'Pending',
+    'Approved',
+    'Rejected',
+  ];
+
   DateTime _getStartOfWeek(DateTime date) {
     int weekday = date.weekday;
     int daysToSubtract = weekday - 1;
@@ -62,11 +69,9 @@ class _ReportScreenState extends State<ReportScreen> {
 
   String _formatToCambodiaTime(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
-
     try {
       DateTime? parsedDateTime;
       bool isUTC = false;
-
       if (timestamp is Timestamp) {
         parsedDateTime = timestamp.toDate();
         isUTC = true;
@@ -76,49 +81,39 @@ class _ReportScreenState extends State<ReportScreen> {
       } else {
         return 'N/A';
       }
-
       DateTime cambodiaTime;
       if (isUTC) {
         cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
       } else {
         cambodiaTime = parsedDateTime;
       }
-
       return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
     } catch (e) {
-      print('❌ Error formatting timestamp: $e');
       return 'N/A';
     }
   }
 
-  //  Helper: Get user full name from Firestore
   Future<String> _getUserFullName(String userId) async {
     if (userId.isEmpty) return 'Unknown';
-
     try {
       final docSnapshot = await _firestore.collection('users').doc(userId).get();
-
       if (docSnapshot.exists) {
         final data = docSnapshot.data();
         return data?['fullName'] ?? data?['username'] ?? 'Unknown';
       }
       return 'Unknown';
     } catch (e) {
-      print(' Error fetching user name: $e');
       return 'Unknown';
     }
   }
 
-  //  Helper: Get user full name with caching
   final Map<String, String> _userNameCache = {};
 
   Future<String> _getUserFullNameCached(String userId) async {
     if (userId.isEmpty) return 'Unknown';
-
     if (_userNameCache.containsKey(userId)) {
       return _userNameCache[userId]!;
     }
-
     final name = await _getUserFullName(userId);
     _userNameCache[userId] = name;
     return name;
@@ -130,7 +125,6 @@ class _ReportScreenState extends State<ReportScreen> {
     _loadReport();
   }
 
-  // ==================== LOAD REPORT ====================
   Future<void> _loadReport() async {
     setState(() {
       _isLoading = true;
@@ -173,12 +167,8 @@ class _ReportScreenState extends State<ReportScreen> {
 
       final querySnapshot = await query.get();
 
-      print(' Total documents: ${querySnapshot.docs.length}');
-      print(' Filter department: $_filterDepartment');
-
       final data = querySnapshot.docs.map((doc) {
         final d = doc.data() as Map<String, dynamic>;
-
         String department = d['department'] ?? '';
         String departmentId = d['departmentId'] ?? '';
 
@@ -214,36 +204,30 @@ class _ReportScreenState extends State<ReportScreen> {
         };
       }).toList();
 
-      //  Filter by department (Client-side filtering)
       List<Map<String, dynamic>> filteredData = data;
       if (_filterDepartment != 'all') {
         filteredData = data.where((d) {
           final deptId = d['departmentId'] ?? '';
           final deptName = d['department'] ?? '';
-
           final selectedDept = _departments.firstWhere(
             (dept) => dept['id'] == _filterDepartment,
             orElse: () => {},
           );
           final selectedDeptName = selectedDept['name'] ?? '';
-
           return deptId == _filterDepartment ||
               deptName == selectedDeptName ||
               deptName.contains(selectedDeptName.replaceAll(' Department', ''));
         }).toList();
       }
 
-      print(' Filtered data count: ${filteredData.length}');
-
       setState(() {
         _allReportData = data;
         _reportData = filteredData;
         _summary = _calculateSummary(filteredData);
         _isLoading = false;
-        _userNameCache.clear(); // Clear cache when loading new data
+        _userNameCache.clear();
       });
     } catch (e) {
-      print(' Error loading report: $e');
       setState(() {
         _isLoading = false;
         _reportData = [];
@@ -269,6 +253,25 @@ class _ReportScreenState extends State<ReportScreen> {
       'autoApproved': autoApproved,
       'totalDays': totalDays,
     };
+  }
+
+  List<Map<String, dynamic>> get _filteredData {
+    if (_currentSegment == 0) return _reportData;
+    String targetStatus;
+    switch (_currentSegment) {
+      case 1:
+        targetStatus = 'pending';
+        break;
+      case 2:
+        targetStatus = 'approved';
+        break;
+      case 3:
+        targetStatus = 'rejected';
+        break;
+      default:
+        return _reportData;
+    }
+    return _reportData.where((item) => item['status'] == targetStatus).toList();
   }
 
   Future<void> _exportToExcel() async {
@@ -318,17 +321,12 @@ class _ReportScreenState extends State<ReportScreen> {
       for (int i = 0; i < _reportData.length; i++) {
         final r = _reportData[i];
         final String cambodiaTime = _formatToCambodiaTime(r['createdAt']);
-
-        //  Get full name from user account
         String fullName = r['userName'] ?? 'Unknown';
-
-        //  If we have userId, fetch the actual full name from users collection
         if (r['userId'] != null && r['userId'].isNotEmpty) {
           final cachedName = _userNameCache[r['userId']];
           if (cachedName != null) {
             fullName = cachedName;
           } else {
-            // Fetch and cache
             final fetchedName = await _getUserFullName(r['userId']);
             _userNameCache[r['userId']] = fetchedName;
             fullName = fetchedName;
@@ -337,7 +335,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
         sheet.appendRow([
           (i + 1),
-          fullName, //  Use full name from user account
+          fullName,
           r['userEmail'],
           r['department'] ?? 'N/A',
           r['startDate'],
@@ -425,7 +423,6 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  // Get current department name for display
   String _getCurrentDepartmentName() {
     if (_filterDepartment == 'all') {
       return 'All Departments';
@@ -437,549 +434,21 @@ class _ReportScreenState extends State<ReportScreen> {
     return dept['name'] ?? 'Unknown Department';
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14);
-    final double spacing = Responsive.spacing(context);
-    final EdgeInsets padding = Responsive.padding(context);
-    final double iconSize = Responsive.iconSize(context, 20);
-    final double buttonHeight = Responsive.buttonHeight(context);
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(
-                vertical: isMobile ? 14 : 20,
-                horizontal: spacing,
-              ),
-              decoration: const BoxDecoration(
-                color: Color(0xFF173B69),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: Row(
-                children: [
-                  SizedBox(width: isMobile ? 36 : 48),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        "Reports",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: isMobile ? 16 : 18,
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _exportToExcel,
-                    icon: Icon(
-                      Icons.file_download,
-                      color: Colors.white,
-                      size: iconSize + 4,
-                    ),
-                    tooltip: 'Export to Excel',
-                    padding: EdgeInsets.all(spacing),
-                  ),
-                ],
-              ),
-            ),
-
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          //  Filter Section
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              vertical: spacing * 2,
-                              horizontal: spacing,
-                            ),
-                            color: Colors.grey[100],
-                            child: Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      flex: isMobile ? 2 : 3,
-                                      child: DropdownButtonFormField<String>(
-                                        initialValue: _selectedReportType,
-                                        decoration: InputDecoration(
-                                          labelText: 'Report Type',
-                                          labelStyle: TextStyle(
-                                            fontSize: fontSize,
-                                            color: Colors.grey[700],
-                                          ),
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                          ),
-                                          enabledBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                          ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                                          ),
-                                          filled: true,
-                                          fillColor: Colors.white,
-                                          contentPadding: EdgeInsets.symmetric(
-                                            horizontal: spacing,
-                                            vertical: isMobile ? 6 : 8,
-                                          ),
-                                        ),
-                                        items: const [
-                                          DropdownMenuItem(
-                                            value: 'daily',
-                                            child: Text(' Daily'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'weekly',
-                                            child: Text(' Weekly'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'monthly',
-                                            child: Text(' Monthly'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'yearly',
-                                            child: Text(' Yearly'),
-                                          ),
-                                        ],
-                                        onChanged: (value) {
-                                          if (value != null) {
-                                            setState(() {
-                                              _selectedReportType = value;
-                                            });
-                                            _loadReport();
-                                          }
-                                        },
-                                        style: TextStyle(
-                                          fontSize: fontSize,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.black,
-                                        ),
-                                        dropdownColor: Colors.white,
-                                        icon: const Icon(
-                                          Icons.arrow_drop_down,
-                                          color: Color(0xFF173B69),
-                                        ),
-                                        isExpanded: true,
-                                      ),
-                                    ),
-                                    SizedBox(width: spacing),
-                                    SizedBox(
-                                      height: buttonHeight,
-                                      child: ElevatedButton.icon(
-                                        onPressed: _selectDate,
-                                        icon: Icon(Icons.calendar_today, size: iconSize - 4),
-                                        label: Text(
-                                          _getDateLabel(),
-                                          style: TextStyle(fontSize: isMobile ? 11 : 13),
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFF173B69),
-                                          foregroundColor: Colors.white,
-                                          padding: EdgeInsets.symmetric(horizontal: spacing),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: spacing),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      flex: isMobile ? 2 : 3,
-                                      child: DropdownButtonFormField<String>(
-                                        initialValue: _filterDepartment,
-                                        decoration: InputDecoration(
-                                          labelText: 'Department',
-                                          labelStyle: TextStyle(
-                                            fontSize: fontSize,
-                                            color: Colors.grey[700],
-                                          ),
-                                          border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                          ),
-                                          enabledBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                                          ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(10),
-                                            borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                                          ),
-                                          filled: true,
-                                          fillColor: Colors.white,
-                                          contentPadding: EdgeInsets.symmetric(
-                                            horizontal: spacing,
-                                            vertical: isMobile ? 6 : 8,
-                                          ),
-                                        ),
-                                        items: [
-                                          const DropdownMenuItem(
-                                            value: 'all',
-                                            child: Text('All Departments'),
-                                          ),
-                                          ..._departments.map((dept) {
-                                            return DropdownMenuItem(
-                                              value: dept['id'],
-                                              child: Text(dept['name']!),
-                                            );
-                                          }),
-                                        ],
-                                        onChanged: (value) {
-                                          if (value != null) {
-                                            setState(() {
-                                              _filterDepartment = value;
-                                            });
-                                            _loadReport();
-                                          }
-                                        },
-                                        style: TextStyle(
-                                          fontSize: fontSize,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.black,
-                                        ),
-                                        dropdownColor: Colors.white,
-                                        icon: const Icon(
-                                          Icons.arrow_drop_down,
-                                          color: Color(0xFF173B69),
-                                        ),
-                                        isExpanded: true,
-                                      ),
-                                    ),
-                                    if (_filterDepartment != 'all') ...[
-                                      SizedBox(width: spacing),
-                                      SizedBox(
-                                        height: buttonHeight,
-                                        child: ElevatedButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              _filterDepartment = 'all';
-                                            });
-                                            _loadReport();
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red.shade50,
-                                            foregroundColor: Colors.red.shade700,
-                                            padding: EdgeInsets.symmetric(horizontal: spacing),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(10),
-                                              side: BorderSide(color: Colors.red.shade200),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'Clear',
-                                            style: TextStyle(fontSize: isMobile ? 11 : 13),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Department Filter Info
-                          Container(
-                            margin: EdgeInsets.symmetric(
-                              horizontal: spacing,
-                              vertical: spacing / 2,
-                            ),
-                            padding: EdgeInsets.symmetric(
-                              horizontal: spacing,
-                              vertical: spacing / 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF173B69).withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFF173B69).withValues(alpha: 0.2),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.filter_alt,
-                                      size: iconSize - 4,
-                                      color: const Color(0xFF173B69),
-                                    ),
-                                    SizedBox(width: spacing / 2),
-                                    Text(
-                                      'Filter: ${_getCurrentDepartmentName()}',
-                                      style: TextStyle(
-                                        fontSize: fontSize * 0.9,
-                                        fontWeight: FontWeight.w500,
-                                        color: const Color(0xFF173B69),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: spacing / 2,
-                                    vertical: spacing / 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF173B69),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    '${_reportData.length} records',
-                                    style: TextStyle(
-                                      fontSize: fontSize * 0.85,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Summary Cards
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              vertical: spacing,
-                              horizontal: spacing,
-                            ),
-                            child: SizedBox(
-                              height: isMobile ? 60 : 70,
-                              child: ListView(
-                                scrollDirection: Axis.horizontal,
-                                children: [
-                                  _buildSummaryCard(
-                                    label: 'Total',
-                                    value: _summary['total']?.toString() ?? '0',
-                                    color: const Color(0xFF173B69),
-                                    isMobile: isMobile,
-                                  ),
-                                  SizedBox(width: spacing / 2),
-                                  _buildSummaryCard(
-                                    label: 'Pending',
-                                    value: _summary['pending']?.toString() ?? '0',
-                                    color: Colors.orange,
-                                    isMobile: isMobile,
-                                  ),
-                                  SizedBox(width: spacing / 2),
-                                  _buildSummaryCard(
-                                    label: 'Approved',
-                                    value: _summary['approved']?.toString() ?? '0',
-                                    color: Colors.green,
-                                    isMobile: isMobile,
-                                  ),
-                                  SizedBox(width: spacing / 2),
-                                  _buildSummaryCard(
-                                    label: 'Rejected',
-                                    value: _summary['rejected']?.toString() ?? '0',
-                                    color: Colors.red,
-                                    isMobile: isMobile,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          // Total Days Summary
-                          Container(
-                            margin: EdgeInsets.symmetric(horizontal: spacing),
-                            padding: EdgeInsets.symmetric(
-                              vertical: spacing,
-                              horizontal: spacing,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.purple.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  color: Colors.purple,
-                                  size: iconSize - 2,
-                                ),
-                                SizedBox(width: spacing / 2),
-                                Text(
-                                  'Total Days: ${_summary['totalDays'] ?? 0}',
-                                  style: TextStyle(
-                                    fontSize: fontSize,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.purple,
-                                  ),
-                                ),
-                                SizedBox(width: spacing),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: spacing / 2,
-                                    vertical: spacing / 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.purple.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    '${_summary['autoApproved'] ?? 0} Auto',
-                                    style: TextStyle(
-                                      fontSize: fontSize * 0.9,
-                                      color: Colors.purple,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          SizedBox(height: spacing),
-
-                          // Report List
-                          _reportData.isEmpty
-                              ? Padding(
-                                  padding: EdgeInsets.all(spacing * 5),
-                                  child: Column(
-                                    children: [
-                                      Icon(
-                                        Icons.inbox,
-                                        size: iconSize * 3,
-                                        color: Colors.grey,
-                                      ),
-                                      SizedBox(height: spacing * 2),
-                                      Text(
-                                        _filterDepartment == 'all'
-                                            ? 'No data found'
-                                            : 'No data found for ${_getCurrentDepartmentName()}',
-                                        style: TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: fontSize,
-                                        ),
-                                      ),
-                                      if (_filterDepartment != 'all')
-                                        TextButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              _filterDepartment = 'all';
-                                            });
-                                            _loadReport();
-                                          },
-                                          child: Text(
-                                            'View all departments',
-                                            style: TextStyle(fontSize: fontSize),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                )
-                              : ListView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: spacing,
-                                    vertical: spacing / 2,
-                                  ),
-                                  itemCount: _reportData.length,
-                                  itemBuilder: (context, index) {
-                                    final r = _reportData[index];
-                                    return _ReportCard(
-                                      data: r,
-                                      isMobile: isMobile,
-                                      fontSize: fontSize,
-                                      spacing: spacing,
-                                    );
-                                  },
-                                ),
-
-                          SizedBox(height: isMobile ? 80 : 100),
-                        ],
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'approved':
+        return 'Approved';
+      case 'rejected':
+        return 'Rejected';
+      case 'pending':
+        return 'Pending';
+      default:
+        return status;
+    }
   }
 
-  Widget _buildSummaryCard({
-    required String label,
-    required String value,
-    required Color color,
-    required bool isMobile,
-  }) {
-    return Container(
-      width: isMobile ? 60 : 70,
-      padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 4 : 6,
-        horizontal: isMobile ? 2 : 4,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isMobile ? 14 : 16,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: isMobile ? 10 : 12,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ==================== Report Card ====================
-class _ReportCard extends StatelessWidget {
-  final Map<String, dynamic> data;
-  final bool isMobile;
-  final double fontSize;
-  final double spacing;
-
-  const _ReportCard({
-    required this.data,
-    required this.isMobile,
-    required this.fontSize,
-    required this.spacing,
-  });
-
-  Color get _statusColor {
-    switch (data['status']) {
+  Color _getStatusColor(String status) {
+    switch (status) {
       case 'approved':
         return Colors.green;
       case 'rejected':
@@ -991,289 +460,455 @@ class _ReportCard extends StatelessWidget {
     }
   }
 
-  Color get _departmentColor {
-    final dept = data['department'] ?? '';
-    if (dept.contains('IT')) return Colors.blue;
-    if (dept.contains('Education')) return Colors.green;
-    if (dept.contains('Administration')) return Colors.purple;
-    if (dept.contains('Service')) return Colors.orange;
-    return Colors.grey;
-  }
-
-  String _formatToCambodiaTime(dynamic timestamp) {
-    if (timestamp == null) return 'N/A';
-
-    try {
-      DateTime? parsedDateTime;
-      bool isUTC = false;
-
-      if (timestamp is Timestamp) {
-        parsedDateTime = timestamp.toDate();
-        isUTC = true;
-      } else if (timestamp is DateTime) {
-        parsedDateTime = timestamp;
-        isUTC = timestamp.isUtc;
-      } else {
-        return 'N/A';
-      }
-
-      DateTime cambodiaTime;
-      if (isUTC) {
-        cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
-      } else {
-        cambodiaTime = parsedDateTime;
-      }
-
-      return DateFormat('dd/MM/yyyy hh:mm a').format(cambodiaTime);
-    } catch (e) {
-      print(' Error formatting timestamp: $e');
-      return 'N/A';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final String cambodiaTime = _formatToCambodiaTime(data['createdAt']);
-    final String department = data['department'] ?? '';
-    final bool hasDepartment = department.isNotEmpty;
-    final double cardFontSize = isMobile ? fontSize * 0.85 : fontSize;
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+    final double iconSize = Responsive.iconSize(context, 20);
+    double bottomPadding = MediaQuery.of(context).padding.bottom + 24;
 
-    return Card(
-      margin: EdgeInsets.only(bottom: spacing / 2),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(isMobile ? 8 : 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            //  Row 1: Name + Email (Vertical) | Department | Status
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        data['userName'],
-                        style: TextStyle(
-                          fontSize: cardFontSize,
-                          fontWeight: FontWeight.bold,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF173B69),
+        elevation: 2,
+        title: const Text(
+          'Reports',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            onPressed: _exportToExcel,
+            icon: const Icon(Icons.file_download),
+            tooltip: 'Export to Excel',
+          ),
+        ],
+        // ===== SEGMENT IN APPBAR (BOTTOM) =====
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Row(
+                children: List.generate(_segmentLabels.length, (index) {
+                  final isSelected = _currentSegment == index;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() => _currentSegment = index);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.white : Colors.transparent,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ]
+                              : null,
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        data['userEmail'],
-                        style: TextStyle(
-                          fontSize: cardFontSize * 0.8,
-                          color: Colors.grey[600],
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-
-                //  Department
-                if (hasDepartment && !isMobile) ...[
-                  Expanded(
-                    flex: 1,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: _departmentColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: _departmentColor.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.business,
-                            size: 10,
-                            color: _departmentColor,
-                          ),
-                          const SizedBox(width: 2),
-                          Expanded(
-                            child: Text(
-                              department,
-                              style: TextStyle(
-                                fontSize: cardFontSize * 0.75,
-                                color: _departmentColor,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                        child: Center(
+                          child: Text(
+                            _segmentLabels[index],
+                            style: TextStyle(
+                              color: isSelected ? const Color(0xFF173B69) : Colors.white,
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                             ),
                           ),
-                        ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF173B69)),
+                ),
+              )
+            : Column(
+                children: [
+                  // ===== FILTER ROW =====
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        // Report Type
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF173B69).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedReportType,
+                                icon: const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Color(0xFF173B69),
+                                ),
+                                isExpanded: true,
+                                items: const [
+                                  DropdownMenuItem(value: 'daily', child: Text(' Daily')),
+                                  DropdownMenuItem(value: 'weekly', child: Text(' Weekly')),
+                                  DropdownMenuItem(value: 'monthly', child: Text(' Monthly')),
+                                  DropdownMenuItem(value: 'yearly', child: Text(' Yearly')),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() => _selectedReportType = value);
+                                    _loadReport();
+                                  }
+                                },
+                                style: TextStyle(
+                                  fontSize: fontSize,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF173B69),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Date Picker
+                        Expanded(
+                          flex: 3,
+                          child: GestureDetector(
+                            onTap: _selectDate,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF173B69).withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.calendar_today,
+                                    size: 16,
+                                    color: Color(0xFF173B69),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _getDateLabel(),
+                                      style: TextStyle(
+                                        fontSize: fontSize,
+                                        fontWeight: FontWeight.w500,
+                                        color: const Color(0xFF173B69),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Department Filter
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF173B69).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _filterDepartment,
+                                icon: const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Color(0xFF173B69),
+                                ),
+                                isExpanded: true,
+                                items: [
+                                  const DropdownMenuItem(
+                                    value: 'all',
+                                    child: Text('All Dept'),
+                                  ),
+                                  ..._departments.map((dept) {
+                                    return DropdownMenuItem(
+                                      value: dept['id'],
+                                      child: Text(dept['name']!),
+                                    );
+                                  }),
+                                ],
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    setState(() => _filterDepartment = value);
+                                    _loadReport();
+                                  }
+                                },
+                                style: TextStyle(
+                                  fontSize: fontSize * 0.85,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF173B69),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // ===== LIST =====
+                  Expanded(
+                    child: _filteredData.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.inbox_outlined,
+                                  size: 64,
+                                  color: Colors.grey.shade400,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _filterDepartment == 'all'
+                                      ? 'No data found'
+                                      : 'No data found for ${_getCurrentDepartmentName()}',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontSize: fontSize,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: EdgeInsets.only(
+                              left: 16,
+                              right: 16,
+                              top: 8,
+                              bottom: bottomPadding,
+                            ),
+                            itemCount: _filteredData.length,
+                            itemBuilder: (context, index) {
+                              final r = _filteredData[index];
+                              return _buildReportCard(r, isMobile, fontSize, spacing);
+                            },
+                          ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildReportCard(Map<String, dynamic> r, bool isMobile, double fontSize, double spacing) {
+    final Color statusColor = _getStatusColor(r['status'] ?? 'pending');
+    final String statusLabel = _getStatusLabel(r['status'] ?? 'pending');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          // Navigate to detail if needed
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Row 1: Name + Status
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          r['userName'] ?? 'Unknown',
+                          style: TextStyle(
+                            fontSize: isMobile ? fontSize : fontSize + 2,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        if (r['department'] != null && r['department'].isNotEmpty)
+                          Text(
+                            r['department'],
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      statusLabel.toUpperCase(),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
                       ),
                     ),
                   ),
-                  SizedBox(width: spacing / 2),
                 ],
-
-                // Status
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 4 : 8,
-                    vertical: isMobile ? 2 : 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    data['status'].toUpperCase(),
-                    style: TextStyle(
-                      color: _statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: cardFontSize * 0.85,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: spacing / 2),
-
-            // Row 3: Date Range
-            Row(
-              children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: isMobile ? 10 : 12,
-                  color: Colors.grey[600],
-                ),
-                SizedBox(width: spacing / 3),
-                Expanded(
-                  child: Text(
-                    '${data['startDate']} → ${data['endDate']}',
-                    style: TextStyle(
-                      fontSize: cardFontSize * 0.85,
-                      color: Colors.grey[700],
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: spacing / 4),
-
-            // Row 4: Reason + Days
-            Row(
-              children: [
-                Icon(
-                  Icons.note,
-                  size: isMobile ? 10 : 12,
-                  color: Colors.grey[600],
-                ),
-                SizedBox(width: spacing / 3),
-                Expanded(
-                  child: Text(
-                    data['reason'],
-                    style: TextStyle(
-                      fontSize: cardFontSize * 0.85,
-                      color: Colors.grey[700],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spacing / 2,
-                    vertical: spacing / 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '${data['totalDays']} days',
-                    style: TextStyle(
-                      fontSize: cardFontSize * 0.85,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: spacing / 4),
-
-            // Row 5: Type + Request # + Time
-            Wrap(
-              spacing: spacing / 2,
-              runSpacing: spacing / 4,
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spacing / 2,
-                    vertical: spacing / 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: data['autoApproved']
-                        ? Colors.purple.withValues(alpha: 0.1)
-                        : Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    data['autoApproved'] ? ' Auto' : ' Manual',
-                    style: TextStyle(
-                      fontSize: cardFontSize * 0.8,
-                      color: data['autoApproved'] ? Colors.purple : Colors.orange,
-                    ),
-                  ),
-                ),
-                Text(
-                  '#${data['requestNumber']}',
-                  style: TextStyle(
-                    fontSize: cardFontSize * 0.8,
-                    color: Colors.grey[500],
-                  ),
-                ),
-                Text(
-                  cambodiaTime,
-                  style: TextStyle(
-                    fontSize: cardFontSize * 0.8,
-                    color: Colors.blue[700],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-
-            // Rejection Reason
-            if (data['rejectionReason'] != null && data['rejectionReason'].isNotEmpty)
-              Padding(
-                padding: EdgeInsets.only(top: spacing / 4),
-                child: Text(
-                  ' ${data['rejectionReason']}',
-                  style: TextStyle(
-                    fontSize: cardFontSize * 0.85,
-                    color: Colors.red[700],
-                  ),
-                ),
               ),
-
-            // Approved By
-            if (data['approvedByName'] != null && data['approvedByName'].isNotEmpty)
-              Padding(
-                padding: EdgeInsets.only(top: spacing / 4),
-                child: Text(
-                  ' Approved by: ${data['approvedByName']}',
-                  style: TextStyle(
-                    fontSize: cardFontSize * 0.85,
-                    color: Colors.green[700],
+              const SizedBox(height: 8),
+              // Row 2: Date Range
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade500),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${r['startDate'] ?? 'N/A'} → ${r['endDate'] ?? 'N/A'}',
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.9,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              // Row 3: Reason + Days
+              Row(
+                children: [
+                  Icon(Icons.note, size: 14, color: Colors.grey.shade500),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      r['reason'] ?? 'No reason',
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.9,
+                        color: Colors.grey.shade700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${r['totalDays'] ?? 0}d',
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              // Row 4: Time + Type + Request #
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: r['autoApproved'] == true
+                          ? Colors.purple.withValues(alpha: 0.1)
+                          : Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      r['autoApproved'] == true ? 'Auto' : 'Manual',
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.65 : fontSize * 0.8,
+                        color: r['autoApproved'] == true ? Colors.purple : Colors.orange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '#${r['requestNumber'] ?? 0}',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.65 : fontSize * 0.8,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                  Text(
+                    _formatToCambodiaTime(r['createdAt']),
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.65 : fontSize * 0.8,
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              // Rejection Reason / Approved By
+              if (r['rejectionReason'] != null && r['rejectionReason'].isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Rejected: ${r['rejectionReason']}',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
+                      color: Colors.red.shade700,
+                    ),
                   ),
                 ),
-              ),
-          ],
+              if (r['approvedByName'] != null && r['approvedByName'].isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Approved by: ${r['approvedByName']}',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
+                      color: Colors.green.shade700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

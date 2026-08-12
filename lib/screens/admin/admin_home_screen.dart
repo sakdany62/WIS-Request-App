@@ -1,7 +1,9 @@
+// lib/screens/admin/admin_home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../app_fonts.dart';
 import '../../services/request_service.dart';
 import '../../services/user_service.dart';
@@ -45,71 +47,49 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   Future<void> _checkAuthAndLoad() async {
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) {
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
+      if (mounted) Navigator.pushReplacementNamed(context, '/login');
       return;
     }
-
-    setState(() {
-      adminId = user.uid;
-    });
-
+    setState(() => adminId = user.uid);
     await _loadAdminData();
     await _loadStats();
     _loadNotificationStream();
   }
 
   void _loadNotificationStream() {
-    if (adminId.isNotEmpty) {
-      _notificationStream = FirebaseFirestore.instance
-          .collection('notifications')
-          .where('userId', isEqualTo: adminId)
-          .where('isRead', isEqualTo: false)
-          .snapshots();
-
-      _notificationStream?.listen((snapshot) {
-        if (mounted) {
-          setState(() {
-            _unreadCount = snapshot.docs.length;
-          });
-        }
-      });
-    }
+    if (adminId.isEmpty) return;
+    _notificationStream = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('userId', isEqualTo: adminId)
+        .where('isRead', isEqualTo: false)
+        .snapshots();
+    _notificationStream?.listen((snapshot) {
+      if (mounted) setState(() => _unreadCount = snapshot.docs.length);
+    });
   }
 
   Future<void> _refreshUnreadCount() async {
     if (adminId.isEmpty) return;
-
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('notifications')
           .where('userId', isEqualTo: adminId)
           .where('isRead', isEqualTo: false)
           .get();
-
-      if (mounted) {
-        setState(() {
-          _unreadCount = snapshot.docs.length;
-        });
-      }
+      if (mounted) setState(() => _unreadCount = snapshot.docs.length);
     } catch (e) {
-      print(' Error refreshing unread count: $e');
+      print('Error refreshing unread count: $e');
     }
   }
 
-  //  Method to refresh profile image after update
   Future<void> _refreshProfileImage() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
     try {
       final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-
       if (docSnapshot.exists) {
-        final data = docSnapshot.data()!;
+        final data = docSnapshot.data() as Map<String, dynamic>;
         if (mounted) {
           setState(() {
             profileImageUrl = data['profileImageUrl'] ?? '';
@@ -118,49 +98,39 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         }
       }
     } catch (e) {
-      print(' Error refreshing profile image: $e');
+      print('Error refreshing profile image: $e');
     }
   }
 
   Future<void> _loadAdminData() async {
     final user = FirebaseAuth.instance.currentUser;
-
-    if (user != null) {
-      try {
-        final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-
-        if (docSnapshot.exists) {
-          final data = docSnapshot.data()!;
-          if (mounted) {
-            setState(() {
-              adminName = data['fullName'] ?? data['username'] ?? 'Admin User';
-              profileImageUrl = data['profileImageUrl'] ?? '';
-              isLoading = false;
-              errorMessage = null;
-            });
-          }
-        } else {
-          if (mounted) {
-            setState(() {
-              adminName = user.email?.split('@').first ?? 'Admin User';
-              isLoading = false;
-              errorMessage = 'User profile not found in database';
-            });
-          }
-        }
-      } catch (e) {
+    if (user == null) return;
+    try {
+      final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data() as Map<String, dynamic>;
         if (mounted) {
           setState(() {
+            adminName = data['fullName'] ?? data['username'] ?? 'Admin User';
+            profileImageUrl = data['profileImageUrl'] ?? '';
             isLoading = false;
-            errorMessage = 'Failed to load user data: $e';
+            errorMessage = null;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            adminName = user.email?.split('@').first ?? 'Admin User';
+            isLoading = false;
+            errorMessage = 'User profile not found';
           });
         }
       }
-    } else {
+    } catch (e) {
       if (mounted) {
         setState(() {
           isLoading = false;
-          errorMessage = 'No user logged in';
+          errorMessage = 'Failed to load user data';
         });
       }
     }
@@ -171,67 +141,39 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       final userStats = await _userService.getUserStats();
       _totalUsers = userStats['total'] ?? 0;
 
-      try {
-        final pendingSnapshot =
-            await FirebaseFirestore.instance.collection('leave_requests').where('status', isEqualTo: 'pending').get();
-        _pendingRequests = pendingSnapshot.docs.length;
-      } catch (e) {
-        _pendingRequests = 0;
-      }
+      final pendingSnapshot =
+          await FirebaseFirestore.instance.collection('leave_requests').where('status', isEqualTo: 'pending').get();
+      _pendingRequests = pendingSnapshot.docs.length;
 
-      try {
-        final totalSnapshot = await FirebaseFirestore.instance.collection('leave_requests').get();
-        _totalRequests = totalSnapshot.docs.length;
-      } catch (e) {
-        _totalRequests = 0;
-      }
+      final totalSnapshot = await FirebaseFirestore.instance.collection('leave_requests').get();
+      _totalRequests = totalSnapshot.docs.length;
 
-      try {
-        final now = DateTime.now();
-        final startOfDay = DateTime(now.year, now.month, now.day, 0, 0, 0);
-        final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final endOfDay = startOfDay.add(const Duration(days: 1));
 
-        final todaySnapshot = await FirebaseFirestore.instance
-            .collection('leave_requests')
-            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-            .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
-            .get();
-        _todayRequests = todaySnapshot.docs.length;
-      } catch (e) {
-        _todayRequests = 0;
-      }
+      final todaySnapshot = await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
+          .get();
+      _todayRequests = todaySnapshot.docs.length;
 
-      try {
-        final now = DateTime.now();
-        final startOfDay = DateTime(now.year, now.month, now.day, 0, 0, 0);
-        final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+      final approvedTodaySnapshot = await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .where('status', isEqualTo: 'approved')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
+          .get();
+      _approvedToday = approvedTodaySnapshot.docs.length;
 
-        final approvedTodaySnapshot = await FirebaseFirestore.instance
-            .collection('leave_requests')
-            .where('status', isEqualTo: 'approved')
-            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-            .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
-            .get();
-        _approvedToday = approvedTodaySnapshot.docs.length;
-      } catch (e) {
-        _approvedToday = 0;
-      }
-
-      try {
-        final now = DateTime.now();
-        final startOfDay = DateTime(now.year, now.month, now.day, 0, 0, 0);
-        final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
-
-        final rejectedTodaySnapshot = await FirebaseFirestore.instance
-            .collection('leave_requests')
-            .where('status', isEqualTo: 'rejected')
-            .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-            .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay))
-            .get();
-        _rejectedToday = rejectedTodaySnapshot.docs.length;
-      } catch (e) {
-        _rejectedToday = 0;
-      }
+      final rejectedTodaySnapshot = await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .where('status', isEqualTo: 'rejected')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
+          .get();
+      _rejectedToday = rejectedTodaySnapshot.docs.length;
 
       if (mounted) {
         setState(() {
@@ -264,35 +206,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 28);
-    final double gridSpacing = isMobile ? 6 : 12;
-
-    const int crossAxisCount = 3;
-    const int rowCount = 2;
-
-    final double screenHeight = MediaQuery.of(context).size.height;
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final double safeAreaTop = MediaQuery.of(context).padding.top;
-    final double safeAreaBottom = MediaQuery.of(context).padding.bottom;
-
-    final double headerHeight = isMobile ? 90 : 120;
-
-    final double totalAvailableHeight = screenHeight - safeAreaTop - safeAreaBottom - (spacing * 2);
-    final double gridHeight = totalAvailableHeight * 0.7;
-
-    final double horizontalPadding = spacing * 2;
-    final double gridWidth = screenWidth - horizontalPadding;
-    final double itemWidth = (gridWidth - (gridSpacing * (crossAxisCount - 1))) / crossAxisCount;
-    final double itemHeight = (gridHeight - (gridSpacing * (rowCount - 1))) / rowCount;
-    final double reducedItemHeight = itemHeight * 0.95;
-    final double childAspectRatio = itemWidth / (reducedItemHeight > 0 ? reducedItemHeight : 1);
+    double bottomPadding = MediaQuery.of(context).padding.bottom + 24;
 
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (errorMessage != null) {
@@ -305,20 +224,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               children: [
                 const Icon(Icons.error_outline, size: 64, color: Colors.red),
                 const SizedBox(height: 16),
-                Text(
-                  'Error',
-                  style: TextStyle(
-                    fontSize: fontSize + 2,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red[700],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: fontSize),
-                ),
+                Text(errorMessage!, style: TextStyle(fontSize: 16)),
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () {
@@ -328,10 +234,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     });
                     _checkAuthAndLoad();
                   },
-                  child: Text(
-                    'Retry',
-                    style: TextStyle(fontSize: fontSize),
-                  ),
+                  child: const Text('Retry'),
                 ),
               ],
             ),
@@ -341,206 +244,515 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF5F7FA),
       body: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.symmetric(
-                vertical: isMobile ? 16 : 24,
-                horizontal: spacing * 1.5,
-              ),
-              decoration: const BoxDecoration(
-                color: Color(0xFF173B69),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
-              ),
-              child: _AdminUserHeader(
-                adminName: adminName,
-                adminId: adminId,
-                profileImageUrl: profileImageUrl,
-                isLoading: isLoading,
-                unreadCount: _unreadCount,
-                onNotificationPressed: _refreshUnreadCount,
-                onProfileUpdated: _refreshProfileImage, //  Pass callback
-                useWhiteTheme: true,
-                isMobile: isMobile,
-                fontSize: fontSize,
-                spacing: spacing,
-                iconSize: iconSize,
-              ),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await _loadStats();
+            await _refreshUnreadCount();
+            await _refreshProfileImage();
+          },
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.all(isMobile ? 12 : 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildProfileSection(isMobile, spacing, iconSize),
+                const SizedBox(height: 14),
+                _buildPieChartCard(isMobile, spacing),
+                const SizedBox(height: 16),
+                _buildStatsList(isMobile, spacing),
+                SizedBox(height: bottomPadding),
+              ],
             ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  await _loadStats();
-                  await _refreshUnreadCount();
-                  await _refreshProfileImage(); //  Also refresh profile
-                },
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.all(spacing * 1.5),
-                  child: SizedBox(
-                    height: gridHeight,
-                    width: double.infinity,
-                    child: _buildStatsGrid(
-                      crossAxisCount: crossAxisCount,
-                      gridSpacing: gridSpacing,
-                      childAspectRatio: childAspectRatio > 0 ? childAspectRatio : 1.2,
-                      iconSize: iconSize,
-                      fontSize: fontSize,
-                      isMobile: isMobile,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatsGrid({
-    required int crossAxisCount,
-    required double gridSpacing,
-    required double childAspectRatio,
-    required double iconSize,
-    required double fontSize,
-    required bool isMobile,
-  }) {
-    return GridView.count(
-      crossAxisCount: crossAxisCount,
-      crossAxisSpacing: gridSpacing,
-      mainAxisSpacing: gridSpacing,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: childAspectRatio,
+  Widget _buildProfileSection(bool isMobile, double spacing, double iconSize) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+    final isTablet = screenWidth >= 600;
+
+    final avatarRadius = isSmallScreen ? 30 : (isTablet ? 48 : 36);
+    final nameSize = isSmallScreen ? 16 : (isTablet ? 24 : 20);
+    final roleSize = isSmallScreen ? 11 : (isTablet ? 16 : 13);
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1A3B68), Color(0xFF2C5F8A)],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          ProfileAvatar(
+            userId: adminId,
+            imageUrl: profileImageUrl,
+            name: adminName,
+            radius: avatarRadius.toDouble(),
+            backgroundColor: Colors.white.withValues(alpha: 0.15),
+            textColor: Colors.white,
+            onTap: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
+              );
+              if (result == true) await _refreshProfileImage();
+            },
+          ),
+          SizedBox(width: isMobile ? 10 : 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  adminName,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: nameSize.toDouble(),
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                SizedBox(height: isMobile ? 2 : 4),
+                Row(
+                  children: [
+                    Icon(Icons.admin_panel_settings, size: isMobile ? 14 : 16, color: Colors.white70),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Administrator',
+                      style: TextStyle(color: Colors.white70, fontSize: roleSize.toDouble()),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          _buildNotificationBadge(isMobile),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationBadge(bool isMobile) {
+    return Stack(
       children: [
-        _buildStatCard(
-          icon: Icons.people,
-          label: 'Total Users',
-          value: _stats['totalUsers']?.toString() ?? '0',
-          color: const Color(0xFF173B69),
-          type: 'users',
-          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
-          fontSize: fontSize,
-          isMobile: isMobile,
+        IconButton(
+          onPressed: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+            );
+            _refreshUnreadCount();
+          },
+          icon: const Icon(Icons.notifications_none, color: Colors.white),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
         ),
-        _buildStatCard(
-          icon: Icons.pending_actions,
-          label: 'Pending',
-          value: _stats['pendingRequests']?.toString() ?? '0',
-          color: Colors.orange,
-          type: 'pending',
-          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
-          fontSize: fontSize,
-          isMobile: isMobile,
+        if (_unreadCount > 0)
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+              constraints: BoxConstraints(
+                minWidth: isMobile ? 14 : 18,
+                minHeight: isMobile ? 14 : 18,
+              ),
+              child: Text(
+                _unreadCount > 99 ? '99+' : _unreadCount.toString(),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isMobile ? 8 : 10,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPieChartCard(bool isMobile, double spacing) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+    final isTablet = screenWidth >= 600;
+
+    final total = _stats['totalRequests'] ?? 0;
+    final pending = _stats['pendingRequests'] ?? 0;
+    final approved = _stats['approvedToday'] ?? 0;
+    final rejected = _stats['rejectedToday'] ?? 0;
+
+    final pendingPercent = total == 0 ? 0.0 : (pending / total) * 100;
+    final approvedPercent = total == 0 ? 0.0 : (approved / total) * 100;
+    final rejectedPercent = total == 0 ? 0.0 : (rejected / total) * 100;
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Statistics',
+                style: TextStyle(
+                  fontSize: isMobile ? 15 : 18,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1A3B68),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A3B68).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  'Total $total',
+                  style: TextStyle(
+                    fontSize: isMobile ? 11 : 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1A3B68),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (total == 0)
+            SizedBox(
+              height: 180,
+              child: Center(
+                child: Text(
+                  'No data available',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                ),
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  flex: 7,
+                  child: SizedBox(
+                    height: isSmallScreen ? 150 : (isTablet ? 200 : 170),
+                    child: Stack(
+                      children: [
+                        PieChart(
+                          PieChartData(
+                            sectionsSpace: 4,
+                            centerSpaceRadius: isSmallScreen ? 40 : 60,
+                            sections: [
+                              PieChartSectionData(
+                                color: const Color(0xFFF59E0B),
+                                value: pending.toDouble(),
+                                title: pendingPercent > 0 ? '${pendingPercent.toStringAsFixed(0)}%' : '',
+                                radius: 45,
+                                showTitle: true,
+                                titleStyle: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                ),
+                              ),
+                              PieChartSectionData(
+                                color: const Color(0xFF10B981),
+                                value: approved.toDouble(),
+                                title: approvedPercent > 0 ? '${approvedPercent.toStringAsFixed(0)}%' : '',
+                                radius: 45,
+                                showTitle: true,
+                                titleStyle: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                ),
+                              ),
+                              PieChartSectionData(
+                                color: const Color(0xFFEF4444),
+                                value: rejected.toDouble(),
+                                title: rejectedPercent > 0 ? '${rejectedPercent.toStringAsFixed(0)}%' : '',
+                                radius: 45,
+                                showTitle: true,
+                                titleStyle: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '$total',
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 18 : (isTablet ? 28 : 22),
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF1A3B68),
+                                ),
+                              ),
+                              Text(
+                                'Total',
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 8 : (isTablet ? 12 : 10),
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 4,
+                  child: Padding(
+                    padding: EdgeInsets.only(left: isMobile ? 6 : 12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLegendItem('Pending', pending, const Color(0xFFF59E0B), isSmallScreen, isTablet),
+                        const SizedBox(height: 8),
+                        _buildLegendItem('Approved', approved, const Color(0xFF10B981), isSmallScreen, isTablet),
+                        const SizedBox(height: 8),
+                        _buildLegendItem('Rejected', rejected, const Color(0xFFEF4444), isSmallScreen, isTablet),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String title, int count, Color color, bool isSmallScreen, bool isTablet) {
+    return Row(
+      children: [
+        Container(
+          width: isSmallScreen ? 10 : 14,
+          height: isSmallScreen ? 10 : 14,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        _buildStatCard(
-          icon: Icons.today,
-          label: "Today's",
-          value: _stats['todayRequests']?.toString() ?? '0',
-          color: Colors.blue,
-          type: 'today',
-          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
-          fontSize: fontSize,
-          isMobile: isMobile,
-        ),
-        _buildStatCard(
-          icon: Icons.assignment,
-          label: 'Total',
-          value: _stats['totalRequests']?.toString() ?? '0',
-          color: Colors.green,
-          type: 'total',
-          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
-          fontSize: fontSize,
-          isMobile: isMobile,
-        ),
-        _buildStatCard(
-          icon: Icons.check_circle,
-          label: 'Approved',
-          value: _stats['approvedToday']?.toString() ?? '0',
-          color: Colors.purple,
-          type: 'approved',
-          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
-          fontSize: fontSize,
-          isMobile: isMobile,
-        ),
-        _buildStatCard(
-          icon: Icons.cancel,
-          label: 'Rejected',
-          value: _stats['rejectedToday']?.toString() ?? '0',
-          color: Colors.red,
-          type: 'rejected',
-          iconSize: isMobile ? iconSize + 4 : iconSize + 10,
-          fontSize: fontSize,
-          isMobile: isMobile,
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: isSmallScreen ? 9 : (isTablet ? 12 : 10),
+                color: Colors.grey.shade600,
+              ),
+            ),
+            Text(
+              count.toString(),
+              style: TextStyle(
+                fontSize: isSmallScreen ? 12 : (isTablet ? 16 : 14),
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1A3B68),
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildStatCard({
-    required IconData icon,
-    required String label,
-    required String value,
-    required Color color,
-    required String type,
-    required double iconSize,
-    required double fontSize,
-    required bool isMobile,
-  }) {
-    return GestureDetector(
-      onTap: () => _navigateToDetail(type),
-      child: Container(
-        padding: EdgeInsets.all(isMobile ? 6 : 12),
+  Widget _buildStatsList(bool isMobile, double spacing) {
+    final bool isTablet = MediaQuery.of(context).size.width >= 600;
+    final bool isSmallScreen = MediaQuery.of(context).size.width < 360;
+
+    final List<Map<String, dynamic>> statsList = [
+      {'title': 'Users', 'value': _stats['totalUsers'] ?? 0, 'color': const Color(0xFF6366F1), 'icon': Icons.people_rounded, 'type': 'users'},
+      {'title': 'Pending', 'value': _stats['pendingRequests'] ?? 0, 'color': const Color(0xFFF59E0B), 'icon': Icons.pending_rounded, 'type': 'pending'},
+      {'title': 'Today', 'value': _stats['todayRequests'] ?? 0, 'color': const Color(0xFF3B82F6), 'icon': Icons.today_rounded, 'type': 'today'},
+      {'title': 'Approved', 'value': _stats['approvedToday'] ?? 0, 'color': const Color(0xFF8B5CF6), 'icon': Icons.check_circle_rounded, 'type': 'approved'},
+      {'title': 'Total', 'value': _stats['totalRequests'] ?? 0, 'color': const Color(0xFF10B981), 'icon': Icons.assignment_rounded, 'type': 'total'},
+      {'title': 'Rejected', 'value': _stats['rejectedToday'] ?? 0, 'color': const Color(0xFFEF4444), 'icon': Icons.cancel_rounded, 'type': 'rejected'},
+    ];
+
+    if (statsList.isEmpty || _stats['totalRequests'] == 0) {
+      return Container(
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.shade200,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
-        child: FractionallySizedBox(
-          heightFactor: 0.95,
+        child: Center(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color: color,
-                size: isMobile ? iconSize + 4 : iconSize + 10,
-              ),
-              SizedBox(height: isMobile ? 2 : 4),
+              Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade300),
+              const SizedBox(height: 8),
               Text(
-                value,
-                style: TextStyle(
-                  fontSize: isMobile ? fontSize + 4 : fontSize + 6,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-              SizedBox(height: isMobile ? 1 : 2),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: isMobile ? fontSize * 0.7 : fontSize + 2,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                'No data available',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
               ),
             ],
           ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: EdgeInsets.all(isMobile ? 10 : 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 3,
+                height: 18,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Additional Data',
+                style: TextStyle(
+                  fontSize: isMobile ? 15 : 18,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1A3B68),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...statsList.map((stat) => _buildStatListItem(stat, isMobile, isTablet, isSmallScreen, spacing)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatListItem(
+    Map<String, dynamic> stat,
+    bool isMobile,
+    bool isTablet,
+    bool isSmallScreen,
+    double spacing,
+  ) {
+    final Color color = stat['color'] as Color;
+    final String title = stat['title'] as String;
+    final int value = stat['value'] as int;
+    final IconData icon = stat['icon'] as IconData;
+    final String type = stat['type'] as String;
+
+    final iconSize = isSmallScreen ? 16 : (isTablet ? 22 : 18);
+    final fontSize = isSmallScreen ? 14 : (isTablet ? 18 : 16);
+    final labelSize = isSmallScreen ? 10 : (isTablet ? 13 : 11);
+
+    return InkWell(
+      onTap: () => _navigateToDetail(type),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        margin: EdgeInsets.only(bottom: spacing * 0.6),
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 10 : 14,
+          vertical: isMobile ? 8 : 12,
+        ),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.12), width: 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: iconSize.toDouble()),
+            ),
+            SizedBox(width: isMobile ? 8 : 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value.toString(),
+                    style: TextStyle(
+                      fontSize: fontSize.toDouble(),
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: labelSize.toDouble(),
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: isMobile ? 12 : 16,
+              color: Colors.grey.shade400,
+            ),
+          ],
         ),
       ),
     );
@@ -550,13 +762,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     if (type == 'users') {
       Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => const UserManagementScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const UserManagementScreen()),
       ).then((_) {
         _loadStats();
         _refreshUnreadCount();
-        _refreshProfileImage(); //  Refresh profile after returning
+        _refreshProfileImage();
       });
       return;
     }
@@ -564,166 +774,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => _DetailListScreen(
-          type: type,
-          stats: _stats,
-        ),
+        builder: (context) => _DetailListScreen(type: type, stats: _stats),
       ),
     ).then((_) {
       _loadStats();
       _refreshUnreadCount();
-      _refreshProfileImage(); //  Refresh profile after returning
+      _refreshProfileImage();
     });
-  }
-}
-
-// ==================== ADMIN USER HEADER ====================
-class _AdminUserHeader extends StatelessWidget {
-  final String adminName;
-  final String? adminId;
-  final String? profileImageUrl;
-  final bool isLoading;
-  final int unreadCount;
-  final VoidCallback? onNotificationPressed;
-  final VoidCallback? onProfileUpdated; // Add callback
-  final bool useWhiteTheme;
-  final bool isMobile;
-  final double fontSize;
-  final double spacing;
-  final double iconSize;
-
-  const _AdminUserHeader({
-    required this.adminName,
-    this.adminId,
-    this.profileImageUrl,
-    required this.isLoading,
-    this.unreadCount = 0,
-    this.onNotificationPressed,
-    this.onProfileUpdated, // Add callback
-    this.useWhiteTheme = false,
-    required this.isMobile,
-    required this.fontSize,
-    required this.spacing,
-    required this.iconSize,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
-    final subTextColor = useWhiteTheme ? Colors.white70 : Colors.grey;
-    final iconColor = useWhiteTheme ? Colors.white : const Color(0xFF173B69);
-
-    return Row(
-      children: [
-        ProfileAvatar(
-          userId: adminId,
-          imageUrl: profileImageUrl,
-          name: adminName,
-          radius: isMobile ? 28 : 42,
-          backgroundColor: useWhiteTheme ? Colors.white : const Color(0xFF173B69),
-          textColor: useWhiteTheme ? const Color(0xFF173B69) : Colors.white,
-          onTap: () async {
-            //  Wait for result from Profile Screen
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AdminProfileScreen()),
-            );
-
-            //  If changes were made, call callback to refresh
-            if (result == true && onProfileUpdated != null) {
-              onProfileUpdated!();
-            }
-          },
-        ),
-        SizedBox(width: isMobile ? spacing : spacing * 1.5),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isLoading)
-                SizedBox(
-                  height: 16,
-                  width: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: useWhiteTheme ? Colors.white : const Color(0xFF173B69),
-                  ),
-                )
-              else
-                Text(
-                  adminName,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: isMobile ? fontSize + 2 : fontSize + 6,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              SizedBox(height: spacing / 3),
-              Text(
-                'Administrator',
-                style: TextStyle(
-                  color: subTextColor,
-                  fontSize: isMobile ? fontSize * 0.75 : fontSize + 2,
-                ),
-              ),
-            ],
-          ),
-        ),
-        //  Notification Bell with Badge
-        Stack(
-          children: [
-            IconButton(
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NotificationsScreen(),
-                  ),
-                );
-                if (onNotificationPressed != null) {
-                  onNotificationPressed!();
-                }
-              },
-              icon: Icon(
-                Icons.notifications_none,
-                color: iconColor,
-                size: isMobile ? iconSize + 4 : iconSize + 8,
-              ),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-            if (unreadCount > 0)
-              Positioned(
-                right: 2,
-                top: 2,
-                child: Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                  constraints: BoxConstraints(
-                    minWidth: isMobile ? 14 : 20,
-                    minHeight: isMobile ? 14 : 20,
-                  ),
-                  child: Text(
-                    unreadCount > 99 ? '99+' : unreadCount.toString(),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: isMobile ? 8 : 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-          ],
-        ),
-        SizedBox(width: isMobile ? 4 : 8),
-      ],
-    );
   }
 }
 
@@ -732,10 +789,7 @@ class _DetailListScreen extends StatefulWidget {
   final String type;
   final Map<String, int> stats;
 
-  const _DetailListScreen({
-    required this.type,
-    required this.stats,
-  });
+  const _DetailListScreen({required this.type, required this.stats});
 
   @override
   State<_DetailListScreen> createState() => _DetailListScreenState();
@@ -745,7 +799,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
   List<Map<String, dynamic>> _items = [];
   bool _isLoading = true;
   String? _error;
-
   final Map<String, Map<String, dynamic>> _userCache = {};
 
   @override
@@ -779,379 +832,183 @@ class _DetailListScreenState extends State<_DetailListScreen> {
           await _loadTodayRequests(status: 'rejected');
           break;
         default:
-          setState(() {
-            _items = [];
-          });
+          setState(() => _items = []);
           break;
       }
     } catch (e) {
-      setState(() {
-        _error = 'Failed to load data: $e';
-      });
+      setState(() => _error = 'Failed to load data: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<Map<String, dynamic>> _getUserData(String userId) async {
-    if (_userCache.containsKey(userId)) {
-      return _userCache[userId]!;
-    }
-
+    if (_userCache.containsKey(userId)) return _userCache[userId]!;
     try {
       final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-
       Map<String, dynamic> userData = {};
       if (docSnapshot.exists) {
-        final data = docSnapshot.data()!;
+        final data = docSnapshot.data() as Map<String, dynamic>;
         userData = {
           'fullName': data['fullName'] ?? 'Unknown',
           'email': data['email'] ?? 'N/A',
           'department': data['department'] ?? 'N/A',
-          'departmentId': data['departmentId'] ?? '',
           'role': data['role'] ?? 'user',
-          'roleId': data['roleId'] ?? '4',
           'phone': data['phone'] ?? 'N/A',
         };
       }
-
       _userCache[userId] = userData;
       return userData;
     } catch (e) {
-      print(' Error fetching user data for $userId: $e');
-      return {
-        'fullName': 'Unknown',
-        'email': 'N/A',
-        'department': 'N/A',
-        'departmentId': '',
-        'role': 'user',
-        'roleId': '4',
-        'phone': 'N/A',
-      };
-    }
-  }
-
-  String _formatSubmitTimeLikeTelegram(dynamic submitTime) {
-    if (submitTime == null) return 'N/A';
-
-    try {
-      if (submitTime is String) {
-        String cleaned = submitTime.trim();
-        if (cleaned.contains('AM') || cleaned.contains('PM')) {
-          return cleaned;
-        }
-      }
-
-      DateTime? parsedDateTime;
-      bool isUTC = false;
-
-      if (submitTime is String) {
-        String cleaned = submitTime.trim();
-
-        if (cleaned.contains('T') && cleaned.endsWith('Z')) {
-          try {
-            parsedDateTime = DateTime.parse(cleaned);
-            isUTC = true;
-          } catch (e) {}
-        } else if (cleaned.contains('T')) {
-          try {
-            parsedDateTime = DateTime.parse(cleaned);
-            isUTC = false;
-          } catch (e) {}
-        } else if (cleaned.contains(' ') && cleaned.contains('-')) {
-          final parts = cleaned.split(' ');
-          if (parts.length == 2) {
-            final dateParts = parts[0].split('-');
-            final timeParts = parts[1].split(':');
-
-            if (dateParts.length == 3 && timeParts.length >= 2) {
-              final year = int.parse(dateParts[0]);
-              final month = int.parse(dateParts[1]);
-              final day = int.parse(dateParts[2]);
-              final hour = int.parse(timeParts[0]);
-              final minute = int.parse(timeParts[1]);
-              parsedDateTime = DateTime(year, month, day, hour, minute);
-              isUTC = false;
-            }
-          }
-        } else if (cleaned.contains('/') && cleaned.contains(' ')) {
-          final parts = cleaned.split(' ');
-          if (parts.length == 2) {
-            final dateParts = parts[0].split('/');
-            final timeParts = parts[1].split(':');
-
-            if (dateParts.length == 3 && timeParts.length >= 2) {
-              final day = int.parse(dateParts[0]);
-              final month = int.parse(dateParts[1]);
-              final year = int.parse(dateParts[2]);
-              final hour = int.parse(timeParts[0]);
-              final minute = int.parse(timeParts[1]);
-              parsedDateTime = DateTime(year, month, day, hour, minute);
-              isUTC = false;
-            }
-          }
-        } else if (cleaned.contains('-') && !cleaned.contains(' ')) {
-          final parts = cleaned.split('-');
-          if (parts.length == 3) {
-            final year = int.parse(parts[0]);
-            final month = int.parse(parts[1]);
-            final day = int.parse(parts[2]);
-            parsedDateTime = DateTime(year, month, day, 0, 0);
-            isUTC = false;
-          }
-        }
-      } else if (submitTime is Timestamp) {
-        parsedDateTime = submitTime.toDate();
-        isUTC = true;
-      } else if (submitTime is DateTime) {
-        parsedDateTime = submitTime;
-        isUTC = submitTime.isUtc;
-      }
-
-      if (parsedDateTime == null) {
-        return submitTime.toString();
-      }
-
-      DateTime cambodiaTime;
-      if (isUTC) {
-        cambodiaTime = parsedDateTime.toUtc().add(const Duration(hours: 7));
-      } else {
-        cambodiaTime = parsedDateTime;
-      }
-
-      final year = cambodiaTime.year;
-      final month = cambodiaTime.month.toString().padLeft(2, '0');
-      final day = cambodiaTime.day.toString().padLeft(2, '0');
-      int hour = cambodiaTime.hour;
-      final int minute = cambodiaTime.minute;
-      final String period = hour >= 12 ? 'PM' : 'AM';
-
-      if (hour == 0) {
-        hour = 12;
-      } else if (hour > 12) {
-        hour = hour - 12;
-      }
-
-      return '$year-$month-$day $hour:${minute.toString().padLeft(2, '0')}$period';
-    } catch (e) {
-      print(' Error formatting submitTime: $e');
-      return 'N/A';
+      return {'fullName': 'Unknown', 'email': 'N/A', 'department': 'N/A', 'role': 'user', 'phone': 'N/A'};
     }
   }
 
   Future<void> _loadRequests({String? status}) async {
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance.collection('leave_requests');
-
-    if (status != null) {
-      query = query.where('status', isEqualTo: status);
-    }
-
+    if (status != null) query = query.where('status', isEqualTo: status);
     query = query.orderBy('createdAt', descending: true);
     final snapshot = await query.get();
 
     List<Map<String, dynamic>> items = [];
-
     for (var doc in snapshot.docs) {
-      final data = doc.data();
+      final data = doc.data() as Map<String, dynamic>;
       final userId = data['userId'] ?? '';
-
       final userData = await _getUserData(userId);
-
       items.add({
         'id': doc.id,
         'userId': userId,
-        'userName': data['userName'] ?? 'Unknown',
         'reason': data['reason'] ?? 'No reason',
         'status': data['status'] ?? 'pending',
         'startDate': data['startDate'],
         'endDate': data['endDate'],
-        'createdAt': data['createdAt'],
         'submitTime': data['submitTime'],
         'fullName': userData['fullName'] ?? data['userName'] ?? 'Unknown',
-        'email': userData['email'] ?? 'N/A',
         'department': userData['department'] ?? 'N/A',
-        'departmentId': userData['departmentId'] ?? '',
         'role': userData['role'] ?? 'user',
-        'roleId': userData['roleId'] ?? '4',
-        'phone': userData['phone'] ?? 'N/A',
       });
     }
-
-    setState(() {
-      _items = items;
-    });
+    setState(() => _items = items);
   }
 
   Future<void> _loadTodayRequests({String? status}) async {
     final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day, 0, 0, 0);
-    final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
 
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance
         .collection('leave_requests')
         .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-        .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfDay));
-
-    if (status != null) {
-      query = query.where('status', isEqualTo: status);
-    }
-
+        .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay));
+    if (status != null) query = query.where('status', isEqualTo: status);
     query = query.orderBy('createdAt', descending: true);
     final snapshot = await query.get();
 
     List<Map<String, dynamic>> items = [];
-
     for (var doc in snapshot.docs) {
-      final data = doc.data();
+      final data = doc.data() as Map<String, dynamic>;
       final userId = data['userId'] ?? '';
-
       final userData = await _getUserData(userId);
-
       items.add({
         'id': doc.id,
         'userId': userId,
-        'userName': data['userName'] ?? 'Unknown',
         'reason': data['reason'] ?? 'No reason',
         'status': data['status'] ?? 'pending',
         'startDate': data['startDate'],
         'endDate': data['endDate'],
-        'createdAt': data['createdAt'],
         'submitTime': data['submitTime'],
         'fullName': userData['fullName'] ?? data['userName'] ?? 'Unknown',
-        'email': userData['email'] ?? 'N/A',
         'department': userData['department'] ?? 'N/A',
-        'departmentId': userData['departmentId'] ?? '',
         'role': userData['role'] ?? 'user',
-        'roleId': userData['roleId'] ?? '4',
-        'phone': userData['phone'] ?? 'N/A',
       });
     }
-
-    setState(() {
-      _items = items;
-    });
+    setState(() => _items = items);
   }
 
   String _getTitle() {
-    switch (widget.type) {
-      case 'pending':
-        return 'Pending Requests (${widget.stats['pendingRequests'] ?? 0})';
-      case 'today':
-        return "Today's Requests (${widget.stats['todayRequests'] ?? 0})";
-      case 'total':
-        return 'Total Requests (${widget.stats['totalRequests'] ?? 0})';
-      case 'approved':
-        return 'Approved Today (${widget.stats['approvedToday'] ?? 0})';
-      case 'rejected':
-        return 'Rejected Today (${widget.stats['rejectedToday'] ?? 0})';
-      default:
-        return 'Details';
-    }
+    final labels = {
+      'pending': 'Pending Requests (${widget.stats['pendingRequests'] ?? 0})',
+      'today': "Today's Requests (${widget.stats['todayRequests'] ?? 0})",
+      'total': 'Total Requests (${widget.stats['totalRequests'] ?? 0})',
+      'approved': 'Approved Today (${widget.stats['approvedToday'] ?? 0})',
+      'rejected': 'Rejected Today (${widget.stats['rejectedToday'] ?? 0})',
+    };
+    return labels[widget.type] ?? 'Details';
   }
 
   Color _getColor() {
-    switch (widget.type) {
-      case 'pending':
-        return Colors.orange;
-      case 'today':
-        return Colors.blue;
-      case 'total':
-        return Colors.green;
-      case 'approved':
-        return Colors.purple;
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.blue;
-    }
-  }
-
-  IconData _getIcon() {
-    switch (widget.type) {
-      case 'pending':
-        return Icons.pending_actions;
-      case 'today':
-        return Icons.today;
-      case 'total':
-        return Icons.assignment;
-      case 'approved':
-        return Icons.check_circle;
-      case 'rejected':
-        return Icons.cancel;
-      default:
-        return Icons.info;
-    }
+    final colors = {
+      'pending': const Color(0xFFF59E0B),
+      'today': const Color(0xFF3B82F6),
+      'total': const Color(0xFF10B981),
+      'approved': const Color(0xFF8B5CF6),
+      'rejected': const Color(0xFFEF4444),
+    };
+    return colors[widget.type] ?? const Color(0xFF6366F1);
   }
 
   String _formatDate(dynamic timestamp) {
-    try {
-      if (timestamp == null) return 'N/A';
-      if (timestamp is Timestamp) {
-        return '${timestamp.toDate().day}/${timestamp.toDate().month}/${timestamp.toDate().year}';
-      }
-      return 'N/A';
-    } catch (e) {
-      return 'N/A';
+    if (timestamp == null) return 'N/A';
+    if (timestamp is Timestamp) {
+      return '${timestamp.toDate().day}/${timestamp.toDate().month}/${timestamp.toDate().year}';
     }
+    return 'N/A';
+  }
+
+  String _formatTime(dynamic submitTime) {
+    if (submitTime == null) return 'N/A';
+    try {
+      if (submitTime is String && (submitTime.contains('AM') || submitTime.contains('PM'))) {
+        return submitTime;
+      }
+      DateTime? dt;
+      if (submitTime is Timestamp) dt = submitTime.toDate();
+      else if (submitTime is DateTime) dt = submitTime;
+      else if (submitTime is String) {
+        try { dt = DateTime.parse(submitTime); } catch (_) {}
+      }
+      if (dt == null) return 'N/A';
+      final khmerTime = dt.toUtc().add(const Duration(hours: 7));
+      int hour = khmerTime.hour;
+      final minute = khmerTime.minute;
+      final period = hour >= 12 ? 'PM' : 'AM';
+      if (hour == 0) hour = 12;
+      else if (hour > 12) hour -= 12;
+      return '$hour:${minute.toString().padLeft(2, '0')} $period';
+    } catch (_) { return 'N/A'; }
   }
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
-      case 'approved':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      case 'pending':
-      default:
-        return Colors.orange;
+      case 'approved': return const Color(0xFF10B981);
+      case 'rejected': return const Color(0xFFEF4444);
+      default: return const Color(0xFFF59E0B);
     }
   }
 
   IconData _getStatusIcon(String status) {
     switch (status.toLowerCase()) {
-      case 'approved':
-        return Icons.check_circle;
-      case 'rejected':
-        return Icons.cancel;
-      case 'pending':
-      default:
-        return Icons.pending;
+      case 'approved': return Icons.check_circle;
+      case 'rejected': return Icons.cancel;
+      default: return Icons.pending;
     }
   }
 
   Color _getRoleColor(String role) {
-    final roleLower = role.toLowerCase();
-    switch (roleLower) {
-      case 'admin':
-        return Colors.purple;
-      case 'manager':
-        return Colors.orange;
-      case 'staff':
-        return Colors.green;
-      case 'employee':
-        return Colors.blue;
-      default:
-        return Colors.grey;
+    switch (role.toLowerCase()) {
+      case 'admin': return const Color(0xFF8B5CF6);
+      case 'manager': return const Color(0xFFF59E0B);
+      case 'staff': return const Color(0xFF10B981);
+      default: return const Color(0xFF3B82F6);
     }
   }
 
   String _getRoleName(String role) {
-    final roleLower = role.toLowerCase();
-    switch (roleLower) {
-      case 'admin':
-        return 'Admin';
-      case 'manager':
-        return 'Manager';
-      case 'staff':
-        return 'Staff';
-      case 'employee':
-        return 'Employee';
-      default:
-        return role;
+    switch (role.toLowerCase()) {
+      case 'admin': return 'Admin';
+      case 'manager': return 'Manager';
+      case 'staff': return 'Staff';
+      default: return 'Employee';
     }
   }
 
@@ -1163,20 +1020,12 @@ class _DetailListScreenState extends State<_DetailListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _getTitle(),
-          style: TextStyle(
-            fontSize: isMobile ? 16 : 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        title: Text(_getTitle(), style: TextStyle(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold)),
         backgroundColor: _getColor(),
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
         ],
       ),
       body: _isLoading
@@ -1188,19 +1037,9 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                     children: [
                       const Icon(Icons.error_outline, size: 64, color: Colors.red),
                       const SizedBox(height: 16),
-                      Text(
-                        _error!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: fontSize),
-                      ),
+                      Text(_error!, style: TextStyle(fontSize: fontSize)),
                       const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: _loadData,
-                        child: Text(
-                          'Retry',
-                          style: TextStyle(fontSize: fontSize),
-                        ),
-                      ),
+                      ElevatedButton(onPressed: _loadData, child: const Text('Retry')),
                     ],
                   ),
                 )
@@ -1209,15 +1048,9 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(_getIcon(), size: 64, color: Colors.grey[400]),
+                          Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
                           const SizedBox(height: 16),
-                          Text(
-                            'No Data',
-                            style: TextStyle(
-                              fontSize: fontSize,
-                              color: Colors.grey[600],
-                            ),
-                          ),
+                          Text('No Data', style: TextStyle(fontSize: fontSize, color: Colors.grey.shade600)),
                         ],
                       ),
                     )
@@ -1233,124 +1066,138 @@ class _DetailListScreenState extends State<_DetailListScreen> {
   }
 
   Widget _buildItemCard(Map<String, dynamic> item, bool isMobile, double fontSize, double spacing) {
-    final String submitTimeDisplay = _formatSubmitTimeLikeTelegram(item['submitTime']);
+    final Color statusColor = _getStatusColor(item['status'] ?? 'pending');
 
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: spacing / 2, vertical: spacing / 2),
-      elevation: 2,
-      child: ListTile(
-        contentPadding: EdgeInsets.all(isMobile ? 10 : 16),
-        leading: CircleAvatar(
-          radius: isMobile ? 18 : 24,
-          backgroundColor: _getStatusColor(item['status'] ?? 'pending').withValues(alpha: 0.2),
-          child: Icon(
-            _getStatusIcon(item['status'] ?? 'pending'),
-            color: _getStatusColor(item['status'] ?? 'pending'),
-            size: isMobile ? 16 : 20,
-          ),
-        ),
-        title: Text(
-          item['fullName'] ?? item['userName'] ?? 'Unknown User',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: isMobile ? fontSize : fontSize + 2,
-          ),
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Column(
+      margin: EdgeInsets.only(bottom: spacing),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 10 : 14),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            if (item['department'] != null && item['department'] != 'N/A')
-              Row(
+            // Avatar
+            CircleAvatar(
+              radius: isMobile ? 18 : 22,
+              backgroundColor: statusColor.withValues(alpha: 0.15),
+              child: Icon(
+                _getStatusIcon(item['status'] ?? 'pending'),
+                color: statusColor,
+                size: isMobile ? 16 : 20,
+              ),
+            ),
+            SizedBox(width: isMobile ? 10 : 14),
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.business, size: isMobile ? 12 : 14, color: Colors.grey[600]),
-                  SizedBox(width: spacing / 3),
-                  Expanded(
-                    child: Text(
+                  // Name
+                  Text(
+                    item['fullName'] ?? 'Unknown',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isMobile ? fontSize : fontSize + 2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: isMobile ? 1 : 2),
+                  // Department
+                  if (item['department'] != null && item['department'] != 'N/A')
+                    Text(
                       item['department'],
                       style: TextStyle(
-                        fontSize: isMobile ? fontSize * 0.8 : fontSize,
-                        color: Colors.grey[700],
+                        fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
+                        color: Colors.grey.shade600,
                       ),
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                  // Reason
+                  Text(
+                    'Reason: ${item['reason'] ?? 'No reason'}',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.9,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  // Date range
+                  Text(
+                    '${_formatDate(item['startDate'])} - ${_formatDate(item['endDate'])}',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  // Submit time
+                  Text(
+                    'Submitted: ${_formatTime(item['submitTime'])}',
+                    style: TextStyle(
+                      fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
+                      color: Colors.blue.shade700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
-            Text(
-              'Reason: ${item['reason'] ?? 'No reason'}',
-              style: TextStyle(
-                fontSize: isMobile ? fontSize * 0.85 : fontSize,
-              ),
-              overflow: TextOverflow.ellipsis,
             ),
-            Text(
-              '${_formatDate(item['startDate'])} - ${_formatDate(item['endDate'])}',
-              style: TextStyle(
-                fontSize: isMobile ? fontSize * 0.8 : fontSize,
-                color: Colors.grey[600],
-              ),
-            ),
-            Text(
-              'Submitted: $submitTimeDisplay',
-              style: TextStyle(
-                fontSize: isMobile ? fontSize * 0.8 : fontSize,
-                color: Colors.blue[700],
-                fontWeight: FontWeight.w500,
-              ),
+            // Trailing badges
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 6 : 10,
+                    vertical: isMobile ? 2 : 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    (item['status'] ?? 'pending').toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isMobile ? fontSize * 0.55 : fontSize * 0.7,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                SizedBox(height: isMobile ? 2 : 4),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobile ? 4 : 8,
+                    vertical: isMobile ? 1 : 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getRoleColor(item['role'] ?? 'user').withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _getRoleColor(item['role'] ?? 'user'),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    _getRoleName(item['role'] ?? 'user'),
+                    style: TextStyle(
+                      color: _getRoleColor(item['role'] ?? 'user'),
+                      fontSize: isMobile ? fontSize * 0.5 : fontSize * 0.65,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 6 : 12,
-                vertical: isMobile ? 2 : 4,
-              ),
-              decoration: BoxDecoration(
-                color: _getStatusColor(item['status'] ?? 'pending'),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                item['status']?.toString().toUpperCase() ?? 'PENDING',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isMobile ? fontSize * 0.7 : fontSize,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            SizedBox(height: spacing / 3),
-            Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 4 : 8,
-                vertical: isMobile ? 1 : 4,
-              ),
-              decoration: BoxDecoration(
-                color: _getRoleColor(item['role'] ?? 'user').withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _getRoleColor(item['role'] ?? 'user'),
-                  width: 1,
-                ),
-              ),
-              child: Text(
-                _getRoleName(item['role'] ?? 'user'),
-                style: TextStyle(
-                  color: _getRoleColor(item['role'] ?? 'user'),
-                  fontSize: isMobile ? fontSize * 0.65 : fontSize,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-        isThreeLine: true,
-        dense: isMobile,
       ),
     );
   }
