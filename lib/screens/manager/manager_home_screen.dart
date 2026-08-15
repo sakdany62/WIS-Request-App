@@ -1526,64 +1526,8 @@ Status: APPROVED
               ],
             ),
           ),
-          SizedBox(height: spacing),
-          // Bottom Row: Approve & Reject Buttons
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: isMobile ? 36 : 40,
-                  child: OutlinedButton(
-                    onPressed: () {
-                      _showRejectDialog(requestId, employeeName, totalDays);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: isMobile ? 4 : 6),
-                    ),
-                    child: Text(
-                      'Reject',
-                      style: TextStyle(
-                        fontSize: isMobile ? fontSize * 0.8 : fontSize,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(width: spacing),
-              Expanded(
-                child: SizedBox(
-                  height: isMobile ? 36 : 40,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _approveRequest(requestId, employeeName, totalDays);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: isMobile ? 4 : 6),
-                      elevation: 1,
-                    ),
-                    child: Text(
-                      'Approve',
-                      style: TextStyle(
-                        fontSize: isMobile ? fontSize * 0.8 : fontSize,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        
+          
         ],
       ),
     );

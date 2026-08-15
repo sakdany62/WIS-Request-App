@@ -1,3 +1,4 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,9 +14,14 @@ import 'screens/admin/create_user.dart';
 import 'providers/auth_provider.dart';
 import 'app_fonts.dart';
 import 'services/notification_permission_service.dart';
+import 'services/reminder_service.dart';
+import 'services/telegram_config_service.dart';
 
 // ✅ Global navigator key for notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// ✅ Global instance of ReminderService
+late final ReminderService reminderService;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,10 +52,30 @@ void main() async {
     print('❌ Notification initialization error: $e');
   }
   
+  // Initialize default Telegram configs
+  try {
+    await TelegramConfigService.initializeDefaultConfigs();
+    print('✅ Telegram configs initialized');
+  } catch (e) {
+    print('❌ Telegram config initialization error: $e');
+  }
+  
+  // ✅ Start reminder service with global instance
+  reminderService = ReminderService();
+  reminderService.startReminderService(
+    intervalSeconds: 300, // 5 minutes (default)
+  );
+  
+  // ✅ Listen to status changes
+  reminderService.listenToRequestStatusChanges();
+  print('✅ Reminder service started');
+  
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        // ✅ បន្ថែម Provider សម្រាប់ ReminderService ប្រសិនបើត្រូវការ
+        // Provider<ReminderService>.value(value: reminderService),
       ],
       child: const MyApp(),
     ),

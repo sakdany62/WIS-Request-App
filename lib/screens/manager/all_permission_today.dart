@@ -412,11 +412,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF173B69),
         elevation: 2,
+        automaticallyImplyLeading: false, // Remove back button
         title: const Text(
           'Permission List',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
         ),
-        centerTitle: false,
+        centerTitle: true, // Center the title
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(icon: Icon(Icons.refresh, size: iconSize), onPressed: _refresh, tooltip: 'Refresh'),

@@ -252,20 +252,35 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             await _refreshUnreadCount();
             await _refreshProfileImage();
           },
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.all(isMobile ? 12 : 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildProfileSection(isMobile, spacing, iconSize),
-                const SizedBox(height: 14),
-                _buildPieChartCard(isMobile, spacing),
-                const SizedBox(height: 16),
-                _buildStatsList(isMobile, spacing),
-                SizedBox(height: bottomPadding),
-              ],
-            ),
+          // ✅ Profile និង Statistics នៅស្ងៀម (fixed)
+          // ✅ Additional Data អាច scroll បាន
+          child: Column(
+            children: [
+              // Profile Section - Fixed
+              Padding(
+                padding: EdgeInsets.all(isMobile ? 12 : 16),
+                child: _buildProfileSection(isMobile, spacing, iconSize),
+              ),
+              // Statistics Section - Fixed
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16),
+                child: _buildPieChartCard(isMobile, spacing),
+              ),
+              const SizedBox(height: 16),
+              // Additional Data Section - Scrollable
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16),
+                  child: Column(
+                    children: [
+                      _buildStatsList(isMobile, spacing),
+                      SizedBox(height: bottomPadding),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -677,7 +692,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          ...statsList.map((stat) => _buildStatListItem(stat, isMobile, isTablet, isSmallScreen, spacing)),
+          // ✅ ប្រើ Column ដើម្បីឱ្យ items ទាំងអស់បង្ហាញពេញ
+          Column(
+            children: statsList.map((stat) => _buildStatListItem(stat, isMobile, isTablet, isSmallScreen, spacing)).toList(),
+          ),
         ],
       ),
     );
