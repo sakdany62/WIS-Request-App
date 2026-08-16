@@ -33,8 +33,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _totalUsers = 0;
   int _todayRequests = 0;
   int _totalRequests = 0;
-  int _approvedToday = 0;
-  int _rejectedToday = 0;
+  int _approvedRequests = 0;
+  int _rejectedRequests = 0;
 
   int _unreadCount = 0;
   Stream<QuerySnapshot>? _notificationStream;
@@ -43,6 +43,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   void initState() {
     super.initState();
     _checkAuthAndLoad();
+  }
+
+  @override
+  void dispose() {
+    // Clean up notification stream
+    _notificationStream = null;
+    super.dispose();
   }
 
   Future<void> _checkAuthAndLoad() async {
@@ -141,13 +148,32 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       final userStats = await _userService.getUserStats();
       _totalUsers = userStats['total'] ?? 0;
 
-      final pendingSnapshot =
-          await FirebaseFirestore.instance.collection('leave_requests').where('status', isEqualTo: 'pending').get();
-      _pendingRequests = pendingSnapshot.docs.length;
-
+      // យកទិន្នន័យទាំងអស់មកគណនា
       final totalSnapshot = await FirebaseFirestore.instance.collection('leave_requests').get();
       _totalRequests = totalSnapshot.docs.length;
 
+      // គណនា pending ទាំងអស់
+      final pendingSnapshot = await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .where('status', isEqualTo: 'pending')
+          .get();
+      _pendingRequests = pendingSnapshot.docs.length;
+
+      // គណនា approved ទាំងអស់
+      final approvedSnapshot = await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .where('status', isEqualTo: 'approved')
+          .get();
+      _approvedRequests = approvedSnapshot.docs.length;
+
+      // គណនា rejected ទាំងអស់
+      final rejectedSnapshot = await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .where('status', isEqualTo: 'rejected')
+          .get();
+      _rejectedRequests = rejectedSnapshot.docs.length;
+
+      // គណនា today requests
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
@@ -159,22 +185,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           .get();
       _todayRequests = todaySnapshot.docs.length;
 
-      final approvedTodaySnapshot = await FirebaseFirestore.instance
-          .collection('leave_requests')
-          .where('status', isEqualTo: 'approved')
-          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-          .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
-          .get();
-      _approvedToday = approvedTodaySnapshot.docs.length;
-
-      final rejectedTodaySnapshot = await FirebaseFirestore.instance
-          .collection('leave_requests')
-          .where('status', isEqualTo: 'rejected')
-          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-          .where('createdAt', isLessThan: Timestamp.fromDate(endOfDay))
-          .get();
-      _rejectedToday = rejectedTodaySnapshot.docs.length;
-
       if (mounted) {
         setState(() {
           _stats = {
@@ -182,8 +192,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             'pendingRequests': _pendingRequests,
             'todayRequests': _todayRequests,
             'totalRequests': _totalRequests,
-            'approvedToday': _approvedToday,
-            'rejectedToday': _rejectedToday,
+            'approvedRequests': _approvedRequests,
+            'rejectedRequests': _rejectedRequests,
           };
         });
       }
@@ -195,8 +205,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             'pendingRequests': 0,
             'todayRequests': 0,
             'totalRequests': 0,
-            'approvedToday': 0,
-            'rejectedToday': 0,
+            'approvedRequests': 0,
+            'rejectedRequests': 0,
           };
         });
       }
@@ -208,7 +218,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final bool isMobile = Responsive.isMobile(context);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 28);
-    double bottomPadding = MediaQuery.of(context).padding.bottom + 24;
+    double bottomPadding = MediaQuery.of(context).padding.bottom + 16;
 
     if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -252,35 +262,27 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             await _refreshUnreadCount();
             await _refreshProfileImage();
           },
-          // ✅ Profile និង Statistics នៅស្ងៀម (fixed)
-          // ✅ Additional Data អាច scroll បាន
-          child: Column(
-            children: [
-              // Profile Section - Fixed
-              Padding(
-                padding: EdgeInsets.all(isMobile ? 12 : 16),
-                child: _buildProfileSection(isMobile, spacing, iconSize),
-              ),
-              // Statistics Section - Fixed
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16),
-                child: _buildPieChartCard(isMobile, spacing),
-              ),
-              const SizedBox(height: 16),
-              // Additional Data Section - Scrollable
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16),
-                  child: Column(
-                    children: [
-                      _buildStatsList(isMobile, spacing),
-                      SizedBox(height: bottomPadding),
-                    ],
-                  ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16),
+            child: Column(
+              children: [
+                // Profile Section
+                Padding(
+                  padding: EdgeInsets.only(top: isMobile ? 6 : 10, bottom: isMobile ? 6 : 10),
+                  child: _buildProfileSection(isMobile, spacing, iconSize),
                 ),
-              ),
-            ],
+                // Statistics Section (Pie Chart) - Reduced size
+                Padding(
+                  padding: EdgeInsets.only(bottom: isMobile ? 6 : 10),
+                  child: _buildPieChartCard(isMobile, spacing),
+                ),
+                // Additional Data Section - List View (No Scroll)
+                Expanded(
+                  child: _buildStatsList(isMobile, spacing),
+                ),
+                SizedBox(height: bottomPadding),
+              ],
+            ),
           ),
         ),
       ),
@@ -292,24 +294,24 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final isSmallScreen = screenWidth < 360;
     final isTablet = screenWidth >= 600;
 
-    final avatarRadius = isSmallScreen ? 30 : (isTablet ? 48 : 36);
-    final nameSize = isSmallScreen ? 16 : (isTablet ? 24 : 20);
-    final roleSize = isSmallScreen ? 11 : (isTablet ? 16 : 13);
+    final avatarRadius = isSmallScreen ? 26 : (isTablet ? 40 : 32);
+    final nameSize = isSmallScreen ? 14 : (isTablet ? 20 : 16);
+    final roleSize = isSmallScreen ? 10 : (isTablet ? 14 : 11);
 
     return Container(
-      padding: EdgeInsets.all(isMobile ? 14 : 20),
+      padding: EdgeInsets.all(isMobile ? 10 : 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF1A3B68), Color(0xFF2C5F8A)],
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -330,7 +332,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               if (result == true) await _refreshProfileImage();
             },
           ),
-          SizedBox(width: isMobile ? 10 : 14),
+          SizedBox(width: isMobile ? 8 : 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,10 +346,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: isMobile ? 2 : 4),
+                SizedBox(height: isMobile ? 1 : 3),
                 Row(
                   children: [
-                    Icon(Icons.admin_panel_settings, size: isMobile ? 14 : 16, color: Colors.white70),
+                  
                     const SizedBox(width: 4),
                     Text(
                       'Administrator',
@@ -410,25 +412,27 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final isSmallScreen = screenWidth < 360;
     final isTablet = screenWidth >= 600;
 
+    // យកទិន្នន័យសរុប និងចំនួននីមួយៗ
     final total = _stats['totalRequests'] ?? 0;
     final pending = _stats['pendingRequests'] ?? 0;
-    final approved = _stats['approvedToday'] ?? 0;
-    final rejected = _stats['rejectedToday'] ?? 0;
+    final approved = _stats['approvedRequests'] ?? 0;
+    final rejected = _stats['rejectedRequests'] ?? 0;
 
+    // គណនា % ពិតប្រាកដ
     final pendingPercent = total == 0 ? 0.0 : (pending / total) * 100;
     final approvedPercent = total == 0 ? 0.0 : (approved / total) * 100;
     final rejectedPercent = total == 0 ? 0.0 : (rejected / total) * 100;
 
     return Container(
-      padding: EdgeInsets.all(isMobile ? 14 : 20),
+      padding: EdgeInsets.all(isMobile ? 10 : 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -441,21 +445,21 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               Text(
                 'Statistics',
                 style: TextStyle(
-                  fontSize: isMobile ? 15 : 18,
+                  fontSize: isMobile ? 13 : 15,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF1A3B68),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A3B68).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   'Total $total',
                   style: TextStyle(
-                    fontSize: isMobile ? 11 : 13,
+                    fontSize: isMobile ? 9 : 11,
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFF1A3B68),
                   ),
@@ -463,14 +467,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           if (total == 0)
             SizedBox(
-              height: 180,
+              height: 120,
               child: Center(
                 child: Text(
                   'No data available',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                 ),
               ),
             )
@@ -478,50 +482,50 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             Row(
               children: [
                 Expanded(
-                  flex: 7,
+                  flex: 6,
                   child: SizedBox(
-                    height: isSmallScreen ? 150 : (isTablet ? 200 : 170),
+                    height: isSmallScreen ? 100 : (isTablet ? 140 : 120),
                     child: Stack(
                       children: [
                         PieChart(
                           PieChartData(
-                            sectionsSpace: 4,
-                            centerSpaceRadius: isSmallScreen ? 40 : 60,
+                            sectionsSpace: 2,
+                            centerSpaceRadius: isSmallScreen ? 25 : (isTablet ? 40 : 32),
                             sections: [
                               PieChartSectionData(
                                 color: const Color(0xFFF59E0B),
                                 value: pending.toDouble(),
-                                title: pendingPercent > 0 ? '${pendingPercent.toStringAsFixed(0)}%' : '',
-                                radius: 45,
+                                title: pendingPercent > 8 ? '${pendingPercent.toStringAsFixed(0)}%' : '',
+                                radius: 35,
                                 showTitle: true,
                                 titleStyle: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                  fontSize: 10,
+                                  fontSize: 8,
                                 ),
                               ),
                               PieChartSectionData(
                                 color: const Color(0xFF10B981),
                                 value: approved.toDouble(),
-                                title: approvedPercent > 0 ? '${approvedPercent.toStringAsFixed(0)}%' : '',
-                                radius: 45,
+                                title: approvedPercent > 8 ? '${approvedPercent.toStringAsFixed(0)}%' : '',
+                                radius: 35,
                                 showTitle: true,
                                 titleStyle: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                  fontSize: 10,
+                                  fontSize: 8,
                                 ),
                               ),
                               PieChartSectionData(
                                 color: const Color(0xFFEF4444),
                                 value: rejected.toDouble(),
-                                title: rejectedPercent > 0 ? '${rejectedPercent.toStringAsFixed(0)}%' : '',
-                                radius: 45,
+                                title: rejectedPercent > 8 ? '${rejectedPercent.toStringAsFixed(0)}%' : '',
+                                radius: 35,
                                 showTitle: true,
                                 titleStyle: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                  fontSize: 10,
+                                  fontSize: 8,
                                 ),
                               ),
                             ],
@@ -534,7 +538,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                               Text(
                                 '$total',
                                 style: TextStyle(
-                                  fontSize: isSmallScreen ? 18 : (isTablet ? 28 : 22),
+                                  fontSize: isSmallScreen ? 12 : (isTablet ? 18 : 15),
                                   fontWeight: FontWeight.bold,
                                   color: const Color(0xFF1A3B68),
                                 ),
@@ -542,7 +546,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                               Text(
                                 'Total',
                                 style: TextStyle(
-                                  fontSize: isSmallScreen ? 8 : (isTablet ? 12 : 10),
+                                  fontSize: isSmallScreen ? 6 : (isTablet ? 9 : 7),
                                   color: Colors.grey.shade500,
                                 ),
                               ),
@@ -556,16 +560,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 Expanded(
                   flex: 4,
                   child: Padding(
-                    padding: EdgeInsets.only(left: isMobile ? 6 : 12),
+                    padding: EdgeInsets.only(left: isMobile ? 4 : 8),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildLegendItem('Pending', pending, const Color(0xFFF59E0B), isSmallScreen, isTablet),
-                        const SizedBox(height: 8),
-                        _buildLegendItem('Approved', approved, const Color(0xFF10B981), isSmallScreen, isTablet),
-                        const SizedBox(height: 8),
-                        _buildLegendItem('Rejected', rejected, const Color(0xFFEF4444), isSmallScreen, isTablet),
+                        _buildLegendItem('Pending', pending, '${pendingPercent.toStringAsFixed(1)}%', const Color(0xFFF59E0B), isSmallScreen, isTablet),
+                        const SizedBox(height: 3),
+                        _buildLegendItem('Approved', approved, '${approvedPercent.toStringAsFixed(1)}%', const Color(0xFF10B981), isSmallScreen, isTablet),
+                        const SizedBox(height: 3),
+                        _buildLegendItem('Rejected', rejected, '${rejectedPercent.toStringAsFixed(1)}%', const Color(0xFFEF4444), isSmallScreen, isTablet),
                       ],
                     ),
                   ),
@@ -577,32 +581,44 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  Widget _buildLegendItem(String title, int count, Color color, bool isSmallScreen, bool isTablet) {
+  Widget _buildLegendItem(String title, int count, String percent, Color color, bool isSmallScreen, bool isTablet) {
     return Row(
       children: [
         Container(
-          width: isSmallScreen ? 10 : 14,
-          height: isSmallScreen ? 10 : 14,
+          width: isSmallScreen ? 7 : 10,
+          height: isSmallScreen ? 7 : 10,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 4),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
               style: TextStyle(
-                fontSize: isSmallScreen ? 9 : (isTablet ? 12 : 10),
+                fontSize: isSmallScreen ? 7 : (isTablet ? 10 : 8),
                 color: Colors.grey.shade600,
               ),
             ),
-            Text(
-              count.toString(),
-              style: TextStyle(
-                fontSize: isSmallScreen ? 12 : (isTablet ? 16 : 14),
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF1A3B68),
-              ),
+            Row(
+              children: [
+                Text(
+                  count.toString(),
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 9 : (isTablet ? 13 : 11),
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1A3B68),
+                  ),
+                ),
+                SizedBox(width: 2),
+                Text(
+                  '($percent)',
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 6 : (isTablet ? 9 : 7),
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -615,36 +631,36 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final bool isSmallScreen = MediaQuery.of(context).size.width < 360;
 
     final List<Map<String, dynamic>> statsList = [
-      {'title': 'Users', 'value': _stats['totalUsers'] ?? 0, 'color': const Color(0xFF6366F1), 'icon': Icons.people_rounded, 'type': 'users'},
-      {'title': 'Pending', 'value': _stats['pendingRequests'] ?? 0, 'color': const Color(0xFFF59E0B), 'icon': Icons.pending_rounded, 'type': 'pending'},
-      {'title': 'Today', 'value': _stats['todayRequests'] ?? 0, 'color': const Color(0xFF3B82F6), 'icon': Icons.today_rounded, 'type': 'today'},
-      {'title': 'Approved', 'value': _stats['approvedToday'] ?? 0, 'color': const Color(0xFF8B5CF6), 'icon': Icons.check_circle_rounded, 'type': 'approved'},
-      {'title': 'Total', 'value': _stats['totalRequests'] ?? 0, 'color': const Color(0xFF10B981), 'icon': Icons.assignment_rounded, 'type': 'total'},
-      {'title': 'Rejected', 'value': _stats['rejectedToday'] ?? 0, 'color': const Color(0xFFEF4444), 'icon': Icons.cancel_rounded, 'type': 'rejected'},
+      {'title': 'Total Users', 'value': _stats['totalUsers'] ?? 0, 'color': const Color(0xFF6366F1), 'icon': Icons.people_rounded, 'type': 'users'},
+      {'title': 'Pending Requests', 'value': _stats['pendingRequests'] ?? 0, 'color': const Color(0xFFF59E0B), 'icon': Icons.pending_rounded, 'type': 'pending'},
+      {'title': "Today's Requests", 'value': _stats['todayRequests'] ?? 0, 'color': const Color(0xFF3B82F6), 'icon': Icons.today_rounded, 'type': 'today'},
+      {'title': 'Approved Requests', 'value': _stats['approvedRequests'] ?? 0, 'color': const Color(0xFF8B5CF6), 'icon': Icons.check_circle_rounded, 'type': 'approved'},
+      {'title': 'Total Requests', 'value': _stats['totalRequests'] ?? 0, 'color': const Color(0xFF10B981), 'icon': Icons.assignment_rounded, 'type': 'total'},
+      {'title': 'Rejected Requests', 'value': _stats['rejectedRequests'] ?? 0, 'color': const Color(0xFFEF4444), 'icon': Icons.cancel_rounded, 'type': 'rejected'},
     ];
 
     if (statsList.isEmpty || _stats['totalRequests'] == 0) {
       return Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Center(
           child: Column(
             children: [
-              Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade300),
-              const SizedBox(height: 8),
+              Icon(Icons.inbox_outlined, size: 36, color: Colors.grey.shade300),
+              const SizedBox(height: 4),
               Text(
                 'No data available',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
               ),
             ],
           ),
@@ -653,15 +669,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     }
 
     return Container(
-      padding: EdgeInsets.all(isMobile ? 10 : 16),
+      padding: EdgeInsets.all(isMobile ? 6 : 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -672,7 +688,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             children: [
               Container(
                 width: 3,
-                height: 18,
+                height: 12,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
@@ -680,21 +696,26 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 'Additional Data',
                 style: TextStyle(
-                  fontSize: isMobile ? 15 : 18,
+                  fontSize: isMobile ? 12 : 15,
                   fontWeight: FontWeight.bold,
                   color: const Color(0xFF1A3B68),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          // ✅ ប្រើ Column ដើម្បីឱ្យ items ទាំងអស់បង្ហាញពេញ
+          const SizedBox(height: 4),
+          // ប្រើ Column ជំនួស ListView ដើម្បីកុំឱ្យ Scroll
           Column(
-            children: statsList.map((stat) => _buildStatListItem(stat, isMobile, isTablet, isSmallScreen, spacing)).toList(),
+            children: statsList.map((stat) {
+              return Padding(
+                padding: EdgeInsets.only(bottom: spacing * 0.25),
+                child: _buildStatListItem(stat, isMobile, isTablet, isSmallScreen, spacing),
+              );
+            }).toList(),
           ),
         ],
       ),
@@ -714,35 +735,39 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final IconData icon = stat['icon'] as IconData;
     final String type = stat['type'] as String;
 
-    final iconSize = isSmallScreen ? 16 : (isTablet ? 22 : 18);
-    final fontSize = isSmallScreen ? 14 : (isTablet ? 18 : 16);
-    final labelSize = isSmallScreen ? 10 : (isTablet ? 13 : 11);
+    // កែតម្រូវទំហំអោយតូចជាងមុន
+    final iconSize = isSmallScreen ? 12 : (isTablet ? 18 : 14);
+    final fontSize = isSmallScreen ? 11 : (isTablet ? 15 : 13);
+    final labelSize = isSmallScreen ? 8 : (isTablet ? 10 : 9);
+    final paddingV = isSmallScreen ? 3 : (isTablet ? 8 : 5);
+    final paddingH = isSmallScreen ? 6 : (isTablet ? 12 : 8);
 
     return InkWell(
       onTap: () => _navigateToDetail(type),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        margin: EdgeInsets.only(bottom: spacing * 0.6),
         padding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 10 : 14,
-          vertical: isMobile ? 8 : 12,
+          horizontal: paddingH.toDouble(),
+          vertical: paddingV.toDouble(),
         ),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.12), width: 1),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
         ),
         child: Row(
           children: [
+            // Icon
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: iconSize.toDouble()),
             ),
-            SizedBox(width: isMobile ? 8 : 12),
+            SizedBox(width: isMobile ? 6 : 10),
+            // Text content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -760,15 +785,24 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                     style: TextStyle(
                       fontSize: labelSize.toDouble(),
                       color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: isMobile ? 12 : 16,
-              color: Colors.grey.shade400,
+            // Arrow
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.arrow_forward_ios,
+                size: isMobile ? 8 : 12,
+                color: color,
+              ),
             ),
           ],
         ),
@@ -825,7 +859,16 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     _loadData();
   }
 
+  @override
+  void dispose() {
+    // Clean up resources
+    _userCache.clear();
+    super.dispose();
+  }
+
   Future<void> _loadData() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
       _error = null;
@@ -844,17 +887,17 @@ class _DetailListScreenState extends State<_DetailListScreen> {
           await _loadRequests();
           break;
         case 'approved':
-          await _loadTodayRequests(status: 'approved');
+          await _loadRequests(status: 'approved');
           break;
         case 'rejected':
-          await _loadTodayRequests(status: 'rejected');
+          await _loadRequests(status: 'rejected');
           break;
         default:
-          setState(() => _items = []);
+          if (mounted) setState(() => _items = []);
           break;
       }
     } catch (e) {
-      setState(() => _error = 'Failed to load data: $e');
+      if (mounted) setState(() => _error = 'Failed to load data: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -906,7 +949,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         'role': userData['role'] ?? 'user',
       });
     }
-    setState(() => _items = items);
+    if (mounted) setState(() => _items = items);
   }
 
   Future<void> _loadTodayRequests({String? status}) async {
@@ -940,7 +983,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         'role': userData['role'] ?? 'user',
       });
     }
-    setState(() => _items = items);
+    if (mounted) setState(() => _items = items);
   }
 
   String _getTitle() {
@@ -948,8 +991,8 @@ class _DetailListScreenState extends State<_DetailListScreen> {
       'pending': 'Pending Requests (${widget.stats['pendingRequests'] ?? 0})',
       'today': "Today's Requests (${widget.stats['todayRequests'] ?? 0})",
       'total': 'Total Requests (${widget.stats['totalRequests'] ?? 0})',
-      'approved': 'Approved Today (${widget.stats['approvedToday'] ?? 0})',
-      'rejected': 'Rejected Today (${widget.stats['rejectedToday'] ?? 0})',
+      'approved': 'Approved Requests (${widget.stats['approvedRequests'] ?? 0})',
+      'rejected': 'Rejected Requests (${widget.stats['rejectedRequests'] ?? 0})',
     };
     return labels[widget.type] ?? 'Details';
   }
@@ -1026,7 +1069,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
       case 'admin': return 'Admin';
       case 'manager': return 'Manager';
       case 'staff': return 'Staff';
-      default: return 'Employee';
+      default: return 'Staff';
     }
   }
 
@@ -1143,16 +1186,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  // Date range
-                  Text(
-                    '${_formatDate(item['startDate'])} - ${_formatDate(item['endDate'])}',
-                    style: TextStyle(
-                      fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
-                      color: Colors.grey.shade600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                
                   // Submit time
                   Text(
                     'Submitted: ${_formatTime(item['submitTime'])}',

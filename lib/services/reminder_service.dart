@@ -208,7 +208,7 @@ class ReminderService {
       
       // បង្កើត message
       final message = '''
-⚠️ <b>PENDING REQUEST REMINDER </b> ⚠️
+⚠️<b> PENDING REQUEST REMINDER</b>
 
  <b>Request ID:</b> $requestId
  <b>Staff:</b> $staffName
@@ -219,7 +219,7 @@ class ReminderService {
  <b>Total Days:</b> $totalDays
  <b>Created At:</b> $createdTime
  <b>Waiting Time:</b> $waitingTime
-🔹 Status: <b>PENDING</b>
+ - Status: <b>PENDING</b>
 
 📌 <i>This is an automated reminder message.</i>
  <i>You will receive reminders until this request is approved or rejected.</i>
