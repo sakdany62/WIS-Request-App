@@ -15,14 +15,10 @@ import 'screens/admin/create_user.dart';
 import 'providers/auth_provider.dart';
 import 'app_fonts.dart';
 import 'services/notification_permission_service.dart';
-import 'services/reminder_service.dart';
 import 'services/telegram_config_service.dart';
 
 //  Global navigator key for notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-//  Global instance of ReminderService
-late final ReminderService reminderService;
 
 //  Background callback for Workmanager
 @pragma('vm:entry-point')
@@ -35,15 +31,9 @@ void callbackDispatcher() {
       );
       
       switch (task) {
-        case 'sendReminders':
-          print(' Background reminder triggered at ${DateTime.now()}');
-          await ReminderService().sendRemindersNow();
-          break;
-          
-        case 'resetPendingIds':
-          print('🔄 Resetting pending IDs');
-          ReminderService().resetPendingIds();
-          break;
+        // Removed reminder tasks
+        default:
+          print(' Unknown task: $task');
       }
       
       return Future.value(true);
@@ -83,26 +73,7 @@ void main() async {
     );
     print(' Workmanager initialized');
     
-    //  Register periodic task - 30 minutes
-    await Workmanager().registerPeriodicTask(
-      "reminderTask",
-      "sendReminders",
-      frequency: const Duration(minutes: 30), 
-      constraints: Constraints(
-        networkType: NetworkType.connected,
-        requiresBatteryNotLow: false,
-      ),
-      existingWorkPolicy: ExistingWorkPolicy.replace,
-    );
-    print(' Periodic reminder task registered (every 30 minutes)');
-    
-    //  Register daily reset task
-    await Workmanager().registerPeriodicTask(
-      "resetPendingTask",
-      "resetPendingIds",
-      frequency: const Duration(hours: 24),
-    );
-    print(' Daily reset task registered');
+    // Removed periodic reminder tasks
     
   } catch (e) {
     print('❌ Workmanager initialization error: $e');
@@ -124,15 +95,7 @@ void main() async {
     print('❌ Telegram config initialization error: $e');
   }
   
-  //  Start local reminder service (for foreground)
-  reminderService = ReminderService();
-  reminderService.startReminderService(
-    intervalSeconds: 300, // 5 minutes (default)
-  );
-  
-  // Listen to status changes
-  reminderService.listenToRequestStatusChanges();
-  print(' Reminder service started');
+  // Removed reminder service start
   
   runApp(
     MultiProvider(

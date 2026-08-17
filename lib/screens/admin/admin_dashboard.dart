@@ -7,7 +7,7 @@ import '../../utils/responsive.dart';
 import 'admin_home_screen.dart';
 import 'admin_setting.dart';
 import 'report_screen.dart';
-import 'reminder_config_screen.dart';
+// Removed: import 'reminder_config_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -156,7 +156,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   ),
                   _buildNavItem(
                     2,
-                    Icons.settings_outlined, //  Settings Icon
+                    Icons.settings_outlined,
                     Icons.settings,
                     'Settings',
                     isMobile,

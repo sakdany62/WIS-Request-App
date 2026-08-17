@@ -36,7 +36,7 @@ class TelegramService {
       final configs = await _getConfigs();
       final token = configs['botToken'] ?? '';
       if (token.isEmpty) {
-        print('⚠️ Bot token not found in config, using default');
+        print(' Bot token not found in config, using default');
         return _defaultBotToken;
       }
       return token;
@@ -301,17 +301,17 @@ class TelegramService {
         return 'Position: $correctPosition';
       });
 
-      // 📨 ផ្ញើទៅកាន់ Chat IDs សំខាន់ៗ
-      print('📨 Sending to main chats:');
-      print('   👤 Manager: $managerChatId');
-      print('   🛡️ Admin: $adminChatId');
-      print('   👥 Group: $groupChatId');
+      //  ផ្ញើទៅកាន់ Chat IDs សំខាន់ៗ
+      print(' Sending to main chats:');
+      print('    Manager: $managerChatId');
+      print('    Admin: $adminChatId');
+      print('    Group: $groupChatId');
 
       bool managerSent = await _sendMessage(managerChatId, finalMessage);
       bool adminSent = await _sendMessage(adminChatId, finalMessage);
       bool groupSent = await _sendMessage(groupChatId, finalMessage);
 
-      // 📨 ផ្ញើទៅកាន់ Additional Chat IDs
+      //  ផ្ញើទៅកាន់ Additional Chat IDs
       final additionalChatIds = await _getAdditionalChatIds();
       bool allAdditionalSent = true;
 
@@ -565,5 +565,101 @@ This is a test message sent to:
   // ===== Get Current Configs (for UI) =====
   static Future<Map<String, String>> getCurrentConfigs() async {
     return await _getConfigs();
+  }
+
+  // ================================================================
+  // ===== SEND PHOTO TO TELEGRAM =====
+  // ================================================================
+  
+  /// Send a photo to Telegram with caption
+  static Future<bool> sendPhotoToTelegram({
+    required List<int> photoBytes,
+    String? caption,
+    String? chatId,
+  }) async {
+    try {
+      final botToken = await _getBotToken();
+      if (botToken.isEmpty) {
+        print('❌ Bot token is empty, cannot send photo');
+        return false;
+      }
+
+      // If specific chatId provided, send only to that chat
+      if (chatId != null && chatId.isNotEmpty) {
+        return await _sendPhoto(chatId, photoBytes, caption);
+      }
+
+      // Send to all main chats
+      final chatIds = await _getChatIds();
+      final List<String> mainChatIds = [
+        chatIds['managerChatId'] ?? _defaultManagerChatId,
+        chatIds['adminChatId'] ?? _defaultAdminChatId,
+        chatIds['groupChatId'] ?? _defaultGroupChatId,
+      ];
+
+      bool allSent = true;
+      for (String id in mainChatIds) {
+        if (id.isNotEmpty && id != 'MANAGER_CHAT_ID' && id != 'ADMIN_CHAT_ID' && id != 'GROUP_CHAT_ID') {
+          final sent = await _sendPhoto(id, photoBytes, caption);
+          if (!sent) allSent = false;
+        }
+      }
+
+      // Send to additional chats
+      final additionalChatIds = await _getAdditionalChatIds();
+      for (var chat in additionalChatIds) {
+        final id = chat['chatId'] ?? '';
+        if (id.isNotEmpty) {
+          final sent = await _sendPhoto(id, photoBytes, caption);
+          if (!sent) allSent = false;
+        }
+      }
+
+      return allSent;
+    } catch (e) {
+      print('❌ Error sending photo to Telegram: $e');
+      return false;
+    }
+  }
+
+  // ===== CORE SEND PHOTO =====
+  static Future<bool> _sendPhoto(String chatId, List<int> photoBytes, String? caption) async {
+    if (chatId.isEmpty || chatId == 'MANAGER_CHAT_ID' || chatId == 'ADMIN_CHAT_ID' || chatId == 'GROUP_CHAT_ID') {
+      print('⚠️ Invalid chat ID: $chatId');
+      return false;
+    }
+
+    final botToken = await _getBotToken();
+    if (botToken.isEmpty) {
+      print('❌ Bot token is empty, cannot send photo');
+      return false;
+    }
+
+    try {
+      final url = 'https://api.telegram.org/bot$botToken/sendPhoto';
+      
+      final request = http.MultipartRequest('POST', Uri.parse(url))
+        ..fields['chat_id'] = chatId
+        ..fields['caption'] = caption ?? '📸 Attachment'
+        ..files.add(http.MultipartFile.fromBytes(
+          'photo',
+          photoBytes,
+          filename: 'attachment_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        ));
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        print(' Photo sent to $chatId');
+        return true;
+      } else {
+        print('❌ Failed to send photo to $chatId: $responseBody');
+        return false;
+      }
+    } catch (e) {
+      print('❌ Error sending photo to $chatId: $e');
+      return false;
+    }
   }
 }

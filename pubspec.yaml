@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   timezone: ^0.9.4
+  
   # Firebase Core
   firebase_core: ^3.15.2
   firebase_auth: ^5.5.1
@@ -43,8 +44,7 @@ dependencies:
   permission_handler: ^11.3.1
   
   # ===== NOTIFICATION PACKAGES =====
-  # ✅ ប្រើ version 15.1.1 (stable)
-  flutter_local_notifications: ^15.1.1
+  flutter_local_notifications: ^17.2.4
   
   # ===== BACKGROUND SERVICE =====
   workmanager: ^0.5.0
@@ -60,44 +60,33 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.13.1
-
+url_launcher: ^6.2.5
 flutter:
   uses-material-design: true
   
   assets:
     - assets/images/
     - assets/img/
-    - assets/icon/  
-
+    - assets/icon/
 
 flutter_launcher_icons:
   android: true  
   ios: true
   image_path: "assets/icon/app_icon.png"
-  
- 
   adaptive_icon_background: "#173B69"
   adaptive_icon_foreground: "assets/icon/app_icon.png"
   adaptive_icon_padding: 0  
-  
-
   remove_alpha_ios: false  
   ios_content_mode: scaleAspectFill 
-  
-  #  សម្រាប់ Web
   web:
     generate: true
     image_path: "assets/icon/app_icon.png"
     background_color: "#173B69"  
     theme_color: "#173B69"
-  
-  #  សម្រាប់ Windows
   windows:
     generate: true
     image_path: "assets/icon/app_icon.png"
     icon_size: 48  
-  
-  #  សម្រាប់ macOS
   macos:
     generate: true
     image_path: "assets/icon/app_icon.png"

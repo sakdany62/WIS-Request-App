@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/request_service.dart';
 import '../../services/telegram_service.dart';
 import '../../utils/responsive.dart';
@@ -323,6 +324,43 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     );
   }
 
+  // ===== OPEN TELEGRAM APP =====
+  Future<void> _openTelegram() async {
+    try {
+      // Try to open Telegram app
+      final Uri telegramUri = Uri.parse('tg://resolve?domain=telegram');
+      if (await canLaunchUrl(telegramUri)) {
+        await launchUrl(telegramUri);
+      } else {
+        // Fallback: open Telegram web
+        final Uri fallbackUri = Uri.parse('https://t.me/telegram');
+        if (await canLaunchUrl(fallbackUri)) {
+          await launchUrl(fallbackUri);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Please install Telegram app to view attachment'),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Error opening Telegram: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening Telegram: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   // ==================== SHOW REQUEST DETAIL DIALOG ====================
   void _showRequestDetailDialog({
     required String requestId,
@@ -333,6 +371,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
     required int totalDays,
     required String department,
     required String permissionType,
+    String? imageUrl,
   }) {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -395,6 +434,38 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   ),
                 ],
               ),
+              // ✅ បង្ហាញរូបភាព (បើមាន) - អាចចុចបើក Telegram
+              if (imageUrl != null && imageUrl.isNotEmpty) ...[
+                SizedBox(height: spacing * 1.5),
+                GestureDetector(
+                  onTap: _openTelegram,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: spacing * 1.5, vertical: spacing),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.image, color: Colors.blue.shade700, size: 20),
+                        SizedBox(width: spacing),
+                        Expanded(
+                          child: Text(
+                            '📎 Tap to view attachment in Telegram',
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize * 0.8 : fontSize,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.open_in_new, color: Colors.blue.shade400, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               SizedBox(height: spacing * 2.5),
               Row(
                 children: [
@@ -1402,6 +1473,7 @@ Status: APPROVED
     final String endDate = data['endDate'] ?? 'N/A';
     final String month = _getMonthFromDate(startDate);
     final String date = _getDateFromDate(startDate);
+    final String imageUrl = data['imageUrl'] ?? '';
 
     return Container(
       padding: EdgeInsets.all(isMobile ? 12 : 14),
@@ -1423,6 +1495,7 @@ Status: APPROVED
               totalDays: totalDays,
               department: data['department'] ?? 'N/A',
               permissionType: data['permissionType'] ?? 'Leave',
+              imageUrl: imageUrl,
             ),
             child: Row(
               children: [
@@ -1526,8 +1599,6 @@ Status: APPROVED
               ],
             ),
           ),
-        
-          
         ],
       ),
     );

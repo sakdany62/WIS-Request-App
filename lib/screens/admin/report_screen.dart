@@ -473,6 +473,7 @@ class _ReportScreenState extends State<ReportScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF173B69),
         elevation: 2,
+        automaticallyImplyLeading: false, 
         title: const Text(
           'Reports',
           style: TextStyle(
@@ -481,7 +482,7 @@ class _ReportScreenState extends State<ReportScreen> {
             color: Colors.white,
           ),
         ),
-        centerTitle: false,
+        centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(

@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:cross_file/cross_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/request_service.dart';
 import '../../services/telegram_service.dart';
@@ -24,7 +24,7 @@ class RequestScreen extends StatefulWidget {
 }
 
 class _RequestScreenState extends State<RequestScreen> {
-  String? selectedReason; // Changed to nullable
+  String? selectedReason;
   final TextEditingController otherController = TextEditingController();
   DateTime? startDate;
   DateTime? endDate;
@@ -33,7 +33,8 @@ class _RequestScreenState extends State<RequestScreen> {
   final RequestService _requestService = RequestService();
   final PolicyService _policyService = PolicyService();
 
-  File? _selectedImage;
+  // ✅ ប្រើ XFile ជំនួស File
+  XFile? _selectedImage;
   String? _imageName;
 
   String _staffName = '';
@@ -101,7 +102,6 @@ class _RequestScreenState extends State<RequestScreen> {
         if (mounted) {
           setState(() {
             _allowedReasons = reasons;
-            // Don't auto-select any reason
             if (_allowedReasons.isNotEmpty && 
                 (selectedReason == null || !_allowedReasons.contains(selectedReason))) {
               // Keep null if no selection
@@ -238,6 +238,9 @@ class _RequestScreenState extends State<RequestScreen> {
     _showError('Request can only be for 1 day');
   }
 
+  // ================================================================
+  // ===== PICK IMAGE USING XFile =====
+  // ================================================================
   Future<void> _pickImage() async {
     try {
       final ImagePicker picker = ImagePicker();
@@ -249,18 +252,17 @@ class _RequestScreenState extends State<RequestScreen> {
       );
 
       if (image != null) {
-        final file = File(image.path);
-        final fileName = image.name;
-
         setState(() {
-          _selectedImage = file;
-          _imageName = fileName;
+          _selectedImage = image;  // ✅ រក្សា XFile ដើម
+          _imageName = image.name;
         });
 
-        _showSuccess('Image selected: $fileName');
+        _showSuccess('Image selected: ${image.name}');
+        print('✅ Image selected: ${image.path}, size: ${await image.length()} bytes');
       }
     } catch (e) {
       _showError('Failed to pick image: $e');
+      print('❌ Error picking image: $e');
     }
   }
 
@@ -277,7 +279,7 @@ class _RequestScreenState extends State<RequestScreen> {
       startDate = null;
       endDate = null;
       totalDays = 0;
-      selectedReason = null; // Set to null instead of default
+      selectedReason = null;
       otherController.clear();
       _selectedImage = null;
       _imageName = null;
@@ -372,6 +374,9 @@ class _RequestScreenState extends State<RequestScreen> {
     }
   }
 
+  // ================================================================
+  // ===== SUBMIT REQUEST (WITH IMAGE SENDING) =====
+  // ================================================================
   Future<void> _submitRequest() async {
     if (startDate == null) {
       _showError('Please select a start date');
@@ -430,6 +435,22 @@ class _RequestScreenState extends State<RequestScreen> {
 
       String? imageUrl;
 
+      // 🔥 Read image bytes from XFile
+      List<int>? photoBytes;
+      if (_selectedImage != null) {
+        try {
+          photoBytes = await _selectedImage!.readAsBytes();  // ✅ ដំណើរការជាមួយ XFile
+          imageUrl = 'sent_to_telegram_${DateTime.now().millisecondsSinceEpoch}';
+          print('✅ Image read successfully from XFile, size: ${photoBytes.length} bytes');
+        } catch (e) {
+          print('❌ Error reading image from XFile: $e');
+          setState(() {
+            _selectedImage = null;
+            _imageName = null;
+          });
+        }
+      }
+
       final result = await _requestService.submitRequestWithAutoApprove(
         startDate: formatDate(startDate),
         endDate: formatDate(endDate),
@@ -445,10 +466,12 @@ class _RequestScreenState extends State<RequestScreen> {
         userEmail: _staffEmail.isNotEmpty ? _staffEmail : FirebaseAuth.instance.currentUser?.email ?? '',
       );
 
+      // 🔥 Send notification with image
       await _sendTelegramNotification(
         requestId: result['requestId'] ?? 'N/A',
         status: result['status'] ?? 'pending',
         reasonText: reasonTextForNotification,
+        photoBytes: photoBytes,
       );
 
       if (mounted) {
@@ -492,11 +515,80 @@ class _RequestScreenState extends State<RequestScreen> {
     }
   }
 
+  // ================================================================
+  // ===== SEND TELEGRAM NOTIFICATION WITH PHOTO + FULL CAPTION =====
+  // ================================================================
   Future<void> _sendTelegramNotification({
     required String requestId,
     required String status,
     required String reasonText,
+    List<int>? photoBytes,
   }) async {
+    try {
+      final String displayName = _staffName.isNotEmpty && !_staffName.contains('@')
+          ? _staffName
+          : (FirebaseAuth.instance.currentUser?.displayName ??
+              FirebaseAuth.instance.currentUser?.email?.split('@').first ??
+              'Staff');
+
+      //  Build FULL CAPTION with all details
+      final String fullCaption = '''
+NEW PERMISSION REQUEST!
+
+Request ID: $requestId
+Staff Name: $displayName
+Department: $_staffDepartment
+Position: $_staffPosition
+Submit Time: $_submitTimeString
+Details:
+ - Reason: $reasonText
+ - Start Date: ${formatDate(startDate)}
+ - End Date: ${formatDate(endDate)}
+ - Duration: $totalDays day
+
+Status: PENDING
+''';
+
+      //  If photo exists, send photo with full caption
+      if (photoBytes != null && photoBytes.isNotEmpty) {
+        final photoSent = await TelegramService.sendPhotoToTelegram(
+          photoBytes: photoBytes,
+          caption: fullCaption,
+        );
+        
+        if (photoSent) {
+          print(' Photo with full caption sent successfully');
+        } else {
+          print(' Failed to send photo, sending text message only');
+          await _sendTextMessageOnly(requestId, displayName, reasonText, status);
+        }
+      } else {
+        // No photo, send text message only
+        print('📨 No photo, sending text message only');
+        await _sendTextMessageOnly(requestId, displayName, reasonText, status);
+      }
+    } catch (e) {
+      print('❌ Error in _sendTelegramNotification: $e');
+      try {
+        final String displayName = _staffName.isNotEmpty && !_staffName.contains('@')
+            ? _staffName
+            : (FirebaseAuth.instance.currentUser?.displayName ??
+                FirebaseAuth.instance.currentUser?.email?.split('@').first ??
+                'Staff');
+        await _sendTextMessageOnly(requestId, displayName, reasonText, status);
+      } catch (e2) {
+        print('❌ Fallback also failed: $e2');
+      }
+    }
+  }
+
+  // ===== SEND TEXT MESSAGE ONLY (FALLBACK) =====
+  Future<void> _sendTextMessageOnly(
+    String requestId,
+    String displayName,
+    String reasonText,
+    String status,
+  ) async {
     try {
       final details = {
         'reason': reasonText,
@@ -506,17 +598,12 @@ class _RequestScreenState extends State<RequestScreen> {
         'submitTime': _submitTimeString,
       };
 
-      final String displayName = _staffName.isNotEmpty && !_staffName.contains('@')
-          ? _staffName
-          : (FirebaseAuth.instance.currentUser?.displayName ??
-              FirebaseAuth.instance.currentUser?.email?.split('@').first ??
-              'Staff');
-
       final bool isViewing = await _checkViewMode();
       final bool isManager = await _checkIsManager();
 
+      String message;
       if (isViewing && isManager) {
-        final String message = await ManagerTelegramService.formatManagerViewRequest(
+        message = await ManagerTelegramService.formatManagerViewRequest(
           staffName: displayName,
           staffDepartment: _staffDepartment.isNotEmpty ? _staffDepartment : 'N/A',
           permissionType: reasonText,
@@ -524,12 +611,8 @@ class _RequestScreenState extends State<RequestScreen> {
           requestId: requestId,
           status: status,
         );
-
-        if (message.isNotEmpty) {
-          await ManagerTelegramService.sendToAll(message);
-        }
       } else {
-        final String message = await TelegramService.formatPermissionRequestWithInfo(
+        message = await TelegramService.formatPermissionRequestWithInfo(
           staffName: displayName,
           staffPosition: _staffPosition.isNotEmpty ? _staffPosition : 'Employee',
           staffDepartment: _staffDepartment.isNotEmpty ? _staffDepartment : 'N/A',
@@ -538,11 +621,13 @@ class _RequestScreenState extends State<RequestScreen> {
           requestId: requestId,
           status: status,
         );
+      }
 
+      if (message.isNotEmpty) {
         await TelegramService.sendToAll(message);
       }
     } catch (e) {
-      // ignore
+      print('❌ Error sending text message: $e');
     }
   }
 
@@ -1003,7 +1088,7 @@ class _RequestScreenState extends State<RequestScreen> {
       onTap: () {
         setState(() {
           if (selectedReason == title) {
-            selectedReason = null; // Deselect if already selected
+            selectedReason = null;
           } else {
             selectedReason = title;
           }
