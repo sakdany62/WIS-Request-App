@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:workmanager/workmanager.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -17,16 +18,46 @@ import 'services/notification_permission_service.dart';
 import 'services/reminder_service.dart';
 import 'services/telegram_config_service.dart';
 
-// ✅ Global navigator key for notifications
+//  Global navigator key for notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-// ✅ Global instance of ReminderService
+//  Global instance of ReminderService
 late final ReminderService reminderService;
+
+//  Background callback for Workmanager
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    try {
+      // Initialize Firebase in background
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      
+      switch (task) {
+        case 'sendReminders':
+          print(' Background reminder triggered at ${DateTime.now()}');
+          await ReminderService().sendRemindersNow();
+          break;
+          
+        case 'resetPendingIds':
+          print('🔄 Resetting pending IDs');
+          ReminderService().resetPendingIds();
+          break;
+      }
+      
+      return Future.value(true);
+    } catch (e) {
+      print('❌ Background task error: $e');
+      return Future.value(false);
+    }
+  });
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // ✅ កំណត់ Status Bar
+  //  កំណត់ Status Bar
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -39,15 +70,48 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('✅ Firebase initialized successfully');
+    print(' Firebase initialized successfully');
   } catch (e) {
     print('❌ Firebase initialization error: $e');
+  }
+  
+  //  Initialize Workmanager
+  try {
+    await Workmanager().initialize(
+      callbackDispatcher,
+      isInDebugMode: false, // Set to true for debugging
+    );
+    print(' Workmanager initialized');
+    
+    //  Register periodic task - 30 minutes
+    await Workmanager().registerPeriodicTask(
+      "reminderTask",
+      "sendReminders",
+      frequency: const Duration(minutes: 30), 
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+        requiresBatteryNotLow: false,
+      ),
+      existingWorkPolicy: ExistingWorkPolicy.replace,
+    );
+    print(' Periodic reminder task registered (every 30 minutes)');
+    
+    //  Register daily reset task
+    await Workmanager().registerPeriodicTask(
+      "resetPendingTask",
+      "resetPendingIds",
+      frequency: const Duration(hours: 24),
+    );
+    print(' Daily reset task registered');
+    
+  } catch (e) {
+    print('❌ Workmanager initialization error: $e');
   }
   
   // ដំឡើង notifications
   try {
     await NotificationPermissionService.initializeNotifications();
-    print('✅ Notifications initialized');
+    print(' Notifications initialized');
   } catch (e) {
     print('❌ Notification initialization error: $e');
   }
@@ -55,27 +119,25 @@ void main() async {
   // Initialize default Telegram configs
   try {
     await TelegramConfigService.initializeDefaultConfigs();
-    print('✅ Telegram configs initialized');
+    print(' Telegram configs initialized');
   } catch (e) {
     print('❌ Telegram config initialization error: $e');
   }
   
-  // ✅ Start reminder service with global instance
+  //  Start local reminder service (for foreground)
   reminderService = ReminderService();
   reminderService.startReminderService(
     intervalSeconds: 300, // 5 minutes (default)
   );
   
-  // ✅ Listen to status changes
+  // Listen to status changes
   reminderService.listenToRequestStatusChanges();
-  print('✅ Reminder service started');
+  print(' Reminder service started');
   
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        // ✅ បន្ថែម Provider សម្រាប់ ReminderService ប្រសិនបើត្រូវការ
-        // Provider<ReminderService>.value(value: reminderService),
       ],
       child: const MyApp(),
     ),

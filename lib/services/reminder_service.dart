@@ -1,9 +1,7 @@
 // lib/services/reminder_service.dart
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'telegram_service.dart';
-import 'telegram_config_service.dart';
 
 class ReminderService {
   static final ReminderService _instance = ReminderService._internal();
@@ -12,13 +10,11 @@ class ReminderService {
 
   Timer? _reminderTimer;
   bool _isRunning = false;
-  
-  // រយៈពេលចន្លោះពេលផ្ញើសារ (គិតជាវិនាទី) - Default 5 នាទី
-  int _reminderIntervalSeconds = 300; // 5 minutes
-  
-  // បញ្ជី request IDs ដែលកំពុងរង់ចាំ
+  int _reminderIntervalSeconds = 300;
   Set<String> _pendingRequestIds = {};
+  bool _isSending = false;
 
+  // ===== START SERVICE (Foreground) =====
   void startReminderService({int intervalSeconds = 300}) {
     if (_isRunning) {
       print('⚠️ Reminder service is already running');
@@ -29,11 +25,11 @@ class ReminderService {
     _isRunning = true;
     
     print('🚀 Starting reminder service with interval: ${_reminderIntervalSeconds}s');
+    print('⚠️ NOTE: This only works when app is in foreground!');
+    print('✅ Background reminders via Workmanager every 15 minutes');
     
-    // ចាប់ផ្ដើមផ្ញើសារភ្លាមៗ
     _sendReminders();
     
-    // កំណត់ timer
     _reminderTimer = Timer.periodic(
       Duration(seconds: _reminderIntervalSeconds),
       (timer) => _sendReminders(),
@@ -55,13 +51,36 @@ class ReminderService {
   void setInterval(int seconds) {
     _reminderIntervalSeconds = seconds;
     if (_isRunning) {
-      // Restart timer with new interval
       stopReminderService();
       startReminderService(intervalSeconds: seconds);
     }
   }
 
-  // ===== ផ្ញើសាររំលឹក =====
+  // ===== SEND REMINDERS (Called by Workmanager) =====
+  Future<void> sendRemindersNow() async {
+    if (_isSending) {
+      print('⏳ Already sending reminders, skipping...');
+      return;
+    }
+    
+    _isSending = true;
+    
+    try {
+      print('🔔 Background reminder check at ${DateTime.now()}');
+      await _sendReminders();
+    } catch (e) {
+      print('❌ Error in background reminder: $e');
+    } finally {
+      _isSending = false;
+    }
+  }
+
+  // ===== Reset pending IDs (Called daily by Workmanager) =====
+  void resetPendingIds() {
+    _pendingRequestIds.clear();
+    print('🔄 Pending IDs reset successfully');
+  }
+
   Future<void> _sendReminders() async {
     try {
       print('🔔 Checking for pending requests...');
@@ -75,7 +94,6 @@ class ReminderService {
       
       print('📨 Found ${pendingRequests.length} pending requests');
       
-      // ត្រងយកតែ request ដែលមិនទាន់បានផ្ញើក្នុងជុំនេះ
       final requestsToSend = pendingRequests
           .where((r) => !_pendingRequestIds.contains(r['requestId']))
           .toList();
@@ -85,10 +103,10 @@ class ReminderService {
         return;
       }
       
-      // ផ្ញើសារសម្រាប់ request នីមួយៗ
       for (var request in requestsToSend) {
         await _sendReminderForRequest(request);
         _pendingRequestIds.add(request['requestId']);
+        await Future.delayed(const Duration(milliseconds: 500));
       }
       
       print('✅ Sent ${requestsToSend.length} reminder(s)');
@@ -98,7 +116,7 @@ class ReminderService {
     }
   }
 
-  // ===== ទាញយក pending requests =====
+  // ===== GET PENDING REQUESTS =====
   Future<List<Map<String, dynamic>>> _getPendingRequests() async {
     try {
       final querySnapshot = await FirebaseFirestore.instance
@@ -120,21 +138,17 @@ class ReminderService {
     }
   }
 
-  // ===== បម្លែងម៉ោងទៅជា AM/PM តាមម៉ោងកម្ពុជា =====
+  // ===== FORMAT TIME =====
   String _formatToCambodiaTime(DateTime dateTime) {
     try {
-      // បម្លែងទៅជាម៉ោងកម្ពុជា (UTC+7)
       final cambodiaTime = dateTime.toUtc().add(const Duration(hours: 7));
-      
       final day = cambodiaTime.day.toString().padLeft(2, '0');
       final month = cambodiaTime.month.toString().padLeft(2, '0');
       final year = cambodiaTime.year;
-      
       int hour = cambodiaTime.hour;
       final int minute = cambodiaTime.minute;
       final String period = hour >= 12 ? 'PM' : 'AM';
       
-      // បម្លែងម៉ោងពី 24-hour ទៅ 12-hour
       if (hour == 0) {
         hour = 12;
       } else if (hour > 12) {
@@ -147,7 +161,6 @@ class ReminderService {
     }
   }
 
-  // ===== គណនារយៈពេលរង់ចាំ =====
   String _calculateWaitingTime(DateTime createdAt) {
     try {
       final now = DateTime.now().toUtc();
@@ -178,7 +191,7 @@ class ReminderService {
     }
   }
 
-  // ===== ផ្ញើសាររំលឹកសម្រាប់ request មួយ =====
+  // ===== SEND REMINDER FOR REQUEST =====
   Future<void> _sendReminderForRequest(Map<String, dynamic> request) async {
     try {
       final requestId = request['requestId'] ?? request['requestNumber'] ?? 'N/A';
@@ -190,46 +203,39 @@ class ReminderService {
       final department = request['department'] ?? 'N/A';
       final createdAt = request['createdAt'] as Timestamp?;
       
-      // បង្កើតពេលវេលាជា AM/PM តាមម៉ោងកម្ពុជា
       String createdTime = 'N/A';
       if (createdAt != null) {
         createdTime = _formatToCambodiaTime(createdAt.toDate());
       }
       
-      // គណនារយៈពេលរង់ចាំ
       String waitingTime = 'N/A';
       if (createdAt != null) {
         waitingTime = _calculateWaitingTime(createdAt.toDate());
       }
       
-      // រាប់ចំនួន reminders ដែលបានផ្ញើ
       int reminderCount = request['reminderCount'] ?? 0;
       final reminderNumber = reminderCount + 1;
       
-      // បង្កើត message
       final message = '''
-⚠️<b> PENDING REQUEST REMINDER</b>
+⚠️ <b>PENDING REQUEST REMINDER</b>
 
- <b>Request ID:</b> $requestId
- <b>Staff:</b> $staffName
- <b>Department:</b> $department
- <b>Reason:</b> $reason
-​ <b>Start Date:</b> $startDate
- <b>End Date:</b> $endDate
- <b>Total Days:</b> $totalDays
- <b>Created At:</b> $createdTime
- <b>Waiting Time:</b> $waitingTime
- - Status: <b>PENDING</b>
+<b>Request ID:</b> $requestId
+<b>Staff:</b> $staffName
+<b>Department:</b> $department
+<b>Reason:</b> $reason
+<b>Start Date:</b> $startDate
+<b>End Date:</b> $endDate
+<b>Total Days:</b> $totalDays
+<b>Created At:</b> $createdTime
+<b>Waiting Time:</b> $waitingTime
 
-📌 <i>This is an automated reminder message.</i>
- <i>You will receive reminders until this request is approved or rejected.</i>
+📌 <i>Status: PENDING</i>
+<i>This is an automated reminder. You will receive reminders until this request is approved or rejected.</i>
       ''';
       
-      // ផ្ញើសារទៅ Telegram
       final sent = await TelegramService.sendToAll(message);
       
       if (sent) {
-        // កត់ត្រាក្នុង Firestore ថាបានផ្ញើ reminder
         await _logReminder(request['requestId'] ?? requestId);
         print('📤 Reminder #$reminderNumber sent for request: $requestId');
       } else {
@@ -241,12 +247,11 @@ class ReminderService {
     }
   }
 
-  // ===== កត់ត្រាការផ្ញើ reminder =====
+  // ===== LOG REMINDER =====
   Future<void> _logReminder(String requestId) async {
     try {
       if (requestId.isEmpty) return;
       
-      // អាប់ដេត lastReminderSent និង reminderCount
       await FirebaseFirestore.instance
           .collection('leave_requests')
           .doc(requestId)
@@ -255,7 +260,6 @@ class ReminderService {
         'reminderCount': FieldValue.increment(1),
       });
       
-      // កត់ត្រាលម្អិតក្នុង subcollection
       await FirebaseFirestore.instance
           .collection('leave_requests')
           .doc(requestId)
@@ -271,13 +275,13 @@ class ReminderService {
     }
   }
 
-  // ===== សម្អាត pending IDs ពេល request ត្រូវបាន updated =====
+  // ===== CLEAR PENDING ID =====
   void clearPendingRequestId(String requestId) {
     _pendingRequestIds.remove(requestId);
     print(' Cleared pending ID: $requestId');
   }
 
-  // ===== ប្រើសម្រាប់ Stream Listener ដើម្បី track status changes =====
+  // ===== LISTEN TO STATUS CHANGES =====
   void listenToRequestStatusChanges() {
     FirebaseFirestore.instance
         .collection('leave_requests')
@@ -287,7 +291,6 @@ class ReminderService {
       for (var doc in snapshot.docChanges) {
         if (doc.type == DocumentChangeType.modified || doc.type == DocumentChangeType.added) {
           final requestId = doc.doc.id;
-          // ប្រសិនបើ request ត្រូវបាន approved ឬ rejected សូមលុបចេញពី pending list
           clearPendingRequestId(requestId);
           print(' Request $requestId is no longer pending, removed from reminder list');
         }

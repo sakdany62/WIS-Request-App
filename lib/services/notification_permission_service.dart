@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 // Global navigator key for use in services
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -16,8 +18,11 @@ class NotificationPermissionService {
   static Future<void> initializeNotifications() async {
     if (_isInitialized) return;
 
+    // Initialize timezone
+    tz.initializeTimeZones();
+
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/launcher_icon');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
     
     const DarwinInitializationSettings initializationSettingsIOS =
         DarwinInitializationSettings(
@@ -33,7 +38,9 @@ class NotificationPermissionService {
 
     await _flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: _handleNotificationTap,
+      onDidReceiveNotificationResponse: (details) {
+        print('Notification tapped: ${details.payload}');
+      },
     );
     
     _isInitialized = true;
@@ -43,7 +50,6 @@ class NotificationPermissionService {
   // Request notification permission
   static Future<bool> requestPermission() async {
     try {
-      // Check if running on Android
       final context = navigatorKey.currentContext;
       if (context == null) return false;
       
@@ -59,7 +65,7 @@ class NotificationPermissionService {
         }
         return status.isGranted;
       }
-      return true; // iOS auto handles permissions
+      return true;
     } catch (e) {
       print('❌ Error requesting notification permission: $e');
       return false;
@@ -113,15 +119,6 @@ class NotificationPermissionService {
     );
   }
 
-  // Handle notification tap
-  static void _handleNotificationTap(NotificationResponse response) {
-    final context = navigatorKey.currentContext;
-    if (context != null) {
-      // Navigate to notifications screen if needed
-      // Navigator.pushNamed(context, '/notifications');
-    }
-  }
-
   // Show local notification
   static Future<void> showLocalNotification({
     required int id,
@@ -137,7 +134,7 @@ class NotificationPermissionService {
       importance: Importance.max,
       priority: Priority.high,
       ticker: 'ticker',
-      icon: '@mipmap/launcher_icon',
+      icon: '@mipmap/ic_launcher',
       enableVibration: true,
     );
 
@@ -160,5 +157,139 @@ class NotificationPermissionService {
       platformChannelSpecifics,
       payload: payload,
     );
+  }
+
+  // ✅ Schedule notification - ប្រើ zonedSchedule
+  static Future<void> scheduleNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledTime,
+    String? payload,
+  }) async {
+    try {
+      // Convert to TZDateTime
+      final tz.TZDateTime scheduledTZDateTime =
+          tz.TZDateTime.from(scheduledTime, tz.local);
+
+      const AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+        'permission_channel',
+        'Permission Notifications',
+        channelDescription: 'Notifications for permission system',
+        importance: Importance.max,
+        priority: Priority.high,
+        ticker: 'ticker',
+        icon: '@mipmap/ic_launcher',
+        enableVibration: true,
+      );
+
+      const DarwinNotificationDetails iosPlatformChannelSpecifics =
+          DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+        iOS: iosPlatformChannelSpecifics,
+      );
+
+      // ✅ ប្រើ zonedSchedule
+      await _flutterLocalNotificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledTZDateTime,
+        platformChannelSpecifics,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+      );
+      
+      print('✅ Notification scheduled for: $scheduledTime');
+    } catch (e) {
+      print('❌ Error scheduling notification: $e');
+    }
+  }
+
+  // ✅ Schedule periodic notification - រាល់ X នាទី
+  static Future<void> schedulePeriodicNotification({
+    required int id,
+    required String title,
+    required String body,
+    required Duration interval,
+    String? payload,
+  }) async {
+    try {
+      // Calculate next scheduled time
+      final now = DateTime.now();
+      final scheduledTime = now.add(interval);
+
+      // Convert to TZDateTime
+      final tz.TZDateTime scheduledTZDateTime =
+          tz.TZDateTime.from(scheduledTime, tz.local);
+
+      const AndroidNotificationDetails androidPlatformChannelSpecifics =
+          AndroidNotificationDetails(
+        'permission_channel',
+        'Permission Notifications',
+        channelDescription: 'Notifications for permission system',
+        importance: Importance.max,
+        priority: Priority.high,
+        ticker: 'ticker',
+        icon: '@mipmap/ic_launcher',
+        enableVibration: true,
+      );
+
+      const DarwinNotificationDetails iosPlatformChannelSpecifics =
+          DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      const NotificationDetails platformChannelSpecifics = NotificationDetails(
+        android: androidPlatformChannelSpecifics,
+        iOS: iosPlatformChannelSpecifics,
+      );
+
+      // ✅ ប្រើ zonedSchedule
+      await _flutterLocalNotificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledTZDateTime,
+        platformChannelSpecifics,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
+      );
+      
+      print('✅ Periodic notification scheduled every ${interval.inMinutes} minutes');
+    } catch (e) {
+      print('❌ Error scheduling periodic notification: $e');
+    }
+  }
+
+  // Cancel notification
+  static Future<void> cancelNotification(int id) async {
+    try {
+      await _flutterLocalNotificationsPlugin.cancel(id);
+      print('✅ Notification cancelled: $id');
+    } catch (e) {
+      print('❌ Error cancelling notification: $e');
+    }
+  }
+
+  // Cancel all notifications
+  static Future<void> cancelAllNotifications() async {
+    try {
+      await _flutterLocalNotificationsPlugin.cancelAll();
+      print('✅ All notifications cancelled');
+    } catch (e) {
+      print('❌ Error cancelling all notifications: $e');
+    }
   }
 }
