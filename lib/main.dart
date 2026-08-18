@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:workmanager/workmanager.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -19,30 +18,6 @@ import 'services/telegram_config_service.dart';
 
 //  Global navigator key for notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-//  Background callback for Workmanager
-@pragma('vm:entry-point')
-void callbackDispatcher() {
-  Workmanager().executeTask((task, inputData) async {
-    try {
-      // Initialize Firebase in background
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      
-      switch (task) {
-        // Removed reminder tasks
-        default:
-          print(' Unknown task: $task');
-      }
-      
-      return Future.value(true);
-    } catch (e) {
-      print('❌ Background task error: $e');
-      return Future.value(false);
-    }
-  });
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,20 +40,6 @@ void main() async {
     print('❌ Firebase initialization error: $e');
   }
   
-  //  Initialize Workmanager
-  try {
-    await Workmanager().initialize(
-      callbackDispatcher,
-      isInDebugMode: false, // Set to true for debugging
-    );
-    print(' Workmanager initialized');
-    
-    // Removed periodic reminder tasks
-    
-  } catch (e) {
-    print('❌ Workmanager initialization error: $e');
-  }
-  
   // ដំឡើង notifications
   try {
     await NotificationPermissionService.initializeNotifications();
@@ -94,8 +55,6 @@ void main() async {
   } catch (e) {
     print('❌ Telegram config initialization error: $e');
   }
-  
-  // Removed reminder service start
   
   runApp(
     MultiProvider(

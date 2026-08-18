@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
-import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 
@@ -25,15 +28,13 @@ class _ReportScreenState extends State<ReportScreen> {
   Map<String, dynamic> _summary = {};
   String _filterDepartment = 'all';
   int _currentSegment = 0;
+  String _searchQuery = '';
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Map<String, String> _userNameCache = {};
 
-  final List<Map<String, String>> _departments = [
-    {'id': 'dept_it', 'name': 'IT Department'},
-    {'id': 'dept_education', 'name': 'Education Department'},
-    {'id': 'dept_administration', 'name': 'Administration Department'},
-    {'id': 'dept_service', 'name': 'Service Department'},
-  ];
+  // Departments loaded from Firestore
+  List<Map<String, String>> _departments = [];
 
   final List<String> _segmentLabels = [
     'All',
@@ -41,6 +42,25 @@ class _ReportScreenState extends State<ReportScreen> {
     'Approved',
     'Rejected',
   ];
+
+  // ===== CHECK PLATFORM =====
+  bool get _isWeb => kIsWeb;
+  bool get _isDesktop {
+    if (_isWeb) return false;
+    return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
+  }
+  bool get _isMobile {
+    if (_isWeb) return false;
+    return Platform.isAndroid || Platform.isIOS;
+  }
+  bool get _isWindows {
+    if (_isWeb) return false;
+    return Platform.isWindows;
+  }
+  bool get _isAndroid {
+    if (_isWeb) return false;
+    return Platform.isAndroid;
+  }
 
   DateTime _getStartOfWeek(DateTime date) {
     int weekday = date.weekday;
@@ -107,22 +127,67 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  final Map<String, String> _userNameCache = {};
+  // ===== LOAD DEPARTMENTS FROM FIRESTORE =====
+  Future<void> _loadDepartments() async {
+    try {
+      final snapshot = await _firestore.collection('departments').orderBy('name').get();
 
-  Future<String> _getUserFullNameCached(String userId) async {
-    if (userId.isEmpty) return 'Unknown';
-    if (_userNameCache.containsKey(userId)) {
-      return _userNameCache[userId]!;
+      final List<Map<String, String>> loadedDepartments = [];
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        loadedDepartments.add({
+          'id': doc.id,
+          'name': data['name']?.toString() ?? 'Unnamed',
+        });
+      }
+
+      if (loadedDepartments.isEmpty) {
+        setState(() {
+          _departments = _getDefaultDepartments();
+        });
+        return;
+      }
+
+      setState(() {
+        _departments = loadedDepartments;
+      });
+
+      print('✅ Loaded ${_departments.length} departments from Firestore');
+    } catch (e) {
+      print('❌ Error loading departments: $e');
+      setState(() {
+        _departments = _getDefaultDepartments();
+      });
     }
-    final name = await _getUserFullName(userId);
-    _userNameCache[userId] = name;
-    return name;
+  }
+
+  List<Map<String, String>> _getDefaultDepartments() {
+    return [
+      {'id': 'dept_it', 'name': 'IT Department'},
+      {'id': 'dept_education', 'name': 'Education Department'},
+      {'id': 'dept_administration', 'name': 'Administration Department'},
+      {'id': 'dept_service', 'name': 'Service Department'},
+    ];
   }
 
   @override
   void initState() {
     super.initState();
+    _loadDepartments();
     _loadReport();
+    if (_isAndroid) {
+      _requestPermissions();
+    }
+  }
+
+  Future<void> _requestPermissions() async {
+    if (_isAndroid) {
+      final status = await Permission.storage.status;
+      if (!status.isGranted) {
+        await Permission.storage.request();
+      }
+    }
   }
 
   Future<void> _loadReport() async {
@@ -255,27 +320,50 @@ class _ReportScreenState extends State<ReportScreen> {
     };
   }
 
+  // ===== FILTERED DATA WITH SEARCH =====
   List<Map<String, dynamic>> get _filteredData {
-    if (_currentSegment == 0) return _reportData;
-    String targetStatus;
-    switch (_currentSegment) {
-      case 1:
-        targetStatus = 'pending';
-        break;
-      case 2:
-        targetStatus = 'approved';
-        break;
-      case 3:
-        targetStatus = 'rejected';
-        break;
-      default:
-        return _reportData;
+    List<Map<String, dynamic>> result = [];
+
+    // Filter by status segment
+    if (_currentSegment == 0) {
+      result = _reportData;
+    } else {
+      String targetStatus;
+      switch (_currentSegment) {
+        case 1:
+          targetStatus = 'pending';
+          break;
+        case 2:
+          targetStatus = 'approved';
+          break;
+        case 3:
+          targetStatus = 'rejected';
+          break;
+        default:
+          return _reportData;
+      }
+      result = _reportData.where((item) => item['status'] == targetStatus).toList();
     }
-    return _reportData.where((item) => item['status'] == targetStatus).toList();
+
+    // Filter by search query (name or email)
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase().trim();
+      result = result.where((item) {
+        final name = (item['userName'] ?? '').toLowerCase();
+        final email = (item['userEmail'] ?? '').toLowerCase();
+        return name.contains(query) || email.contains(query);
+      }).toList();
+    }
+
+    return result;
   }
 
+  // ===== EXPORT FUNCTION (ប្រើ _filteredData ដើម្បីរាប់បញ្ចូល Status + Search) =====
   Future<void> _exportToExcel() async {
-    if (_reportData.isEmpty) {
+    // ✅ ប្រើ _filteredData ជំនួស _reportData
+    final dataToExport = _filteredData;
+    
+    if (dataToExport.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No data to export'),
@@ -284,6 +372,42 @@ class _ReportScreenState extends State<ReportScreen> {
       );
       return;
     }
+
+    if (_isAndroid) {
+      final status = await Permission.storage.status;
+      if (!status.isGranted) {
+        final result = await Permission.storage.request();
+        if (!result.isGranted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Storage permission is required to export'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+      }
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Generating Excel file...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
 
     try {
       var excelFile = excel.Excel.createExcel();
@@ -318,14 +442,15 @@ class _ReportScreenState extends State<ReportScreen> {
         );
       }
 
-      for (int i = 0; i < _reportData.length; i++) {
-        final r = _reportData[i];
+      // ✅ ប្រើ dataToExport ជំនួស _reportData
+      for (int i = 0; i < dataToExport.length; i++) {
+        final r = dataToExport[i];
         final String cambodiaTime = _formatToCambodiaTime(r['createdAt']);
+
         String fullName = r['userName'] ?? 'Unknown';
         if (r['userId'] != null && r['userId'].isNotEmpty) {
-          final cachedName = _userNameCache[r['userId']];
-          if (cachedName != null) {
-            fullName = cachedName;
+          if (_userNameCache.containsKey(r['userId'])) {
+            fullName = _userNameCache[r['userId']]!;
           } else {
             final fetchedName = await _getUserFullName(r['userId']);
             _userNameCache[r['userId']] = fetchedName;
@@ -336,15 +461,15 @@ class _ReportScreenState extends State<ReportScreen> {
         sheet.appendRow([
           (i + 1),
           fullName,
-          r['userEmail'],
+          r['userEmail'] ?? '',
           r['department'] ?? 'N/A',
-          r['startDate'],
-          r['endDate'],
-          r['totalDays'],
-          r['reason'],
-          r['status'].toUpperCase(),
-          r['autoApproved'] ? 'Auto' : 'Manual',
-          r['requestNumber'],
+          r['startDate'] ?? '',
+          r['endDate'] ?? '',
+          r['totalDays'] ?? 0,
+          r['reason'] ?? '',
+          (r['status'] ?? 'pending').toString().toUpperCase(),
+          (r['autoApproved'] == true) ? 'Auto' : 'Manual',
+          r['requestNumber'] ?? 0,
           cambodiaTime,
           r['approvedByName'] ?? '',
           r['rejectionReason'] ?? '',
@@ -356,41 +481,390 @@ class _ReportScreenState extends State<ReportScreen> {
         sheet.setColWidth(i, colWidths[i].toDouble());
       }
 
-      final dir = await getTemporaryDirectory();
-      final fileName = 'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
-      final filePath = '${dir.path}/$fileName';
-
       final fileBytes = excelFile.encode();
-      if (fileBytes != null) {
-        File(filePath)
-          ..createSync(recursive: true)
-          ..writeAsBytesSync(fileBytes);
-
-        final result = await OpenFile.open(filePath);
-        if (result.type != ResultType.done) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not open file: ${result.message}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(' Exported: $fileName'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
+      if (fileBytes == null || fileBytes.isEmpty) {
+        throw Exception('Failed to encode Excel file');
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Export error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+
+      Navigator.pop(context);
+
+      if (_isWeb) {
+        _downloadOnWeb(fileBytes);
+      } else if (_isWindows) {
+        await _saveOnWindows(fileBytes);
+      } else if (_isMobile) {
+        await _saveOnMobile(fileBytes);
+      } else {
+        await _saveGeneric(fileBytes);
+      }
+    } catch (e, stackTrace) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      print('Export error: $e');
+      print('StackTrace: $stackTrace');
+
+      _showExportError(e.toString());
     }
+  }
+
+  // ===== WEB DOWNLOAD =====
+  void _downloadOnWeb(List<int> fileBytes) {
+    final fileName =
+        'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+
+    final blob = html.Blob([fileBytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', fileName)
+      ..click();
+
+    html.Url.revokeObjectUrl(url);
+
+    _showWebSuccessDialog(fileName);
+  }
+
+  void _showWebSuccessDialog(String fileName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Download Succeeded'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('File: $fileName'),
+            const SizedBox(height: 12),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== WINDOWS DESKTOP SAVE =====
+  Future<void> _saveOnWindows(List<int> fileBytes) async {
+    String fileName =
+        'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+    String desktopPath = '${Platform.environment['USERPROFILE']}\\Desktop';
+    final desktopDir = Directory(desktopPath);
+    if (!await desktopDir.exists()) {
+      await desktopDir.create(recursive: true);
+    }
+    String filePath = '$desktopPath\\$fileName';
+
+    final file = File(filePath);
+    await file.writeAsBytes(fileBytes, flush: true);
+
+    _showWindowsSuccessDialog(filePath, fileName);
+  }
+
+  // ===== MOBILE SAVE =====
+  Future<void> _saveOnMobile(List<int> fileBytes) async {
+    String fileName =
+        'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+    final directory = await getApplicationDocumentsDirectory();
+    String filePath = '${directory.path}/$fileName';
+
+    final file = File(filePath);
+    await file.writeAsBytes(fileBytes, flush: true);
+
+    _showMobileSuccessDialog(filePath, fileName);
+  }
+
+  // ===== GENERIC SAVE =====
+  Future<void> _saveGeneric(List<int> fileBytes) async {
+    String fileName =
+        'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+    final directory = await getApplicationDocumentsDirectory();
+    String filePath = '${directory.path}/$fileName';
+
+    final file = File(filePath);
+    await file.writeAsBytes(fileBytes, flush: true);
+
+    _showGenericSuccessDialog(filePath, fileName);
+  }
+
+  // ===== WINDOWS SUCCESS DIALOG =====
+  void _showWindowsSuccessDialog(String filePath, String fileName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Export Successful'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Excel file has been created successfully!'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '📁 File saved to Desktop:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    fileName,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '💡 Double-click the file on your Desktop to open it.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _openWindowsFolder();
+            },
+            icon: const Icon(Icons.folder_open),
+            label: const Text('Open Desktop'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== MOBILE SUCCESS DIALOG =====
+  void _showMobileSuccessDialog(String filePath, String fileName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Export Successful'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('File saved: $fileName'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Location:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  Text(
+                    filePath,
+                    style: const TextStyle(fontSize: 11),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                final result = await OpenFile.open(
+                  filePath,
+                  type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                );
+                if (result.type != ResultType.done) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please open the file manually'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please open the file manually'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.open_in_new),
+            label: const Text('Open File'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== GENERIC SUCCESS DIALOG =====
+  void _showGenericSuccessDialog(String filePath, String fileName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Export Successful'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('File saved: $fileName'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                filePath,
+                style: const TextStyle(fontSize: 11),
+                maxLines: 2,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== OPEN WINDOWS FOLDER =====
+  void _openWindowsFolder() {
+    try {
+      String desktopPath = Platform.environment['USERPROFILE']! + '\\Desktop';
+      Process.run('explorer', [desktopPath], runInShell: true);
+    } catch (e) {
+      // Silent fail
+    }
+  }
+
+  // ===== EXPORT ERROR DIALOG =====
+  void _showExportError(String error) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.error, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Export Failed'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('An error occurred while exporting:'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                error,
+                style: TextStyle(
+                  color: Colors.red[800],
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Please try again or check storage permissions.',
+              style: TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _exportToExcel();
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _selectDate() async {
@@ -465,7 +939,6 @@ class _ReportScreenState extends State<ReportScreen> {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
-    final double iconSize = Responsive.iconSize(context, 20);
     double bottomPadding = MediaQuery.of(context).padding.bottom + 24;
 
     return Scaffold(
@@ -473,7 +946,7 @@ class _ReportScreenState extends State<ReportScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF173B69),
         elevation: 2,
-        automaticallyImplyLeading: false, 
+        automaticallyImplyLeading: false,
         title: const Text(
           'Reports',
           style: TextStyle(
@@ -491,7 +964,6 @@ class _ReportScreenState extends State<ReportScreen> {
             tooltip: 'Export to Excel',
           ),
         ],
-        // ===== SEGMENT IN APPBAR (BOTTOM) =====
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
           child: Container(
@@ -632,7 +1104,7 @@ class _ReportScreenState extends State<ReportScreen> {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // Department Filter
+                        // ===== DEPARTMENT FILTER (FROM FIRESTORE) =====
                         Expanded(
                           flex: 2,
                           child: Container(
@@ -656,7 +1128,7 @@ class _ReportScreenState extends State<ReportScreen> {
                                   ),
                                   ..._departments.map((dept) {
                                     return DropdownMenuItem(
-                                      value: dept['id'],
+                                      value: dept['id']!,
                                       child: Text(dept['name']!),
                                     );
                                   }),
@@ -679,6 +1151,45 @@ class _ReportScreenState extends State<ReportScreen> {
                       ],
                     ),
                   ),
+                  
+                  // ===== SEARCH FIELD =====
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: TextField(
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                        });
+                      },
+                      style: TextStyle(fontSize: fontSize),
+                      decoration: InputDecoration(
+                        hintText: ' Search by name or email...',
+                        hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
+                        prefixIcon: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear, color: Colors.grey.shade500, size: 18),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: spacing,
+                          vertical: isMobile ? 10 : 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
                   // ===== LIST =====
                   Expanded(
                     child: _filteredData.isEmpty
@@ -693,9 +1204,11 @@ class _ReportScreenState extends State<ReportScreen> {
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
-                                  _filterDepartment == 'all'
-                                      ? 'No data found'
-                                      : 'No data found for ${_getCurrentDepartmentName()}',
+                                  _searchQuery.isNotEmpty
+                                      ? 'No results found for "$_searchQuery"'
+                                      : _filterDepartment == 'all'
+                                          ? 'No data found'
+                                          : 'No data found for ${_getCurrentDepartmentName()}',
                                   style: TextStyle(
                                     color: Colors.grey.shade500,
                                     fontSize: fontSize,
@@ -743,9 +1256,7 @@ class _ReportScreenState extends State<ReportScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          // Navigate to detail if needed
-        },
+        onTap: () {},
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(

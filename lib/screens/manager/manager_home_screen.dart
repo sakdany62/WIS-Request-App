@@ -327,12 +327,10 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
   // ===== OPEN TELEGRAM APP =====
   Future<void> _openTelegram() async {
     try {
-      // Try to open Telegram app
       final Uri telegramUri = Uri.parse('tg://resolve?domain=telegram');
       if (await canLaunchUrl(telegramUri)) {
         await launchUrl(telegramUri);
       } else {
-        // Fallback: open Telegram web
         final Uri fallbackUri = Uri.parse('https://t.me/telegram');
         if (await canLaunchUrl(fallbackUri)) {
           await launchUrl(fallbackUri);
@@ -434,7 +432,6 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   ),
                 ],
               ),
-              // ✅ បង្ហាញរូបភាព (បើមាន) - អាចចុចបើក Telegram
               if (imageUrl != null && imageUrl.isNotEmpty) ...[
                 SizedBox(height: spacing * 1.5),
                 GestureDetector(
@@ -884,29 +881,35 @@ Status: APPROVED
             await _refreshProfileImage();
             await _refreshUnreadCount();
           },
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.all(isMobile ? 12 : 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Profile Section
-                _buildProfileSection(isMobile, spacing, iconSize),
-                const SizedBox(height: 14),
-                
-                // Bar Chart
-                _buildBarChart(isMobile, spacing, fontSize),
-                const SizedBox(height: 16),
-                
-                // Department & Staff Count
-                _buildDepartmentSection(isMobile, spacing, iconSize, fontSize),
-                const SizedBox(height: 16),
-                
-                // Pending Approvals List with Approve/Reject Buttons
-                _buildPendingApprovals(isMobile, spacing, fontSize),
-                SizedBox(height: bottomPadding),
-              ],
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ===== TOP SECTION (Fixed, not scrollable) =====
+              Padding(
+                padding: EdgeInsets.all(isMobile ? 12 : 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Profile Section
+                    _buildProfileSection(isMobile, spacing, iconSize),
+                    const SizedBox(height: 14),
+                    
+                    // Bar Chart
+                    _buildBarChart(isMobile, spacing, fontSize),
+                    const SizedBox(height: 16),
+                    
+                    // Department & Staff Count
+                    _buildDepartmentSection(isMobile, spacing, iconSize, fontSize),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+              
+              // ===== PENDING APPROVALS (Scrollable) =====
+              Expanded(
+                child: _buildPendingApprovals(isMobile, spacing, fontSize),
+              ),
+            ],
           ),
         ),
       ),
@@ -1389,69 +1392,73 @@ Status: APPROVED
             ],
           ),
           const SizedBox(height: 12),
-          StreamBuilder<QuerySnapshot>(
-            stream: _requestService.getPendingRequestsForManager(managerDepartment),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(
-                  child: Column(
-                    children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                      SizedBox(height: spacing),
-                      Text('Error: ${snapshot.error}', style: TextStyle(fontSize: fontSize)),
-                    ],
-                  ),
-                );
-              }
-
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final requests = snapshot.data?.docs ?? [];
-
-              if (requests.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(spacing * 3),
+          // ===== SCROLLABLE PENDING REQUESTS =====
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _requestService.getPendingRequestsForManager(managerDepartment),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
                     child: Column(
                       children: [
-                        Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade400),
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
                         SizedBox(height: spacing),
-                        Text(
-                          'No pending requests',
-                          style: TextStyle(fontSize: fontSize, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-                        ),
-                        Text(
-                          'All requests have been processed',
-                          style: TextStyle(fontSize: fontSize * 0.85, color: Colors.grey.shade500),
-                        ),
+                        Text('Error: ${snapshot.error}', style: TextStyle(fontSize: fontSize)),
                       ],
                     ),
-                  ),
-                );
-              }
+                  );
+                }
 
-              return ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: requests.length,
-                itemBuilder: (context, index) {
-                  final doc = requests[index];
-                  final data = doc.data() as Map<String, dynamic>;
-                  return Padding(
-                    padding: EdgeInsets.only(bottom: spacing),
-                    child: _buildPendingCardWithButtons(
-                      requestId: doc.id,
-                      data: data,
-                      isMobile: isMobile,
-                      fontSize: fontSize,
-                      spacing: spacing,
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final requests = snapshot.data?.docs ?? [];
+
+                if (requests.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(spacing * 3),
+                      child: Column(
+                        children: [
+                          Icon(Icons.inbox_outlined, size: 48, color: Colors.grey.shade400),
+                          SizedBox(height: spacing),
+                          Text(
+                            'No pending requests',
+                            style: TextStyle(fontSize: fontSize, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            'All requests have been processed',
+                            style: TextStyle(fontSize: fontSize * 0.85, color: Colors.grey.shade500),
+                          ),
+                        ],
+                      ),
                     ),
                   );
-                },
-              );
-            },
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.only(bottom: 24),
+                  itemCount: requests.length,
+                  itemBuilder: (context, index) {
+                    final doc = requests[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: spacing),
+                      child: _buildPendingCardWithButtons(
+                        requestId: doc.id,
+                        data: data,
+                        isMobile: isMobile,
+                        fontSize: fontSize,
+                        spacing: spacing,
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),

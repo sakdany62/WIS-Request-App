@@ -29,16 +29,6 @@ class _PolicyScreenState extends State<PolicyScreen> {
   bool _autoApprove = false;
   bool _isActive = true;
 
-  // Notification Controllers
-  final _notificationTitleController = TextEditingController();
-  final _notificationBodyController = TextEditingController();
-  bool _enableNotifications = true;
-  bool _notifyOnRequestSubmit = true;
-  bool _notifyOnStatusChange = true;
-  bool _notifyOnApproval = true;
-  bool _notifyOnRejection = true;
-  bool _notifyAdminOnNewRequest = true;
-
   // Auto Approve Controllers
   final _autoApproveFirstCountController = TextEditingController();
   final _autoApproveSecondCountController = TextEditingController();
@@ -76,15 +66,6 @@ class _PolicyScreenState extends State<PolicyScreen> {
       _firstRequestMessageController.text = _currentPolicy!.firstRequestMessage;
       _secondRequestMessageController.text = _currentPolicy!.secondRequestMessage;
       _thirdRequestMessageController.text = _currentPolicy!.thirdRequestMessage;
-
-      _enableNotifications = _currentPolicy!.enableNotifications;
-      _notificationTitleController.text = _currentPolicy!.notificationTitle;
-      _notificationBodyController.text = _currentPolicy!.notificationBody;
-      _notifyOnRequestSubmit = _currentPolicy!.notifyOnRequestSubmit;
-      _notifyOnStatusChange = _currentPolicy!.notifyOnStatusChange;
-      _notifyOnApproval = _currentPolicy!.notifyOnApproval;
-      _notifyOnRejection = _currentPolicy!.notifyOnRejection;
-      _notifyAdminOnNewRequest = _currentPolicy!.notifyAdminOnNewRequest;
     }
 
     setState(() {
@@ -119,14 +100,15 @@ class _PolicyScreenState extends State<PolicyScreen> {
       firstRequestMessage: _firstRequestMessageController.text,
       secondRequestMessage: _secondRequestMessageController.text,
       thirdRequestMessage: _thirdRequestMessageController.text,
-      enableNotifications: _enableNotifications,
-      notificationTitle: _notificationTitleController.text,
-      notificationBody: _notificationBodyController.text,
-      notifyOnRequestSubmit: _notifyOnRequestSubmit,
-      notifyOnStatusChange: _notifyOnStatusChange,
-      notifyOnApproval: _notifyOnApproval,
-      notifyOnRejection: _notifyOnRejection,
-      notifyAdminOnNewRequest: _notifyAdminOnNewRequest,
+      // Notification fields - set to default values
+      enableNotifications: false,
+      notificationTitle: '',
+      notificationBody: '',
+      notifyOnRequestSubmit: false,
+      notifyOnStatusChange: false,
+      notifyOnApproval: false,
+      notifyOnRejection: false,
+      notifyAdminOnNewRequest: false,
     );
 
     try {
@@ -221,7 +203,6 @@ class _PolicyScreenState extends State<PolicyScreen> {
     });
   }
 
-  //  Helper method to build bordered card
   Widget _buildBorderedCard({
     required Widget child,
     double? elevation,
@@ -241,7 +222,6 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    //  ប្រើ Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -286,7 +266,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // General Settings Card with Border
+                    // General Settings Card
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -354,7 +334,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
                     SizedBox(height: spacing * 2),
 
-                    //  Leave Limits Card with Border
+                    // Leave Limits Card
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -409,7 +389,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
                     SizedBox(height: spacing * 2),
 
-                    // Advance Notice Card with Border
+                    // Advance Notice Card
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -464,7 +444,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
                     SizedBox(height: spacing * 2),
 
-                    //  Allowed Reasons Card with Border
+                    // Allowed Reasons Card
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -526,7 +506,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
                     SizedBox(height: spacing * 2),
 
-                    //  Auto Approve Settings Card with Border
+                    // Auto Approve Settings Card
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -644,7 +624,7 @@ class _PolicyScreenState extends State<PolicyScreen> {
 
                     SizedBox(height: spacing * 2),
 
-                    //  Additional Settings Card with Border
+                    // Additional Settings Card
                     _buildBorderedCard(
                       child: Padding(
                         padding: EdgeInsets.all(spacing * 2),
@@ -678,183 +658,6 @@ class _PolicyScreenState extends State<PolicyScreen> {
                               },
                               contentPadding: EdgeInsets.zero,
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    //  Notification Settings Card with Border
-                    SizedBox(height: spacing * 2),
-                    _buildBorderedCard(
-                      child: Padding(
-                        padding: EdgeInsets.all(spacing * 2),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Notification Settings',
-                              style: TextStyle(
-                                fontSize: isMobile ? fontSize + 2 : fontSize + 4,
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFF173B69),
-                              ),
-                            ),
-                            const Divider(height: 20),
-                            SizedBox(height: spacing),
-                            SwitchListTile(
-                              title: Text(
-                                'Enable Notifications',
-                                style: TextStyle(fontSize: fontSize),
-                              ),
-                              subtitle: Text(
-                                'Turn on/off all notifications for this policy',
-                                style: TextStyle(fontSize: fontSize * 0.85),
-                              ),
-                              value: _enableNotifications,
-                              onChanged: (value) {
-                                setState(() {
-                                  _enableNotifications = value;
-                                });
-                              },
-                              activeThumbColor: Colors.blue,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            const Divider(),
-                            if (_enableNotifications) ...[
-                              SizedBox(height: spacing),
-                              TextFormField(
-                                controller: _notificationTitleController,
-                                style: TextStyle(fontSize: fontSize),
-                                decoration: InputDecoration(
-                                  labelText: 'Notification Title',
-                                  labelStyle: TextStyle(fontSize: fontSize),
-                                  border: const OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.title, size: isMobile ? 20 : 24),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: spacing,
-                                    vertical: isMobile ? 10 : 14,
-                                  ),
-                                ),
-                                validator: (value) => value?.isEmpty ?? true ? 'Title is required' : null,
-                              ),
-                              SizedBox(height: spacing * 1.5),
-                              TextFormField(
-                                controller: _notificationBodyController,
-                                style: TextStyle(fontSize: fontSize),
-                                decoration: InputDecoration(
-                                  labelText: 'Notification Body',
-                                  labelStyle: TextStyle(fontSize: fontSize),
-                                  border: const OutlineInputBorder(),
-                                  prefixIcon: Icon(Icons.message, size: isMobile ? 20 : 24),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: spacing,
-                                    vertical: isMobile ? 10 : 14,
-                                  ),
-                                ),
-                                maxLines: 2,
-                                validator: (value) => value?.isEmpty ?? true ? 'Body is required' : null,
-                              ),
-                              SizedBox(height: spacing * 2),
-                              Text(
-                                'When to send notifications:',
-                                style: TextStyle(
-                                  fontSize: fontSize,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey.shade700,
-                                ),
-                              ),
-                              SizedBox(height: spacing / 2),
-                              SwitchListTile(
-                                title: Text(
-                                  'On Request Submit',
-                                  style: TextStyle(fontSize: fontSize * 0.9),
-                                ),
-                                subtitle: Text(
-                                  'Notify when a request is submitted',
-                                  style: TextStyle(fontSize: fontSize * 0.8),
-                                ),
-                                value: _notifyOnRequestSubmit,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _notifyOnRequestSubmit = value;
-                                  });
-                                },
-                                activeThumbColor: Colors.blue,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                              SwitchListTile(
-                                title: Text(
-                                  'On Status Change',
-                                  style: TextStyle(fontSize: fontSize * 0.9),
-                                ),
-                                subtitle: Text(
-                                  'Notify when request status changes',
-                                  style: TextStyle(fontSize: fontSize * 0.8),
-                                ),
-                                value: _notifyOnStatusChange,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _notifyOnStatusChange = value;
-                                  });
-                                },
-                                activeThumbColor: Colors.blue,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                              SwitchListTile(
-                                title: Text(
-                                  'On Approval',
-                                  style: TextStyle(fontSize: fontSize * 0.9),
-                                ),
-                                subtitle: Text(
-                                  'Notify when request is approved',
-                                  style: TextStyle(fontSize: fontSize * 0.8),
-                                ),
-                                value: _notifyOnApproval,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _notifyOnApproval = value;
-                                  });
-                                },
-                                activeThumbColor: Colors.green,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                              SwitchListTile(
-                                title: Text(
-                                  'On Rejection',
-                                  style: TextStyle(fontSize: fontSize * 0.9),
-                                ),
-                                subtitle: Text(
-                                  'Notify when request is rejected',
-                                  style: TextStyle(fontSize: fontSize * 0.8),
-                                ),
-                                value: _notifyOnRejection,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _notifyOnRejection = value;
-                                  });
-                                },
-                                activeThumbColor: Colors.red,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                              SwitchListTile(
-                                title: Text(
-                                  'Notify Admin on New Request',
-                                  style: TextStyle(fontSize: fontSize * 0.9),
-                                ),
-                                subtitle: Text(
-                                  'Send notification to admin when new request is submitted',
-                                  style: TextStyle(fontSize: fontSize * 0.8),
-                                ),
-                                value: _notifyAdminOnNewRequest,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _notifyAdminOnNewRequest = value;
-                                  });
-                                },
-                                activeThumbColor: Colors.orange,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ],
                           ],
                         ),
                       ),
@@ -916,8 +719,6 @@ class _PolicyScreenState extends State<PolicyScreen> {
     _firstRequestMessageController.dispose();
     _secondRequestMessageController.dispose();
     _thirdRequestMessageController.dispose();
-    _notificationTitleController.dispose();
-    _notificationBodyController.dispose();
     super.dispose();
   }
 }
