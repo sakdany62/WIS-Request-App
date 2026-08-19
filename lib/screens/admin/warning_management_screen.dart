@@ -26,7 +26,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
   late TabController _tabController;
   int _currentTabIndex = 0;
 
-  final List<String> _severityOptions = ['info', 'warning', 'critical'];
+  final List<String> _severityOptions = ['info', 'warning', 'Emergency'];
   final List<String> _audienceOptions = ['all'];
 
   @override

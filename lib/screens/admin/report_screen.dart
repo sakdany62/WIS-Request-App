@@ -9,8 +9,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:html' as html;
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
+import '../../widgets/profile_avatar.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -36,6 +38,11 @@ class _ReportScreenState extends State<ReportScreen> {
   // Departments loaded from Firestore
   List<Map<String, String>> _departments = [];
 
+  // ✅ Admin data for avatar
+  String _adminId = '';
+  String _adminName = '';
+  String? _adminProfileImageUrl;
+
   final List<String> _segmentLabels = [
     'All',
     'Pending',
@@ -60,6 +67,26 @@ class _ReportScreenState extends State<ReportScreen> {
   bool get _isAndroid {
     if (_isWeb) return false;
     return Platform.isAndroid;
+  }
+
+  // ===== LOAD ADMIN DATA =====
+  Future<void> _loadAdminData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final docSnapshot = await _firestore.collection('users').doc(user.uid).get();
+        if (docSnapshot.exists) {
+          final data = docSnapshot.data() as Map<String, dynamic>;
+          setState(() {
+            _adminId = user.uid;
+            _adminName = data['fullName'] ?? data['username'] ?? 'Admin';
+            _adminProfileImageUrl = data['profileImageUrl'];
+          });
+        }
+      } catch (e) {
+        print('Error loading admin data: $e');
+      }
+    }
   }
 
   DateTime _getStartOfWeek(DateTime date) {
@@ -174,6 +201,7 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   void initState() {
     super.initState();
+    _loadAdminData();
     _loadDepartments();
     _loadReport();
     if (_isAndroid) {
@@ -324,7 +352,6 @@ class _ReportScreenState extends State<ReportScreen> {
   List<Map<String, dynamic>> get _filteredData {
     List<Map<String, dynamic>> result = [];
 
-    // Filter by status segment
     if (_currentSegment == 0) {
       result = _reportData;
     } else {
@@ -345,7 +372,6 @@ class _ReportScreenState extends State<ReportScreen> {
       result = _reportData.where((item) => item['status'] == targetStatus).toList();
     }
 
-    // Filter by search query (name or email)
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase().trim();
       result = result.where((item) {
@@ -358,9 +384,8 @@ class _ReportScreenState extends State<ReportScreen> {
     return result;
   }
 
-  // ===== EXPORT FUNCTION (ប្រើ _filteredData ដើម្បីរាប់បញ្ចូល Status + Search) =====
+  // ===== EXPORT FUNCTION =====
   Future<void> _exportToExcel() async {
-    // ✅ ប្រើ _filteredData ជំនួស _reportData
     final dataToExport = _filteredData;
     
     if (dataToExport.isEmpty) {
@@ -442,7 +467,6 @@ class _ReportScreenState extends State<ReportScreen> {
         );
       }
 
-      // ✅ ប្រើ dataToExport ជំនួស _reportData
       for (int i = 0; i < dataToExport.length; i++) {
         final r = dataToExport[i];
         final String cambodiaTime = _formatToCambodiaTime(r['createdAt']);
@@ -629,7 +653,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '📁 File saved to Desktop:',
+                    ' File saved to Desktop:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
@@ -639,7 +663,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    '💡 Double-click the file on your Desktop to open it.',
+                    ' Double-click the file on your Desktop to open it.',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
@@ -958,6 +982,7 @@ class _ReportScreenState extends State<ReportScreen> {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          
           IconButton(
             onPressed: _exportToExcel,
             icon: const Icon(Icons.file_download),
@@ -1237,6 +1262,9 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  // ================================================================
+  // ===== BUILD REPORT CARD WITH AVATAR =====
+  // ================================================================
   Widget _buildReportCard(Map<String, dynamic> r, bool isMobile, double fontSize, double spacing) {
     final Color statusColor = _getStatusColor(r['status'] ?? 'pending');
     final String statusLabel = _getStatusLabel(r['status'] ?? 'pending');
@@ -1262,9 +1290,18 @@ class _ReportScreenState extends State<ReportScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row 1: Name + Status
+              // Row 1: Avatar + Name + Status
               Row(
                 children: [
+                  // ✅ Profile Avatar (ដូច List Staff Screen)
+                  ProfileAvatar(
+                    userId: r['userId'] ?? '',
+                    name: r['userName'] ?? 'Unknown',
+                    radius: isMobile ? 14 : 18,
+                    backgroundColor: statusColor.withValues(alpha: 0.1),
+                    textColor: statusColor,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1276,6 +1313,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                         if (r['department'] != null && r['department'].isNotEmpty)
                           Text(
@@ -1284,6 +1322,7 @@ class _ReportScreenState extends State<ReportScreen> {
                               fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
                               color: Colors.grey.shade600,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                       ],
                     ),

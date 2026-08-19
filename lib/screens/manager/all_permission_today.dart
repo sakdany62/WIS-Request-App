@@ -1,5 +1,7 @@
 // lib/screens/manager/list_staff_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
 import 'package:path_provider/path_provider.dart';
@@ -135,6 +137,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   bool _showAll = false;
 
   final Map<String, String> _userNameCache = {};
+
+  // ✅ Search query
+  String _searchQuery = '';
 
   final List<String> _segmentLabels = [
     'All',
@@ -307,6 +312,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       _isLoading = true;
       _showAll = false;
       _visibleCount = 3;
+      _searchQuery = ''; // Reset search when loading
     });
     try {
       DateTime startDate, endDate;
@@ -362,8 +368,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
+  // ===== APPLY FILTERS WITH SEARCH =====
   void _applyFilters() {
     var filtered = _allRequests;
+    
+    // Filter by status segment
     if (_currentSegment != 0) {
       switch (_currentSegment) {
         case 1: filtered = filtered.where((r) => r.status == 'pending').toList(); break;
@@ -372,6 +381,17 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         case 4: filtered = filtered.where((r) => r.autoApproved == true).toList(); break;
       }
     }
+    
+    // ✅ Filter by search query (name or email)
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase().trim();
+      filtered = filtered.where((item) {
+        final name = item.staffName.toLowerCase();
+        final email = item.userEmail.toLowerCase();
+        return name.contains(query) || email.contains(query);
+      }).toList();
+    }
+    
     setState(() {
       _filteredRequests = filtered;
       _visibleCount = 3;
@@ -379,7 +399,10 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     });
   }
 
-  Future<void> _refresh() async => _loadAllRequests();
+  Future<void> _refresh() async {
+    await _loadAllRequests();
+    _applyFilters();
+  }
 
   void _showMore() => setState(() { _showAll = true; _visibleCount = _filteredRequests.length; });
   void _showLess() => setState(() { _showAll = false; _visibleCount = 3; });
@@ -393,6 +416,199 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       'autoApproved': data.where((r) => r.autoApproved == true).length,
       'totalDays': data.fold(0, (sum, r) => sum + r.totalDays),
     };
+  }
+
+  // ================================================================
+  // ===== EXPORT FUNCTION (គាំទ្រគ្រប់ Platform) =====
+  // ================================================================
+  Future<void> _exportToExcel() async {
+    // ✅ ប្រើ _filteredRequests ដែលរាប់បញ្ចូល Search
+    final dataToExport = _filteredRequests;
+    
+    if (dataToExport.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No data to export'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Generating Excel file...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      var excelFile = excel.Excel.createExcel();
+      excel.Sheet sheet = excelFile['Permission List'];
+
+      // Headers
+      final headers = [
+        'No.',
+        'Staff Name',
+        'Email',
+        'Department',
+        'Start Date',
+        'End Date',
+        'Total Days',
+        'Reason',
+        'Status',
+        'Type',
+        'Request #',
+        'Created At (Cambodia Time)',
+        'Approved By',
+        'Rejection Reason',
+      ];
+
+      // Add header row with styling
+      sheet.appendRow(headers);
+      for (int col = 0; col < headers.length; col++) {
+        var cell = sheet.cell(
+          excel.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0),
+        );
+        cell.cellStyle = excel.CellStyle(
+          bold: true,
+          backgroundColorHex: '#173B69',
+          fontColorHex: '#FFFFFF',
+        );
+      }
+
+      // Add data rows
+      for (int i = 0; i < dataToExport.length; i++) {
+        final r = dataToExport[i];
+        final String cambodiaTime = _formatToCambodiaTime(r.createdAt);
+
+        String fullName = r.staffName;
+        if (r.userId.isNotEmpty && _userNameCache.containsKey(r.userId)) {
+          fullName = _userNameCache[r.userId]!;
+        }
+
+        sheet.appendRow([
+          (i + 1),
+          fullName,
+          r.userEmail,
+          r.department ?? 'N/A',
+          r.startDate,
+          r.endDate,
+          r.totalDays,
+          r.reason,
+          r.status.toUpperCase(),
+          r.autoApproved ? 'Auto' : 'Manual',
+          r.requestNumber,
+          cambodiaTime,
+          r.approvedByName ?? '',
+          r.rejectionReason ?? '',
+        ]);
+      }
+
+      // Set column widths
+      final colWidths = [6, 20, 25, 20, 15, 15, 12, 25, 14, 10, 12, 25, 18, 25];
+      for (int i = 0; i < colWidths.length; i++) {
+        sheet.setColWidth(i, colWidths[i].toDouble());
+      }
+
+      final fileBytes = excelFile.encode();
+      if (fileBytes == null || fileBytes.isEmpty) {
+        throw Exception('Failed to encode Excel file');
+      }
+
+      // Close loading dialog
+      Navigator.pop(context);
+
+      // ===== HANDLE BASED ON PLATFORM =====
+      if (kIsWeb) {
+        // WEB: Download via browser
+        _downloadOnWeb(fileBytes);
+      } else {
+        // MOBILE/DESKTOP: Save to temporary directory
+        await _saveToFile(fileBytes);
+      }
+
+    } catch (e, stackTrace) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      print('Export error: $e');
+      print('StackTrace: $stackTrace');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ===== WEB DOWNLOAD =====
+  void _downloadOnWeb(List<int> fileBytes) {
+    final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+    
+    // Create blob
+    final blob = html.Blob([fileBytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    
+    // Create anchor element and trigger download
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', fileName)
+      ..click();
+    
+    // Clean up
+    html.Url.revokeObjectUrl(url);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(' Download started successfully'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  // ===== SAVE TO FILE (Mobile/Desktop) =====
+  Future<void> _saveToFile(List<int> fileBytes) async {
+    final dir = await getTemporaryDirectory();
+    final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+    final filePath = '${dir.path}/$fileName';
+
+    final file = File(filePath);
+    await file.writeAsBytes(fileBytes, flush: true);
+
+    // Open file
+    final result = await OpenFile.open(filePath);
+    if (result.type != ResultType.done) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open file: ${result.message}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(' Exported: $fileName'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   @override
@@ -412,16 +628,16 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF173B69),
         elevation: 2,
-        automaticallyImplyLeading: false, // Remove back button
+        automaticallyImplyLeading: false,
         title: const Text(
           'Permission List',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
         ),
-        centerTitle: true, // Center the title
+        centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(icon: Icon(Icons.refresh, size: iconSize), onPressed: _refresh, tooltip: 'Refresh'),
-          IconButton(icon: Icon(Icons.file_download, size: iconSize), onPressed: () => _exportToExcel(), tooltip: 'Export'),
+          IconButton(icon: Icon(Icons.file_download, size: iconSize), onPressed: _exportToExcel, tooltip: 'Export'),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
@@ -473,11 +689,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
             ? const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF173B69))))
             : Column(
                 children: [
-                  // Filter Row
+                  // ===== FILTER ROW =====
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
                       children: [
+                        // Report Type
                         Expanded(
                           flex: 2,
                           child: Container(
@@ -509,6 +726,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                           ),
                         ),
                         const SizedBox(width: 10),
+                        // Date Picker
                         Expanded(
                           flex: 3,
                           child: GestureDetector(
@@ -537,36 +755,49 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                       ],
                     ),
                   ),
-                  // Total Only - No summary chips
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF173B69).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFF173B69).withValues(alpha: 0.2)),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.assignment_rounded, size: 14, color: const Color(0xFF173B69)),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Total: ${summary['total']}',
-                                style: TextStyle(
-                                  fontSize: fontSize,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF173B69),
-                                ),
-                              ),
-                            ],
-                          ),
+                  
+                  // ===== SEARCH FIELD (ដូច Report Screen) =====
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: TextField(
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value;
+                          _applyFilters();
+                        });
+                      },
+                      style: TextStyle(fontSize: fontSize),
+                      decoration: InputDecoration(
+                        hintText: ' Search by name or email...',
+                        hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
+                        prefixIcon: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear, color: Colors.grey.shade500, size: 18),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchQuery = '';
+                                    _applyFilters();
+                                  });
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
                         ),
-                      ],
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: spacing,
+                          vertical: isMobile ? 10 : 14,
+                        ),
+                      ),
                     ),
                   ),
+                  
+                  
+                  
                   if (_isManager && _managerDepartment.isNotEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -590,7 +821,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                         ),
                       ),
                     ),
-                  // List
+                  
+                  // ===== LIST =====
                   Expanded(
                     child: filtered.isEmpty
                         ? Center(
@@ -599,7 +831,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                               children: [
                                 Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
                                 const SizedBox(height: 12),
-                                Text('No data found', style: TextStyle(color: Colors.grey.shade500, fontSize: fontSize)),
+                                Text(
+                                  _searchQuery.isNotEmpty
+                                      ? 'No results found for "$_searchQuery"'
+                                      : 'No data found',
+                                  style: TextStyle(color: Colors.grey.shade500, fontSize: fontSize),
+                                ),
                               ],
                             ),
                           )
@@ -642,52 +879,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
               ),
       ),
     );
-  }
-
-  Future<void> _exportToExcel() async {
-    if (_filteredRequests.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No data to export'), backgroundColor: Colors.orange),
-      );
-      return;
-    }
-    try {
-      var excelFile = excel.Excel.createExcel();
-      excel.Sheet sheet = excelFile['Permission List'];
-      final headers = ['No.', 'Request ID', 'Staff Name', 'Email', 'Start Date', 'End Date', 'Total Days', 'Reason', 'Status', 'Approval Type', 'Request #', 'Created At', 'Submit Time', 'Department'];
-      sheet.appendRow(headers);
-      for (int i = 0; i < headers.length; i++) {
-        var cell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
-        cell.cellStyle = excel.CellStyle(bold: true, backgroundColorHex: '#173B69', fontColorHex: '#FFFFFF');
-      }
-      for (int i = 0; i < _filteredRequests.length; i++) {
-        final r = _filteredRequests[i];
-        String fullName = r.staffName;
-        if (r.userId.isNotEmpty && _userNameCache.containsKey(r.userId)) {
-          fullName = _userNameCache[r.userId]!;
-        }
-        sheet.appendRow([
-          (i + 1), r.requestId.substring(0, 8), fullName, r.userEmail, r.startDate, r.endDate,
-          r.totalDays, r.reason, r.status.toUpperCase(), r.approvalType, r.requestNumber,
-          _formatToCambodiaTime(r.createdAt), _formatSubmitTime(r.submitTime), r.department ?? ''
-        ]);
-      }
-      final dir = await getTemporaryDirectory();
-      final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
-      final filePath = '${dir.path}/$fileName';
-      final fileBytes = excelFile.encode();
-      if (fileBytes != null) {
-        File(filePath)..createSync(recursive: true)..writeAsBytesSync(fileBytes);
-        await OpenFile.open(filePath);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(' Exported: $fileName'), backgroundColor: Colors.green),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export error: $e'), backgroundColor: Colors.red),
-      );
-    }
   }
 }
 
