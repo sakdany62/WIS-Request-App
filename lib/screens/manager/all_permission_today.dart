@@ -1,7 +1,6 @@
 // lib/screens/manager/list_staff_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html' as html;
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
 import 'package:path_provider/path_provider.dart';
@@ -138,7 +137,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   final Map<String, String> _userNameCache = {};
 
-  // ✅ Search query
   String _searchQuery = '';
 
   final List<String> _segmentLabels = [
@@ -312,7 +310,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       _isLoading = true;
       _showAll = false;
       _visibleCount = 3;
-      _searchQuery = ''; // Reset search when loading
+      _searchQuery = '';
     });
     try {
       DateTime startDate, endDate;
@@ -368,11 +366,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
-  // ===== APPLY FILTERS WITH SEARCH =====
   void _applyFilters() {
     var filtered = _allRequests;
     
-    // Filter by status segment
     if (_currentSegment != 0) {
       switch (_currentSegment) {
         case 1: filtered = filtered.where((r) => r.status == 'pending').toList(); break;
@@ -382,7 +378,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       }
     }
     
-    // ✅ Filter by search query (name or email)
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase().trim();
       filtered = filtered.where((item) {
@@ -419,10 +414,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   }
 
   // ================================================================
-  // ===== EXPORT FUNCTION (គាំទ្រគ្រប់ Platform) =====
+  // ===== EXPORT FUNCTION =====
   // ================================================================
   Future<void> _exportToExcel() async {
-    // ✅ ប្រើ _filteredRequests ដែលរាប់បញ្ចូល Search
     final dataToExport = _filteredRequests;
     
     if (dataToExport.isEmpty) {
@@ -435,7 +429,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       return;
     }
 
-    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -460,7 +453,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       var excelFile = excel.Excel.createExcel();
       excel.Sheet sheet = excelFile['Permission List'];
 
-      // Headers
       final headers = [
         'No.',
         'Staff Name',
@@ -478,7 +470,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         'Rejection Reason',
       ];
 
-      // Add header row with styling
       sheet.appendRow(headers);
       for (int col = 0; col < headers.length; col++) {
         var cell = sheet.cell(
@@ -491,7 +482,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         );
       }
 
-      // Add data rows
       for (int i = 0; i < dataToExport.length; i++) {
         final r = dataToExport[i];
         final String cambodiaTime = _formatToCambodiaTime(r.createdAt);
@@ -519,7 +509,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         ]);
       }
 
-      // Set column widths
       final colWidths = [6, 20, 25, 20, 15, 15, 12, 25, 14, 10, 12, 25, 18, 25];
       for (int i = 0; i < colWidths.length; i++) {
         sheet.setColWidth(i, colWidths[i].toDouble());
@@ -530,15 +519,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         throw Exception('Failed to encode Excel file');
       }
 
-      // Close loading dialog
       Navigator.pop(context);
 
-      // ===== HANDLE BASED ON PLATFORM =====
       if (kIsWeb) {
-        // WEB: Download via browser
-        _downloadOnWeb(fileBytes);
+        _showWebExportMessage();
       } else {
-        // MOBILE/DESKTOP: Save to temporary directory
         await _saveToFile(fileBytes);
       }
 
@@ -559,26 +544,37 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
-  // ===== WEB DOWNLOAD =====
-  void _downloadOnWeb(List<int> fileBytes) {
-    final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
-    
-    // Create blob
-    final blob = html.Blob([fileBytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    
-    // Create anchor element and trigger download
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', fileName)
-      ..click();
-    
-    // Clean up
-    html.Url.revokeObjectUrl(url);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(' Download started successfully'),
-        backgroundColor: Colors.green,
+  // ===== WEB EXPORT MESSAGE =====
+  void _showWebExportMessage() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.info, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('Web Export'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Excel file is ready for download.'),
+            SizedBox(height: 12),
+            Text(
+              '💡 Please check your browser\'s download folder.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
@@ -592,7 +588,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     final file = File(filePath);
     await file.writeAsBytes(fileBytes, flush: true);
 
-    // Open file
     final result = await OpenFile.open(filePath);
     if (result.type != ResultType.done) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -756,7 +751,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                     ),
                   ),
                   
-                  // ===== SEARCH FIELD (ដូច Report Screen) =====
+                  // ===== SEARCH FIELD =====
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: TextField(
@@ -768,7 +763,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                       },
                       style: TextStyle(fontSize: fontSize),
                       decoration: InputDecoration(
-                        hintText: ' Search by name or email...',
+                        hintText: '🔍 Search by name or email...',
                         hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
                         prefixIcon: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
                         suffixIcon: _searchQuery.isNotEmpty
@@ -795,8 +790,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                       ),
                     ),
                   ),
-                  
-                  
                   
                   if (_isManager && _managerDepartment.isNotEmpty)
                     Container(

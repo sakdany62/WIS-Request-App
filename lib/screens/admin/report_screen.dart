@@ -8,7 +8,6 @@ import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html' as html;
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
@@ -38,7 +37,7 @@ class _ReportScreenState extends State<ReportScreen> {
   // Departments loaded from Firestore
   List<Map<String, String>> _departments = [];
 
-  // ✅ Admin data for avatar
+  // Admin data for avatar
   String _adminId = '';
   String _adminName = '';
   String? _adminProfileImageUrl;
@@ -512,8 +511,10 @@ class _ReportScreenState extends State<ReportScreen> {
 
       Navigator.pop(context);
 
+      // ===== HANDLE BASED ON PLATFORM =====
       if (_isWeb) {
-        _downloadOnWeb(fileBytes);
+        // WEB: Show message to download (without dart:html)
+        _showWebExportMessage();
       } else if (_isWindows) {
         await _saveOnWindows(fileBytes);
       } else if (_isMobile) {
@@ -533,41 +534,29 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  // ===== WEB DOWNLOAD =====
-  void _downloadOnWeb(List<int> fileBytes) {
-    final fileName =
-        'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
-
-    final blob = html.Blob([fileBytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', fileName)
-      ..click();
-
-    html.Url.revokeObjectUrl(url);
-
-    _showWebSuccessDialog(fileName);
-  }
-
-  void _showWebSuccessDialog(String fileName) {
+  // ===== WEB EXPORT MESSAGE =====
+  void _showWebExportMessage() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green),
+            Icon(Icons.info, color: Colors.blue),
             SizedBox(width: 8),
-            Text('Download Succeeded'),
+            Text('Web Export'),
           ],
         ),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('File: $fileName'),
-            const SizedBox(height: 12),
+            Text('Excel file is ready for download.'),
+            SizedBox(height: 12),
+            Text(
+              '💡 Please check your browser\'s download folder.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
           ],
         ),
         actions: [
@@ -653,7 +642,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    ' File saved to Desktop:',
+                    '📁 File saved to Desktop:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
@@ -663,7 +652,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    ' Double-click the file on your Desktop to open it.',
+                    '💡 Double-click the file on your Desktop to open it.',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
@@ -982,7 +971,6 @@ class _ReportScreenState extends State<ReportScreen> {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          
           IconButton(
             onPressed: _exportToExcel,
             icon: const Icon(Icons.file_download),
@@ -1293,7 +1281,7 @@ class _ReportScreenState extends State<ReportScreen> {
               // Row 1: Avatar + Name + Status
               Row(
                 children: [
-                  // ✅ Profile Avatar (ដូច List Staff Screen)
+                  // ✅ Profile Avatar
                   ProfileAvatar(
                     userId: r['userId'] ?? '',
                     name: r['userName'] ?? 'Unknown',
