@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool isLoading = false;
   bool obscurePassword = true;
   bool rememberMe = false;
-  String _errorMessage = ''; //  សម្រាប់ទុកសារកំហុស
+  String _errorMessage = ''; // សម្រាប់ទុកសារកំហុស
 
   @override
   void initState() {
@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  //  រក្សាទុក Admin Credentials (សម្រាប់ Auto Re-login)
+  // រក្សាទុក Admin Credentials (សម្រាប់ Auto Re-login)
   Future<void> _saveAdminCredentials(String email, String password, String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -71,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    //  លុបសារកំហុសចាស់
+    // លុបសារកំហុសចាស់
     setState(() {
       _errorMessage = '';
     });
@@ -79,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
-    //  ពិនិត្យមើលថាមានបំពេញទាំងអស់ឬទេ
+    // ពិនិត្យមើលថាមានបំពេញទាំងអស់ឬទេ
     if (email.isEmpty || password.isEmpty) {
       setState(() {
         _errorMessage = 'Please fill all fields';
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final user = authProvider.currentUser;
         if (user != null) {
-          //  ប្រសិនបើជា Admin រក្សាទុក Admin Credentials
+          // ប្រសិនបើជា Admin រក្សាទុក Admin Credentials
           if (user.isAdmin) {
             await _saveAdminCredentials(email, password, user.userId);
             print(' Admin credentials saved!');
@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
-        //  បង្ហាញសារកំហុសតែមួយ
+        // បង្ហាញសារកំហុសតែមួយ
         setState(() {
           _errorMessage = 'Please check your email and password again, then try logging again';
         });
@@ -158,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const SizedBox(height: 20),
 
-              //  បង្ហាញសារកំហុសនៅផ្នែកខាងលើ
+              // បង្ហាញសារកំហុសនៅផ្នែកខាងលើ
               if (_errorMessage.isNotEmpty)
                 Container(
                   width: double.infinity,
@@ -223,7 +223,9 @@ class _LoginScreenState extends State<LoginScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
+                 
                   "Welcome Back to WESTLAND",
+                  
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -239,7 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 textInputAction: TextInputAction.next,
                 style: TextStyle(fontSize: AppFonts.md),
                 onChanged: (_) {
-                  //  លុបសារកំហុសពេលអ្នកប្រើកំពុងវាយ
+                  // លុបសារកំហុសពេលអ្នកប្រើកំពុងវាយ
                   if (_errorMessage.isNotEmpty) {
                     setState(() {
                       _errorMessage = '';
