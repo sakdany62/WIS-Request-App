@@ -47,7 +47,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   @override
   void dispose() {
-    // Clean up notification stream
     _notificationStream = null;
     super.dispose();
   }
@@ -148,32 +147,27 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       final userStats = await _userService.getUserStats();
       _totalUsers = userStats['total'] ?? 0;
 
-      // យកទិន្នន័យទាំងអស់មកគណនា
       final totalSnapshot = await FirebaseFirestore.instance.collection('leave_requests').get();
       _totalRequests = totalSnapshot.docs.length;
 
-      // គណនា pending ទាំងអស់
       final pendingSnapshot = await FirebaseFirestore.instance
           .collection('leave_requests')
           .where('status', isEqualTo: 'pending')
           .get();
       _pendingRequests = pendingSnapshot.docs.length;
 
-      // គណនា approved ទាំងអស់
       final approvedSnapshot = await FirebaseFirestore.instance
           .collection('leave_requests')
           .where('status', isEqualTo: 'approved')
           .get();
       _approvedRequests = approvedSnapshot.docs.length;
 
-      // គណនា rejected ទាំងអស់
       final rejectedSnapshot = await FirebaseFirestore.instance
           .collection('leave_requests')
           .where('status', isEqualTo: 'rejected')
           .get();
       _rejectedRequests = rejectedSnapshot.docs.length;
 
-      // គណនា today requests
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
       final endOfDay = startOfDay.add(const Duration(days: 1));
@@ -266,17 +260,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 16),
             child: Column(
               children: [
-                // Profile Section
                 Padding(
                   padding: EdgeInsets.only(top: isMobile ? 6 : 10, bottom: isMobile ? 6 : 10),
                   child: _buildProfileSection(isMobile, spacing, iconSize),
                 ),
-                // Statistics Section (Pie Chart) - Reduced size
                 Padding(
                   padding: EdgeInsets.only(bottom: isMobile ? 6 : 10),
                   child: _buildPieChartCard(isMobile, spacing),
                 ),
-                // Additional Data Section - List View (No Scroll)
                 Expanded(
                   child: _buildStatsList(isMobile, spacing),
                 ),
@@ -349,7 +340,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 SizedBox(height: isMobile ? 1 : 3),
                 Row(
                   children: [
-                  
+                    Icon(Icons.admin_panel_settings, size: isMobile ? 14 : 16, color: Colors.white70),
                     const SizedBox(width: 4),
                     Text(
                       'Administrator',
@@ -412,13 +403,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final isSmallScreen = screenWidth < 360;
     final isTablet = screenWidth >= 600;
 
-    // យកទិន្នន័យសរុប និងចំនួននីមួយៗ
     final total = _stats['totalRequests'] ?? 0;
     final pending = _stats['pendingRequests'] ?? 0;
     final approved = _stats['approvedRequests'] ?? 0;
     final rejected = _stats['rejectedRequests'] ?? 0;
 
-    // គណនា % ពិតប្រាកដ
     final pendingPercent = total == 0 ? 0.0 : (pending / total) * 100;
     final approvedPercent = total == 0 ? 0.0 : (approved / total) * 100;
     final rejectedPercent = total == 0 ? 0.0 : (rejected / total) * 100;
@@ -708,7 +697,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          // ប្រើ Column ជំនួស ListView ដើម្បីកុំឱ្យ Scroll
           Column(
             children: statsList.map((stat) {
               return Padding(
@@ -735,7 +723,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final IconData icon = stat['icon'] as IconData;
     final String type = stat['type'] as String;
 
-    // កែតម្រូវទំហំអោយតូចជាងមុន
     final iconSize = isSmallScreen ? 12 : (isTablet ? 18 : 14);
     final fontSize = isSmallScreen ? 11 : (isTablet ? 15 : 13);
     final labelSize = isSmallScreen ? 8 : (isTablet ? 10 : 9);
@@ -757,7 +744,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         ),
         child: Row(
           children: [
-            // Icon
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
@@ -767,7 +753,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               child: Icon(icon, color: color, size: iconSize.toDouble()),
             ),
             SizedBox(width: isMobile ? 6 : 10),
-            // Text content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -791,7 +776,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 ],
               ),
             ),
-            // Arrow
             Container(
               padding: const EdgeInsets.all(3),
               decoration: BoxDecoration(
@@ -861,7 +845,6 @@ class _DetailListScreenState extends State<_DetailListScreen> {
 
   @override
   void dispose() {
-    // Clean up resources
     _userCache.clear();
     super.dispose();
   }
@@ -1126,129 +1109,233 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     );
   }
 
+  // ================================================================
+  // ===== BUILD ITEM CARD WITH PROFILE AVATAR =====
+  // ================================================================
   Widget _buildItemCard(Map<String, dynamic> item, bool isMobile, double fontSize, double spacing) {
     final Color statusColor = _getStatusColor(item['status'] ?? 'pending');
+    final String userId = item['userId'] ?? '';
+    final String fullName = item['fullName'] ?? 'Unknown';
+    final String department = item['department'] ?? 'N/A';
+    final String reason = item['reason'] ?? 'No reason';
+    final String status = item['status'] ?? 'pending';
+    final String submitTime = _formatTime(item['submitTime']);
+    final String role = item['role'] ?? 'user';
+    final String startDate = _formatDate(item['startDate']);
 
     return Card(
-      margin: EdgeInsets.only(bottom: spacing),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(isMobile ? 10 : 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Avatar
-            CircleAvatar(
-              radius: isMobile ? 18 : 22,
-              backgroundColor: statusColor.withValues(alpha: 0.15),
-              child: Icon(
-                _getStatusIcon(item['status'] ?? 'pending'),
-                color: statusColor,
-                size: isMobile ? 16 : 20,
+      margin: EdgeInsets.only(bottom: spacing * 1.2),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(
+          color: statusColor.withValues(alpha: 0.2),
+          width: 0.5,
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          // Optional: Navigate to detail
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: EdgeInsets.all(isMobile ? 12 : 16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // ✅ Profile Avatar
+              ProfileAvatar(
+                userId: userId,
+                name: fullName,
+                radius: isMobile ? 20 : 26,
+                backgroundColor: statusColor.withValues(alpha: 0.12),
+                textColor: statusColor,
               ),
-            ),
-            SizedBox(width: isMobile ? 10 : 14),
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              SizedBox(width: isMobile ? 10 : 14),
+              
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Name with Role Badge
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            fullName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: isMobile ? fontSize : fontSize + 2,
+                              color: Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMobile ? 6 : 8,
+                            vertical: isMobile ? 1 : 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getRoleColor(role).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _getRoleColor(role).withValues(alpha: 0.3),
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Text(
+                            _getRoleName(role),
+                            style: TextStyle(
+                              color: _getRoleColor(role),
+                              fontSize: isMobile ? fontSize * 0.6 : fontSize * 0.7,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: isMobile ? 2 : 4),
+                    
+                    // Department
+                    if (department != 'N/A')
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.business_center,
+                            size: isMobile ? 10 : 12,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              department,
+                              style: TextStyle(
+                                fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
+                                color: Colors.grey.shade600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    
+                    // Reason
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.note,
+                          size: isMobile ? 10 : 12,
+                          color: Colors.grey.shade500,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            reason,
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.9,
+                              color: Colors.grey.shade700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    // Submit Time
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: isMobile ? 10 : 12,
+                          color: Colors.blue.shade400,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Submitted: $submitTime',
+                            style: TextStyle(
+                              fontSize: isMobile ? fontSize * 0.65 : fontSize * 0.8,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Status Badge
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Name
-                  Text(
-                    item['fullName'] ?? 'Unknown',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: isMobile ? fontSize : fontSize + 2,
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 8 : 12,
+                      vertical: isMobile ? 4 : 6,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: isMobile ? 1 : 2),
-                  // Department
-                  if (item['department'] != null && item['department'] != 'N/A')
-                    Text(
-                      item['department'],
-                      style: TextStyle(
-                        fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
-                        color: Colors.grey.shade600,
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.3),
+                        width: 1,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                  // Reason
-                  Text(
-                    'Reason: ${item['reason'] ?? 'No reason'}',
-                    style: TextStyle(
-                      fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.9,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _getStatusIcon(status),
+                          color: statusColor,
+                          size: isMobile ? 10 : 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          status.toUpperCase(),
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: isMobile ? fontSize * 0.6 : fontSize * 0.75,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                
-                  // Submit time
-                  Text(
-                    'Submitted: ${_formatTime(item['submitTime'])}',
-                    style: TextStyle(
-                      fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
-                      color: Colors.blue.shade700,
+                  SizedBox(height: isMobile ? 4 : 6),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 6 : 10,
+                      vertical: isMobile ? 2 : 4,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      startDate,
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.5 : fontSize * 0.65,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                   ),
                 ],
               ),
-            ),
-            // Trailing badges
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 6 : 10,
-                    vertical: isMobile ? 2 : 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    (item['status'] ?? 'pending').toUpperCase(),
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: isMobile ? fontSize * 0.55 : fontSize * 0.7,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                SizedBox(height: isMobile ? 2 : 4),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isMobile ? 4 : 8,
-                    vertical: isMobile ? 1 : 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getRoleColor(item['role'] ?? 'user').withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: _getRoleColor(item['role'] ?? 'user'),
-                      width: 1,
-                    ),
-                  ),
-                  child: Text(
-                    _getRoleName(item['role'] ?? 'user'),
-                    style: TextStyle(
-                      color: _getRoleColor(item['role'] ?? 'user'),
-                      fontSize: isMobile ? fontSize * 0.5 : fontSize * 0.65,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

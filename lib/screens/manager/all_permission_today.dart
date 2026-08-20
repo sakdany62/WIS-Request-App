@@ -1,6 +1,8 @@
 // lib/screens/manager/list_staff_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:convert';
+import 'dart:html' as html;
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
 import 'package:path_provider/path_provider.dart';
@@ -414,7 +416,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   }
 
   // ================================================================
-  // ===== EXPORT FUNCTION =====
+  // ===== EXPORT FUNCTION (គាំទ្រគ្រប់ Platform) =====
   // ================================================================
   Future<void> _exportToExcel() async {
     final dataToExport = _filteredRequests;
@@ -429,6 +431,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       return;
     }
 
+    // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -450,16 +453,22 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     );
 
     try {
+      // ===== CREATE EXCEL =====
       var excelFile = excel.Excel.createExcel();
-      excel.Sheet sheet = excelFile['Permission List'];
 
+      //  យក Sheet1 (បង្កើតដោយស្វ័យប្រវត្តិ)
+      var sheet = excelFile['Sheet1'];
+      if (sheet == null) {
+        throw Exception('No sheet available');
+      }
+
+      // ===== Headers (ដូច Admin Report - មានតែ Date មួយ) =====
       final headers = [
         'No.',
         'Staff Name',
         'Email',
         'Department',
-        'Start Date',
-        'End Date',
+        'Date',
         'Total Days',
         'Reason',
         'Status',
@@ -482,6 +491,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         );
       }
 
+      // ===== Add Data Rows =====
       for (int i = 0; i < dataToExport.length; i++) {
         final r = dataToExport[i];
         final String cambodiaTime = _formatToCambodiaTime(r.createdAt);
@@ -497,7 +507,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           r.userEmail,
           r.department ?? 'N/A',
           r.startDate,
-          r.endDate,
           r.totalDays,
           r.reason,
           r.status.toUpperCase(),
@@ -509,7 +518,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         ]);
       }
 
-      final colWidths = [6, 20, 25, 20, 15, 15, 12, 25, 14, 10, 12, 25, 18, 25];
+      //  Column widths (13 columns - ដូច Admin Report)
+      final colWidths = [6, 20, 25, 20, 15, 12, 25, 14, 10, 12, 25, 18, 25];
       for (int i = 0; i < colWidths.length; i++) {
         sheet.setColWidth(i, colWidths[i].toDouble());
       }
@@ -519,11 +529,15 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         throw Exception('Failed to encode Excel file');
       }
 
+      // Close loading dialog
       Navigator.pop(context);
 
+      // ===== HANDLE BASED ON PLATFORM =====
       if (kIsWeb) {
-        _showWebExportMessage();
+        // ✅ WEB: Download file
+        _downloadOnWeb(fileBytes);
       } else {
+        // MOBILE/DESKTOP: Save to file
         await _saveToFile(fileBytes);
       }
 
@@ -544,29 +558,52 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
-  // ===== WEB EXPORT MESSAGE =====
-  void _showWebExportMessage() {
+  // ===== WEB DOWNLOAD =====
+  void _downloadOnWeb(List<int> fileBytes) {
+    if (!kIsWeb) return;
+    
+    final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+
+    try {
+      final base64 = base64Encode(fileBytes);
+      final anchor = html.AnchorElement(
+        href: 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,$base64'
+      )
+        ..setAttribute('download', fileName)
+        ..style.display = 'none'
+        ..click();
+
+      _showWebSuccessDialog(fileName);
+    } catch (e) {
+      print('Web download error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Download failed. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showWebSuccessDialog(String fileName) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.info, color: Colors.blue),
+            Icon(Icons.check_circle, color: Colors.green),
             SizedBox(width: 8),
-            Text('Web Export'),
+            Text('Download Succeeded'),
           ],
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Excel file is ready for download.'),
-            SizedBox(height: 12),
-            Text(
-              '💡 Please check your browser\'s download folder.',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
+            Text('File: $fileName'),
+            const SizedBox(height: 12),
+            
           ],
         ),
         actions: [
@@ -763,7 +800,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                       },
                       style: TextStyle(fontSize: fontSize),
                       decoration: InputDecoration(
-                        hintText: '🔍 Search by name or email...',
+                        hintText: ' Search by name or email...',
                         hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
                         prefixIcon: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
                         suffixIcon: _searchQuery.isNotEmpty

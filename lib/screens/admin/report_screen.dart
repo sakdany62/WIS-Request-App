@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
 import 'dart:io';
+import 'dart:convert';
+import 'dart:html' as html;
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -383,7 +385,9 @@ class _ReportScreenState extends State<ReportScreen> {
     return result;
   }
 
+  // ================================================================
   // ===== EXPORT FUNCTION =====
+  // ================================================================
   Future<void> _exportToExcel() async {
     final dataToExport = _filteredData;
     
@@ -397,15 +401,26 @@ class _ReportScreenState extends State<ReportScreen> {
       return;
     }
 
+    // ===== PERMISSION FOR ANDROID =====
     if (_isAndroid) {
-      final status = await Permission.storage.status;
+      if (await Permission.manageExternalStorage.isPermanentlyDenied) {
+        _showPermissionDialog();
+        return;
+      }
+      
+      var status = await Permission.manageExternalStorage.status;
       if (!status.isGranted) {
-        final result = await Permission.storage.request();
-        if (!result.isGranted) {
+        status = await Permission.manageExternalStorage.request();
+      }
+      
+      if (!status.isGranted) {
+        final storageStatus = await Permission.storage.request();
+        if (!storageStatus.isGranted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Storage permission is required to export'),
               backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
             ),
           );
           return;
@@ -413,6 +428,7 @@ class _ReportScreenState extends State<ReportScreen> {
       }
     }
 
+    // ===== SHOW LOADING =====
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -434,16 +450,24 @@ class _ReportScreenState extends State<ReportScreen> {
     );
 
     try {
+      // ================================================================
+      // ===== CREATE EXCEL - ប្រើ Sheet1 ដោយមិនប្តូរឈ្មោះ =====
+      // ================================================================
       var excelFile = excel.Excel.createExcel();
-      excel.Sheet sheet = excelFile['Report'];
 
+      // ✅ យក Sheet1 (បង្កើតដោយស្វ័យប្រវត្តិ)
+      var sheet = excelFile['Sheet1'];
+      if (sheet == null) {
+        throw Exception('No sheet available');
+      }
+
+      // ===== Headers =====
       final headers = [
         'No.',
         'Staff Name',
         'Email',
         'Department',
-        'Start Date',
-        'End Date',
+        'Date',
         'Total Days',
         'Reason',
         'Status',
@@ -487,7 +511,6 @@ class _ReportScreenState extends State<ReportScreen> {
           r['userEmail'] ?? '',
           r['department'] ?? 'N/A',
           r['startDate'] ?? '',
-          r['endDate'] ?? '',
           r['totalDays'] ?? 0,
           r['reason'] ?? '',
           (r['status'] ?? 'pending').toString().toUpperCase(),
@@ -499,7 +522,8 @@ class _ReportScreenState extends State<ReportScreen> {
         ]);
       }
 
-      final colWidths = [6, 20, 25, 20, 15, 15, 12, 25, 14, 10, 12, 25, 18, 25];
+      // ✅ Column widths (13 columns)
+      final colWidths = [6, 20, 25, 20, 15, 12, 25, 14, 10, 12, 25, 18, 25];
       for (int i = 0; i < colWidths.length; i++) {
         sheet.setColWidth(i, colWidths[i].toDouble());
       }
@@ -513,8 +537,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
       // ===== HANDLE BASED ON PLATFORM =====
       if (_isWeb) {
-        // WEB: Show message to download (without dart:html)
-        _showWebExportMessage();
+        _downloadOnWeb(fileBytes);
       } else if (_isWindows) {
         await _saveOnWindows(fileBytes);
       } else if (_isMobile) {
@@ -529,34 +552,56 @@ class _ReportScreenState extends State<ReportScreen> {
 
       print('Export error: $e');
       print('StackTrace: $stackTrace');
-
       _showExportError(e.toString());
     }
   }
 
-  // ===== WEB EXPORT MESSAGE =====
-  void _showWebExportMessage() {
+  // ================================================================
+  // ===== WEB DOWNLOAD =====
+  // ================================================================
+  void _downloadOnWeb(List<int> fileBytes) {
+    final fileName =
+        'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
+
+    try {
+      final base64 = base64Encode(fileBytes);
+      final anchor = html.AnchorElement(
+        href: 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,$base64'
+      )
+        ..setAttribute('download', fileName)
+        ..style.display = 'none'
+        ..click();
+
+      _showWebSuccessDialog(fileName);
+    } catch (e) {
+      print('Web download error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Download failed. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showWebSuccessDialog(String fileName) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Row(
           children: [
-            Icon(Icons.info, color: Colors.blue),
+            Icon(Icons.check_circle, color: Colors.green),
             SizedBox(width: 8),
-            Text('Web Export'),
+            Text('Download Succeeded'),
           ],
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Excel file is ready for download.'),
-            SizedBox(height: 12),
-            Text(
-              '💡 Please check your browser\'s download folder.',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
+            Text('File: $fileName'),
+            const SizedBox(height: 12),
           ],
         ),
         actions: [
@@ -569,7 +614,48 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  // ================================================================
+  // ===== PERMISSION DIALOG =====
+  // ================================================================
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Storage Permission Required'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Please allow storage permission to export Excel files.'),
+            SizedBox(height: 12),
+            Text(
+              'Go to Settings > Apps > Permission System > Permissions > '
+              'Enable "Files and Media" or "Manage External Storage".',
+              style: TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================================================================
   // ===== WINDOWS DESKTOP SAVE =====
+  // ================================================================
   Future<void> _saveOnWindows(List<int> fileBytes) async {
     String fileName =
         'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
@@ -586,20 +672,40 @@ class _ReportScreenState extends State<ReportScreen> {
     _showWindowsSuccessDialog(filePath, fileName);
   }
 
+  // ================================================================
   // ===== MOBILE SAVE =====
+  // ================================================================
   Future<void> _saveOnMobile(List<int> fileBytes) async {
     String fileName =
         'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
-    final directory = await getApplicationDocumentsDirectory();
-    String filePath = '${directory.path}/$fileName';
+    
+    Directory? directory;
+    
+    if (_isAndroid) {
+      try {
+        final downloadsDir = await getExternalStorageDirectory();
+        if (downloadsDir != null) {
+          directory = downloadsDir;
+        } else {
+          directory = await getApplicationDocumentsDirectory();
+        }
+      } catch (e) {
+        directory = await getApplicationDocumentsDirectory();
+      }
+    } else {
+      directory = await getApplicationDocumentsDirectory();
+    }
 
+    final String filePath = '${directory!.path}/$fileName';
     final file = File(filePath);
     await file.writeAsBytes(fileBytes, flush: true);
 
     _showMobileSuccessDialog(filePath, fileName);
   }
 
+  // ================================================================
   // ===== GENERIC SAVE =====
+  // ================================================================
   Future<void> _saveGeneric(List<int> fileBytes) async {
     String fileName =
         'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
@@ -612,7 +718,9 @@ class _ReportScreenState extends State<ReportScreen> {
     _showGenericSuccessDialog(filePath, fileName);
   }
 
-  // ===== WINDOWS SUCCESS DIALOG =====
+  // ================================================================
+  // ===== SUCCESS DIALOGS =====
+  // ================================================================
   void _showWindowsSuccessDialog(String filePath, String fileName) {
     showDialog(
       context: context,
@@ -682,7 +790,6 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // ===== MOBILE SUCCESS DIALOG =====
   void _showMobileSuccessDialog(String filePath, String fileName) {
     showDialog(
       context: context,
@@ -766,7 +873,6 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // ===== GENERIC SUCCESS DIALOG =====
   void _showGenericSuccessDialog(String filePath, String fileName) {
     showDialog(
       context: context,
@@ -809,7 +915,9 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  // ================================================================
   // ===== OPEN WINDOWS FOLDER =====
+  // ================================================================
   void _openWindowsFolder() {
     try {
       String desktopPath = Platform.environment['USERPROFILE']! + '\\Desktop';
@@ -819,7 +927,9 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
+  // ================================================================
   // ===== EXPORT ERROR DIALOG =====
+  // ================================================================
   void _showExportError(String error) {
     showDialog(
       context: context,
@@ -1281,7 +1391,7 @@ class _ReportScreenState extends State<ReportScreen> {
               // Row 1: Avatar + Name + Status
               Row(
                 children: [
-                  // ✅ Profile Avatar
+                  // Profile Avatar
                   ProfileAvatar(
                     userId: r['userId'] ?? '',
                     name: r['userName'] ?? 'Unknown',
