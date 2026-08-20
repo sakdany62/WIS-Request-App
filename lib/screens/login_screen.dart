@@ -223,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  "Welcome Back to WIS",
+                  "Welcome Back to WESTLAND",
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,

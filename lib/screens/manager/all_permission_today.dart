@@ -1,8 +1,10 @@
 // lib/screens/manager/list_staff_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'dart:html' as html;
+import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
 import 'package:path_provider/path_provider.dart';
@@ -14,6 +16,9 @@ import 'package:permission_system/app_fonts.dart';
 import '../../services/request_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/profile_avatar.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class TodayRequest {
   final String requestId;
@@ -132,6 +137,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   DateTime _selectedDate = DateTime.now();
 
   String _managerDepartment = '';
+  String _managerName = '';
   bool _isManager = false;
 
   int _visibleCount = 3;
@@ -299,6 +305,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         if (roleId == '3' || roleId == '4') {
           _isManager = true;
           _managerDepartment = data['department'] ?? '';
+          _managerName = data['fullName'] ?? data['username'] ?? 'Manager';
         }
       }
     } catch (e) {
@@ -396,11 +403,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     });
   }
 
-  Future<void> _refresh() async {
-    await _loadAllRequests();
-    _applyFilters();
-  }
-
   void _showMore() => setState(() { _showAll = true; _visibleCount = _filteredRequests.length; });
   void _showLess() => setState(() { _showAll = false; _visibleCount = 3; });
 
@@ -416,7 +418,476 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   }
 
   // ================================================================
-  // ===== EXPORT FUNCTION (គាំទ្រគ្រប់ Platform) =====
+  // ===== EXPORT PDF =====
+  // ================================================================
+  Future<void> _exportToPDF() async {
+    final dataToExport = _filteredRequests;
+    
+    if (dataToExport.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No data to export'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Generating PDF file...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // ===== LOAD IMAGE FROM ASSETS =====
+      pw.ImageProvider? logoImage;
+      try {
+        final ByteData imageData = await rootBundle.load('assets/img/logo1.png');
+        final Uint8List imageBytes = imageData.buffer.asUint8List();
+        logoImage = pw.MemoryImage(imageBytes);
+        print('✅ Logo loaded successfully');
+      } catch (e) {
+        print('⚠️ Logo image not found: $e');
+        logoImage = null;
+      }
+
+      final pdf = pw.Document();
+
+      // ===== LANDSCAPE PAGE FORMAT =====
+      final pageFormat = PdfPageFormat.a4.landscape;
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: pageFormat,
+          margin: pw.EdgeInsets.all(20),
+          build: (pw.Context context) {
+            return [
+              // ===== HEADER: LOGO (LEFT) + TITLE (CENTER) =====
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Left: School Logo (No Border)
+                  pw.Container(
+                    width: 70,
+                    height: 70,
+                    child: pw.Center(
+                      child: logoImage != null
+                          ? pw.Image(
+                              logoImage!,
+                              width: 60,
+                              height: 60,
+                              fit: pw.BoxFit.contain,
+                            )
+                          : pw.Text(
+                              '🏫',
+                              style: pw.TextStyle(
+                                fontSize: 30,
+                              ),
+                            ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 16),
+                  
+                  // Center: Country Name + Motto + Report Title
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'KINGDOM OF CAMBODIA',
+                          style: pw.TextStyle(
+                            fontSize: 18,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue900,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Nation Religion King',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue900,
+                          ),
+                        ),
+                        pw.Divider(thickness: 1, color: PdfColors.blue900),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          'PERMISSION REQUEST REPORT',
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey800,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Period: ${_getDateLabel()}',
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                        if (_isManager && _managerDepartment.isNotEmpty)
+                          pw.Text(
+                            'Department: $_managerDepartment',
+                            style: pw.TextStyle(
+                              fontSize: 10,
+                              color: PdfColors.grey600,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+              pw.Divider(thickness: 2, color: PdfColors.blue900),
+              pw.SizedBox(height: 10),
+
+              // ===== DATA TABLE =====
+              pw.Table(
+                border: pw.TableBorder.all(),
+                columnWidths: {
+                  0: pw.FixedColumnWidth(25),
+                  1: pw.FixedColumnWidth(70),
+                  2: pw.FixedColumnWidth(80),
+                  3: pw.FixedColumnWidth(70),
+                  4: pw.FixedColumnWidth(60),
+                  5: pw.FixedColumnWidth(35),
+                  6: pw.FixedColumnWidth(70),
+                  7: pw.FixedColumnWidth(50),
+                  8: pw.FixedColumnWidth(40),
+                  9: pw.FixedColumnWidth(45),
+                  10: pw.FixedColumnWidth(75),
+                  11: pw.FixedColumnWidth(60),
+                  12: pw.FixedColumnWidth(60),
+                },
+                children: [
+                  // Table Header
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.blue900,
+                    ),
+                    children: [
+                      _buildHeaderCell('No.'),
+                      _buildHeaderCell('Name'),
+                      _buildHeaderCell('Email'),
+                      _buildHeaderCell('Dept'),
+                      _buildHeaderCell('Date'),
+                      _buildHeaderCell('Days'),
+                      _buildHeaderCell('Reason'),
+                      _buildHeaderCell('Status'),
+                      _buildHeaderCell('Type'),
+                      _buildHeaderCell('Req #'),
+                      _buildHeaderCell('Created'),
+                      _buildHeaderCell('Approved By'),
+                      _buildHeaderCell('Rejection'),
+                    ],
+                  ),
+                  // Data Rows
+                  ...dataToExport.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final r = entry.value;
+                    final color = index % 2 == 0 
+                        ? PdfColors.grey100 
+                        : PdfColors.white;
+                    
+                    return pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: color,
+                      ),
+                      children: [
+                        _buildDataCell('${index + 1}'),
+                        _buildDataCell(r.staffName),
+                        _buildDataCell(r.userEmail),
+                        _buildDataCell(r.department ?? 'N/A'),
+                        _buildDataCell(r.startDate),
+                        _buildDataCell('${r.totalDays}'),
+                        _buildDataCell(r.reason),
+                        _buildDataCell(
+                          r.status.toUpperCase(),
+                          color: r.status == 'approved' 
+                              ? PdfColors.green 
+                              : r.status == 'rejected' 
+                                  ? PdfColors.red 
+                                  : PdfColors.orange,
+                        ),
+                        _buildDataCell(r.autoApproved ? 'Auto' : 'Manual'),
+                        _buildDataCell('${r.requestNumber}'),
+                        _buildDataCell(_formatToCambodiaTime(r.createdAt)),
+                        _buildDataCell(r.approvedByName ?? ''),
+                        _buildDataCell(r.rejectionReason ?? ''),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+
+              // ===== FOOTER =====
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Total: ${dataToExport.length} request(s)',
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
+                    ),
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
+                        style: pw.TextStyle(
+                          fontSize: 9,
+                          color: PdfColors.grey600,
+                        ),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        'Prepared by: $_managerName',
+                        style: pw.TextStyle(
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      // Generate PDF bytes
+      final pdfBytes = await pdf.save();
+
+      // Close loading dialog
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      // ===== HANDLE BASED ON PLATFORM =====
+      if (kIsWeb) {
+        _downloadPDFOnWeb(pdfBytes);
+      } else {
+        await _savePDFToFile(pdfBytes);
+      }
+
+    } catch (e, stackTrace) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      print('PDF Export error: $e');
+      print('StackTrace: $stackTrace');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('PDF Export error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  pw.Widget _buildHeaderCell(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(4),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          color: PdfColors.white,
+          fontWeight: pw.FontWeight.bold,
+          fontSize: 8,
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  pw.Widget _buildDataCell(String text, {PdfColor? color}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(3),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          color: color ?? PdfColors.black,
+          fontSize: 7,
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  // ===== WEB DOWNLOAD PDF =====
+  void _downloadPDFOnWeb(List<int> pdfBytes) {
+    if (!kIsWeb) return;
+    
+    final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+
+    try {
+      final base64 = base64Encode(pdfBytes);
+      final anchor = html.AnchorElement(
+        href: 'data:application/pdf;base64,$base64'
+      )
+        ..setAttribute('download', fileName)
+        ..style.display = 'none'
+        ..click();
+
+      _showWebSuccessDialog(fileName);
+    } catch (e) {
+      print('Web PDF download error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Download failed. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showWebSuccessDialog(String fileName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Download Succeeded'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('File: $fileName'),
+            const SizedBox(height: 12),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== SAVE PDF TO FILE (Mobile/Desktop) =====
+  Future<void> _savePDFToFile(List<int> pdfBytes) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+      final filePath = '${dir.path}/$fileName';
+
+      final file = File(filePath);
+      await file.writeAsBytes(pdfBytes, flush: true);
+
+      try {
+        final result = await OpenFile.open(filePath);
+        if (result.type != ResultType.done) {
+          _showMobileSuccessDialog(filePath, fileName);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Exported PDF: $fileName'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        _showMobileSuccessDialog(filePath, fileName);
+      }
+    } catch (e) {
+      print('Save PDF error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Save failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showMobileSuccessDialog(String filePath, String fileName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Export Successful'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('PDF saved: $fileName'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Location:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  Text(
+                    filePath,
+                    style: const TextStyle(fontSize: 11),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================================================================
+  // ===== EXPORT EXCEL WITH LOGO 
   // ================================================================
   Future<void> _exportToExcel() async {
     final dataToExport = _filteredRequests;
@@ -456,13 +927,101 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       // ===== CREATE EXCEL =====
       var excelFile = excel.Excel.createExcel();
 
-      //  យក Sheet1 (បង្កើតដោយស្វ័យប្រវត្តិ)
+      // Get Sheet1
       var sheet = excelFile['Sheet1'];
       if (sheet == null) {
         throw Exception('No sheet available');
       }
 
-      // ===== Headers (ដូច Admin Report - មានតែ Date មួយ) =====
+      // ================================================================
+      // ===== HEADER: LOGO + TITLE =====
+      // ================================================================
+      
+      // Row 0: Logo (Left) + Title (Center)
+      // Merge cells for logo (A1:C1)
+      sheet.merge(
+        excel.CellIndex.indexByString('A1'),
+        excel.CellIndex.indexByString('C1'),
+      );
+      var logoCell = sheet.cell(excel.CellIndex.indexByString('A1'));
+      logoCell.value = '🏫 SCHOOL LOGO';
+      logoCell.cellStyle = excel.CellStyle(
+        bold: true,
+        fontSize: 16,
+        fontColorHex: '#173B69',
+        horizontalAlign: excel.HorizontalAlign.Left,
+        verticalAlign: excel.VerticalAlign.Center,
+      );
+
+      // Merge cells for Title (D1:M1)
+      sheet.merge(
+        excel.CellIndex.indexByString('D1'),
+        excel.CellIndex.indexByString('M1'),
+      );
+      var titleCell = sheet.cell(excel.CellIndex.indexByString('D1'));
+      titleCell.value = 'PERMISSION REQUEST REPORT';
+      titleCell.cellStyle = excel.CellStyle(
+        bold: true,
+        fontSize: 18,
+        fontColorHex: '#173B69',
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
+      );
+
+      // Row 1: Subtitle
+      sheet.merge(
+        excel.CellIndex.indexByString('A2'),
+        excel.CellIndex.indexByString('M2'),
+      );
+      var subtitleCell = sheet.cell(excel.CellIndex.indexByString('A2'));
+      subtitleCell.value = 'KINGDOM OF CAMBODIA - Nation Religion King';
+      subtitleCell.cellStyle = excel.CellStyle(
+        italic: true,
+        fontSize: 12,
+        fontColorHex: '#666666',
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
+      );
+
+      // Row 2: Period
+      sheet.merge(
+        excel.CellIndex.indexByString('A3'),
+        excel.CellIndex.indexByString('M3'),
+      );
+      var periodCell = sheet.cell(excel.CellIndex.indexByString('A3'));
+      periodCell.value = 'Period: ${_getDateLabel()}';
+      periodCell.cellStyle = excel.CellStyle(
+        italic: true,
+        fontSize: 10,
+        fontColorHex: '#666666',
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
+      );
+
+      // Row 3: Department (if manager)
+      if (_isManager && _managerDepartment.isNotEmpty) {
+        sheet.merge(
+          excel.CellIndex.indexByString('A4'),
+          excel.CellIndex.indexByString('M4'),
+        );
+        var deptCell = sheet.cell(excel.CellIndex.indexByString('A4'));
+        deptCell.value = 'Department: $_managerDepartment';
+        deptCell.cellStyle = excel.CellStyle(
+          italic: true,
+          fontSize: 10,
+          fontColorHex: '#666666',
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
+        );
+      }
+
+      // Empty row for spacing
+      int headerRowCount = _isManager && _managerDepartment.isNotEmpty ? 5 : 4;
+      int currentRow = headerRowCount;
+
+      // ================================================================
+      // ===== DATA TABLE HEADERS =====
+      // ================================================================
       final headers = [
         'No.',
         'Staff Name',
@@ -482,16 +1041,19 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       sheet.appendRow(headers);
       for (int col = 0; col < headers.length; col++) {
         var cell = sheet.cell(
-          excel.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0),
+          excel.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow),
         );
         cell.cellStyle = excel.CellStyle(
           bold: true,
           backgroundColorHex: '#173B69',
           fontColorHex: '#FFFFFF',
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
         );
       }
+      currentRow++;
 
-      // ===== Add Data Rows =====
+      // ===== ADD DATA ROWS =====
       for (int i = 0; i < dataToExport.length; i++) {
         final r = dataToExport[i];
         final String cambodiaTime = _formatToCambodiaTime(r.createdAt);
@@ -516,9 +1078,66 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           r.approvedByName ?? '',
           r.rejectionReason ?? '',
         ]);
+        currentRow++;
       }
 
-      //  Column widths (13 columns - ដូច Admin Report)
+      // ================================================================
+      // ===== FOOTER =====
+      // ================================================================
+      int footerStartRow = currentRow + 1;
+
+      // Total summary
+      sheet.merge(
+        excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
+        excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: footerStartRow),
+      );
+      var summaryCell = sheet.cell(
+        excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
+      );
+      summaryCell.value = 'Total: ${dataToExport.length} request(s)';
+      summaryCell.cellStyle = excel.CellStyle(
+        bold: true,
+        fontSize: 11,
+        fontColorHex: '#173B69',
+        horizontalAlign: excel.HorizontalAlign.Left,
+      );
+
+      footerStartRow++;
+
+      // Export date and prepared by (Right side)
+      sheet.merge(
+        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+        excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
+      );
+      var exportDateCell = sheet.cell(
+        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+      );
+      exportDateCell.value = 'Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}';
+      exportDateCell.cellStyle = excel.CellStyle(
+        italic: true,
+        fontSize: 9,
+        fontColorHex: '#666666',
+        horizontalAlign: excel.HorizontalAlign.Right,
+      );
+
+      footerStartRow++;
+
+      sheet.merge(
+        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+        excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
+      );
+      var preparedCell = sheet.cell(
+        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+      );
+      preparedCell.value = 'Prepared by: $_managerName';
+      preparedCell.cellStyle = excel.CellStyle(
+        bold: true,
+        fontSize: 11,
+        fontColorHex: '#173B69',
+        horizontalAlign: excel.HorizontalAlign.Right,
+      );
+
+      // ===== SET COLUMN WIDTHS =====
       final colWidths = [6, 20, 25, 20, 15, 12, 25, 14, 10, 12, 25, 18, 25];
       for (int i = 0; i < colWidths.length; i++) {
         sheet.setColWidth(i, colWidths[i].toDouble());
@@ -534,11 +1153,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
       // ===== HANDLE BASED ON PLATFORM =====
       if (kIsWeb) {
-        // ✅ WEB: Download file
-        _downloadOnWeb(fileBytes);
+        _downloadExcelOnWeb(fileBytes);
       } else {
-        // MOBILE/DESKTOP: Save to file
-        await _saveToFile(fileBytes);
+        await _saveExcelToFile(fileBytes);
       }
 
     } catch (e, stackTrace) {
@@ -558,8 +1175,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
-  // ===== WEB DOWNLOAD =====
-  void _downloadOnWeb(List<int> fileBytes) {
+  // ===== WEB DOWNLOAD EXCEL =====
+  void _downloadExcelOnWeb(List<int> fileBytes) {
     if (!kIsWeb) return;
     
     final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
@@ -585,39 +1202,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     }
   }
 
-  void _showWebSuccessDialog(String fileName) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Download Succeeded'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('File: $fileName'),
-            const SizedBox(height: 12),
-            
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===== SAVE TO FILE (Mobile/Desktop) =====
-  Future<void> _saveToFile(List<int> fileBytes) async {
+  // ===== SAVE EXCEL TO FILE (Mobile/Desktop) =====
+  Future<void> _saveExcelToFile(List<int> fileBytes) async {
     final dir = await getTemporaryDirectory();
     final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
     final filePath = '${dir.path}/$fileName';
@@ -636,7 +1222,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(' Exported: $fileName'),
+          content: Text('✅ Exported: $fileName'),
           backgroundColor: Colors.green,
         ),
       );
@@ -668,8 +1254,38 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(icon: Icon(Icons.refresh, size: iconSize), onPressed: _refresh, tooltip: 'Refresh'),
-          IconButton(icon: Icon(Icons.file_download, size: iconSize), onPressed: _exportToExcel, tooltip: 'Export'),
+          PopupMenuButton<String>(
+            icon: Icon(Icons.file_download, size: iconSize),
+            onSelected: (value) {
+              if (value == 'excel') {
+                _exportToExcel();
+              } else if (value == 'pdf') {
+                _exportToPDF();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'pdf',
+                child: Row(
+                  children: [
+                    Icon(Icons.picture_as_pdf, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Export PDF'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'excel',
+                child: Row(
+                  children: [
+                    Icon(Icons.table_chart, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text('Export Excel'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),

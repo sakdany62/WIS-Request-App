@@ -36,7 +36,8 @@ dependencies:
   
   # Excel Export
   excel: ^2.0.0
-  
+  pdf: ^3.10.4
+  printing: ^5.11.1
   # Open File
   open_file: ^3.2.1
   
@@ -65,6 +66,8 @@ flutter:
     - assets/images/
     - assets/img/
     - assets/icon/
+    - assets/img/logo1.png
+    - assets/fonts/Battambang-Bold.ttf
 
 flutter_launcher_icons:
   android: true  
