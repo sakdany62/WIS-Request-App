@@ -213,6 +213,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 28);
     double bottomPadding = MediaQuery.of(context).padding.bottom + 16;
+    
+    // Get screen dimensions for responsive sizing
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final bool isSmallScreen = screenWidth < 360;
+    final bool isTablet = screenWidth >= 600;
+    final bool isLargeScreen = screenWidth >= 900;
 
     if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -262,14 +269,14 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               children: [
                 Padding(
                   padding: EdgeInsets.only(top: isMobile ? 6 : 10, bottom: isMobile ? 6 : 10),
-                  child: _buildProfileSection(isMobile, spacing, iconSize),
+                  child: _buildProfileSection(isMobile, spacing, iconSize, screenWidth),
                 ),
                 Padding(
                   padding: EdgeInsets.only(bottom: isMobile ? 6 : 10),
-                  child: _buildPieChartCard(isMobile, spacing),
+                  child: _buildPieChartCard(isMobile, spacing, screenWidth),
                 ),
                 Expanded(
-                  child: _buildStatsList(isMobile, spacing),
+                  child: _buildStatsList(isMobile, spacing, screenWidth),
                 ),
                 SizedBox(height: bottomPadding),
               ],
@@ -280,17 +287,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  Widget _buildProfileSection(bool isMobile, double spacing, double iconSize) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 360;
-    final isTablet = screenWidth >= 600;
+  Widget _buildProfileSection(bool isMobile, double spacing, double iconSize, double screenWidth) {
+    final bool isSmallScreen = screenWidth < 360;
+    final bool isTablet = screenWidth >= 600;
 
-    final avatarRadius = isSmallScreen ? 26 : (isTablet ? 40 : 32);
-    final nameSize = isSmallScreen ? 14 : (isTablet ? 20 : 16);
-    final roleSize = isSmallScreen ? 10 : (isTablet ? 14 : 11);
+    // Responsive sizes based on screen width
+    final double avatarRadius = isSmallScreen ? 22 : (isTablet ? 38 : 30);
+    final double nameSize = isSmallScreen ? 13 : (isTablet ? 18 : 15);
+    final double roleSize = isSmallScreen ? 9 : (isTablet ? 13 : 11);
+    final double paddingSize = isSmallScreen ? 8 : (isTablet ? 14 : 10);
 
     return Container(
-      padding: EdgeInsets.all(isMobile ? 10 : 16),
+      padding: EdgeInsets.all(paddingSize),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -312,7 +320,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             userId: adminId,
             imageUrl: profileImageUrl,
             name: adminName,
-            radius: avatarRadius.toDouble(),
+            radius: avatarRadius,
             backgroundColor: Colors.white.withValues(alpha: 0.15),
             textColor: Colors.white,
             onTap: () async {
@@ -327,38 +335,55 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   adminName,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: nameSize.toDouble(),
+                    fontSize: nameSize,
                     fontWeight: FontWeight.bold,
                   ),
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-                SizedBox(height: isMobile ? 1 : 3),
+                SizedBox(height: isSmallScreen ? 1 : (isMobile ? 2 : 4)),
                 Row(
                   children: [
-                    Icon(Icons.admin_panel_settings, size: isMobile ? 14 : 16, color: Colors.white70),
+                    Icon(
+                      Icons.admin_panel_settings, 
+                      size: isSmallScreen ? 12 : (isTablet ? 16 : 14), 
+                      color: Colors.white70
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Administrator',
-                      style: TextStyle(color: Colors.white70, fontSize: roleSize.toDouble()),
+                      style: TextStyle(
+                        color: Colors.white70, 
+                        fontSize: roleSize
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ],
                 ),
               ],
             ),
           ),
-          _buildNotificationBadge(isMobile),
+          _buildNotificationBadge(isMobile, screenWidth),
         ],
       ),
     );
   }
 
-  Widget _buildNotificationBadge(bool isMobile) {
+  Widget _buildNotificationBadge(bool isMobile, double screenWidth) {
+    final bool isSmallScreen = screenWidth < 360;
+    final double buttonSize = isSmallScreen ? 32 : (isMobile ? 38 : 44);
+    final double badgeSize = isSmallScreen ? 12 : (isMobile ? 14 : 18);
+    final double fontSize = isSmallScreen ? 6 : (isMobile ? 8 : 10);
+
     return Stack(
+      alignment: Alignment.center,
       children: [
         IconButton(
           onPressed: () async {
@@ -368,26 +393,36 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             );
             _refreshUnreadCount();
           },
-          icon: const Icon(Icons.notifications_none, color: Colors.white),
+          icon: Icon(
+            Icons.notifications_none, 
+            color: Colors.white,
+            size: buttonSize * 0.6,
+          ),
           padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
+          constraints: BoxConstraints(
+            minWidth: buttonSize,
+            minHeight: buttonSize,
+          ),
         ),
         if (_unreadCount > 0)
           Positioned(
             right: 0,
             top: 0,
             child: Container(
-              padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+              padding: EdgeInsets.all(isSmallScreen ? 2 : 3),
+              decoration: const BoxDecoration(
+                color: Colors.red, 
+                shape: BoxShape.circle
+              ),
               constraints: BoxConstraints(
-                minWidth: isMobile ? 14 : 18,
-                minHeight: isMobile ? 14 : 18,
+                minWidth: badgeSize,
+                minHeight: badgeSize,
               ),
               child: Text(
                 _unreadCount > 99 ? '99+' : _unreadCount.toString(),
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: isMobile ? 8 : 10,
+                  fontSize: fontSize,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
@@ -398,10 +433,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  Widget _buildPieChartCard(bool isMobile, double spacing) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 360;
-    final isTablet = screenWidth >= 600;
+  Widget _buildPieChartCard(bool isMobile, double spacing, double screenWidth) {
+    final bool isSmallScreen = screenWidth < 360;
+    final bool isTablet = screenWidth >= 600;
+    final bool isLargeScreen = screenWidth >= 900;
 
     final total = _stats['totalRequests'] ?? 0;
     final pending = _stats['pendingRequests'] ?? 0;
@@ -412,8 +447,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final approvedPercent = total == 0 ? 0.0 : (approved / total) * 100;
     final rejectedPercent = total == 0 ? 0.0 : (rejected / total) * 100;
 
+    // Responsive padding and sizes - all as double
+    final double chartHeight = isSmallScreen ? 90 : (isTablet ? 130 : 110);
+    final double centerSpaceRadius = isSmallScreen ? 20 : (isTablet ? 38 : 30);
+    final double sectionRadius = isSmallScreen ? 28 : (isTablet ? 38 : 32);
+    final double titleSize = isSmallScreen ? 11 : (isTablet ? 15 : 13);
+    final double legendFontSize = isSmallScreen ? 6 : (isTablet ? 10 : 8);
+    final double legendCountSize = isSmallScreen ? 7 : (isTablet ? 13 : 11);
+    final double percentSize = isSmallScreen ? 5 : (isTablet ? 9 : 7);
+    final double paddingSize = isSmallScreen ? 6 : (isTablet ? 14 : 10);
+
     return Container(
-      padding: EdgeInsets.all(isMobile ? 10 : 14),
+      padding: EdgeInsets.all(paddingSize),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -434,13 +479,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               Text(
                 'Statistics',
                 style: TextStyle(
-                  fontSize: isMobile ? 13 : 15,
+                  fontSize: titleSize,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF1A3B68),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 6 : 8, 
+                  vertical: isSmallScreen ? 1 : 2
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A3B68).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
@@ -448,7 +496,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 child: Text(
                   'Total $total',
                   style: TextStyle(
-                    fontSize: isMobile ? 9 : 11,
+                    fontSize: isSmallScreen ? 8 : (isTablet ? 11 : 9),
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFF1A3B68),
                   ),
@@ -456,65 +504,70 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           if (total == 0)
             SizedBox(
-              height: 120,
+              height: chartHeight,
               child: Center(
                 child: Text(
                   'No data available',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 10 : 12, 
+                    color: Colors.grey.shade500
+                  ),
                 ),
               ),
             )
           else
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  flex: 6,
+                  flex: isSmallScreen ? 5 : 6,
                   child: SizedBox(
-                    height: isSmallScreen ? 100 : (isTablet ? 140 : 120),
+                    height: chartHeight,
                     child: Stack(
+                      alignment: Alignment.center,
                       children: [
                         PieChart(
                           PieChartData(
-                            sectionsSpace: 2,
-                            centerSpaceRadius: isSmallScreen ? 25 : (isTablet ? 40 : 32),
+                            sectionsSpace: 1,
+                            centerSpaceRadius: centerSpaceRadius,
                             sections: [
                               PieChartSectionData(
                                 color: const Color(0xFFF59E0B),
                                 value: pending.toDouble(),
                                 title: pendingPercent > 8 ? '${pendingPercent.toStringAsFixed(0)}%' : '',
-                                radius: 35,
+                                radius: sectionRadius,
                                 showTitle: true,
-                                titleStyle: const TextStyle(
+                                titleStyle: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                  fontSize: 8,
+                                  fontSize: isSmallScreen ? 6 : (isTablet ? 9 : 7),
                                 ),
                               ),
                               PieChartSectionData(
                                 color: const Color(0xFF10B981),
                                 value: approved.toDouble(),
                                 title: approvedPercent > 8 ? '${approvedPercent.toStringAsFixed(0)}%' : '',
-                                radius: 35,
+                                radius: sectionRadius,
                                 showTitle: true,
-                                titleStyle: const TextStyle(
+                                titleStyle: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                  fontSize: 8,
+                                  fontSize: isSmallScreen ? 6 : (isTablet ? 9 : 7),
                                 ),
                               ),
                               PieChartSectionData(
                                 color: const Color(0xFFEF4444),
                                 value: rejected.toDouble(),
                                 title: rejectedPercent > 8 ? '${rejectedPercent.toStringAsFixed(0)}%' : '',
-                                radius: 35,
+                                radius: sectionRadius,
                                 showTitle: true,
-                                titleStyle: const TextStyle(
+                                titleStyle: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
-                                  fontSize: 8,
+                                  fontSize: isSmallScreen ? 6 : (isTablet ? 9 : 7),
                                 ),
                               ),
                             ],
@@ -523,11 +576,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                         Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 '$total',
                                 style: TextStyle(
-                                  fontSize: isSmallScreen ? 12 : (isTablet ? 18 : 15),
+                                  fontSize: isSmallScreen ? 10 : (isTablet ? 16 : 13),
                                   fontWeight: FontWeight.bold,
                                   color: const Color(0xFF1A3B68),
                                 ),
@@ -535,7 +589,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                               Text(
                                 'Total',
                                 style: TextStyle(
-                                  fontSize: isSmallScreen ? 6 : (isTablet ? 9 : 7),
+                                  fontSize: isSmallScreen ? 5 : (isTablet ? 9 : 7),
                                   color: Colors.grey.shade500,
                                 ),
                               ),
@@ -547,18 +601,31 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   ),
                 ),
                 Expanded(
-                  flex: 4,
+                  flex: isSmallScreen ? 5 : 4,
                   child: Padding(
-                    padding: EdgeInsets.only(left: isMobile ? 4 : 8),
+                    padding: EdgeInsets.only(left: isSmallScreen ? 2 : (isMobile ? 4 : 8)),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildLegendItem('Pending', pending, '${pendingPercent.toStringAsFixed(1)}%', const Color(0xFFF59E0B), isSmallScreen, isTablet),
-                        const SizedBox(height: 3),
-                        _buildLegendItem('Approved', approved, '${approvedPercent.toStringAsFixed(1)}%', const Color(0xFF10B981), isSmallScreen, isTablet),
-                        const SizedBox(height: 3),
-                        _buildLegendItem('Rejected', rejected, '${rejectedPercent.toStringAsFixed(1)}%', const Color(0xFFEF4444), isSmallScreen, isTablet),
+                        _buildLegendItem(
+                          'Pending', pending, '${pendingPercent.toStringAsFixed(1)}%', 
+                          const Color(0xFFF59E0B), isSmallScreen, isTablet,
+                          legendFontSize, legendCountSize, percentSize
+                        ),
+                        SizedBox(height: isSmallScreen ? 2 : 3),
+                        _buildLegendItem(
+                          'Approved', approved, '${approvedPercent.toStringAsFixed(1)}%', 
+                          const Color(0xFF10B981), isSmallScreen, isTablet,
+                          legendFontSize, legendCountSize, percentSize
+                        ),
+                        SizedBox(height: isSmallScreen ? 2 : 3),
+                        _buildLegendItem(
+                          'Rejected', rejected, '${rejectedPercent.toStringAsFixed(1)}%', 
+                          const Color(0xFFEF4444), isSmallScreen, isTablet,
+                          legendFontSize, legendCountSize, percentSize
+                        ),
                       ],
                     ),
                   ),
@@ -570,31 +637,46 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  Widget _buildLegendItem(String title, int count, String percent, Color color, bool isSmallScreen, bool isTablet) {
+  Widget _buildLegendItem(
+    String title, 
+    int count, 
+    String percent, 
+    Color color, 
+    bool isSmallScreen, 
+    bool isTablet,
+    double fontSize,
+    double countSize,
+    double percentSize
+  ) {
+    final double dotSize = isSmallScreen ? 6 : (isTablet ? 10 : 8);
+    
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: isSmallScreen ? 7 : 10,
-          height: isSmallScreen ? 7 : 10,
+          width: dotSize,
+          height: dotSize,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 4),
+        SizedBox(width: isSmallScreen ? 3 : 4),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               title,
               style: TextStyle(
-                fontSize: isSmallScreen ? 7 : (isTablet ? 10 : 8),
+                fontSize: fontSize,
                 color: Colors.grey.shade600,
               ),
             ),
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   count.toString(),
                   style: TextStyle(
-                    fontSize: isSmallScreen ? 9 : (isTablet ? 13 : 11),
+                    fontSize: countSize,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF1A3B68),
                   ),
@@ -603,7 +685,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 Text(
                   '($percent)',
                   style: TextStyle(
-                    fontSize: isSmallScreen ? 6 : (isTablet ? 9 : 7),
+                    fontSize: percentSize,
                     color: Colors.grey.shade500,
                   ),
                 ),
@@ -615,9 +697,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  Widget _buildStatsList(bool isMobile, double spacing) {
-    final bool isTablet = MediaQuery.of(context).size.width >= 600;
-    final bool isSmallScreen = MediaQuery.of(context).size.width < 360;
+  Widget _buildStatsList(bool isMobile, double spacing, double screenWidth) {
+    final bool isTablet = screenWidth >= 600;
+    final bool isSmallScreen = screenWidth < 360;
+    final bool isLargeScreen = screenWidth >= 900;
 
     final List<Map<String, dynamic>> statsList = [
       {'title': 'Total Users', 'value': _stats['totalUsers'] ?? 0, 'color': const Color(0xFF6366F1), 'icon': Icons.people_rounded, 'type': 'users'},
@@ -644,6 +727,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         ),
         child: Center(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.inbox_outlined, size: 36, color: Colors.grey.shade300),
               const SizedBox(height: 4),
@@ -657,8 +741,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       );
     }
 
+    // Responsive grid or list layout
+    final bool useGrid = isTablet && !isSmallScreen;
+    
     return Container(
-      padding: EdgeInsets.all(isMobile ? 6 : 12),
+      padding: EdgeInsets.all(isSmallScreen ? 4 : (isMobile ? 6 : 12)),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -673,38 +760,69 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 3,
-                height: 12,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 4 : 0),
+            child: Row(
+              children: [
+                Container(
+                  width: 3,
+                  height: isSmallScreen ? 10 : 12,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  borderRadius: BorderRadius.circular(2),
+                ),
+                SizedBox(width: isSmallScreen ? 4 : 6),
+                Text(
+                  'Additional Data',
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 10 : (isTablet ? 14 : 12),
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1A3B68),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: isSmallScreen ? 2 : 4),
+          useGrid 
+            ? Expanded(
+                child: GridView.builder(
+                  padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 2 : 4),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: isLargeScreen ? 3 : 2,
+                    childAspectRatio: isLargeScreen ? 3.5 : 3.2,
+                    crossAxisSpacing: spacing * 0.5,
+                    mainAxisSpacing: spacing * 0.5,
+                  ),
+                  itemCount: statsList.length,
+                  itemBuilder: (context, index) {
+                    return _buildStatListItem(
+                      statsList[index], 
+                      isMobile, 
+                      isTablet, 
+                      isSmallScreen, 
+                      spacing,
+                      screenWidth
+                    );
+                  },
+                ),
+              )
+            : Expanded(
+                child: ListView(
+                  padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 2 : 4),
+                  children: statsList.map((stat) {
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: spacing * 0.25),
+                      child: _buildStatListItem(
+                        stat, isMobile, isTablet, isSmallScreen, spacing, screenWidth
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
-              const SizedBox(width: 6),
-              Text(
-                'Additional Data',
-                style: TextStyle(
-                  fontSize: isMobile ? 12 : 15,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1A3B68),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Column(
-            children: statsList.map((stat) {
-              return Padding(
-                padding: EdgeInsets.only(bottom: spacing * 0.25),
-                child: _buildStatListItem(stat, isMobile, isTablet, isSmallScreen, spacing),
-              );
-            }).toList(),
-          ),
         ],
       ),
     );
@@ -716,6 +834,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     bool isTablet,
     bool isSmallScreen,
     double spacing,
+    double screenWidth,
   ) {
     final Color color = stat['color'] as Color;
     final String title = stat['title'] as String;
@@ -723,68 +842,74 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     final IconData icon = stat['icon'] as IconData;
     final String type = stat['type'] as String;
 
-    final iconSize = isSmallScreen ? 12 : (isTablet ? 18 : 14);
-    final fontSize = isSmallScreen ? 11 : (isTablet ? 15 : 13);
-    final labelSize = isSmallScreen ? 8 : (isTablet ? 10 : 9);
-    final paddingV = isSmallScreen ? 3 : (isTablet ? 8 : 5);
-    final paddingH = isSmallScreen ? 6 : (isTablet ? 12 : 8);
+    // Responsive sizes - all as double
+    final double iconSize = isSmallScreen ? 10 : (isTablet ? 16 : 13);
+    final double fontSize = isSmallScreen ? 10 : (isTablet ? 14 : 12);
+    final double labelSize = isSmallScreen ? 7 : (isTablet ? 10 : 8);
+    final double paddingV = isSmallScreen ? 2 : (isTablet ? 6 : 4);
+    final double paddingH = isSmallScreen ? 4 : (isTablet ? 10 : 6);
+    final double borderRadius = isSmallScreen ? 4 : 6;
 
     return InkWell(
       onTap: () => _navigateToDetail(type),
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(borderRadius),
       child: Container(
         padding: EdgeInsets.symmetric(
-          horizontal: paddingH.toDouble(),
-          vertical: paddingV.toDouble(),
+          horizontal: paddingH,
+          vertical: paddingV,
         ),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
+          borderRadius: BorderRadius.circular(borderRadius),
+          border: Border.all(color: color.withValues(alpha: 0.1), width: 0.5),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(4),
+              padding: EdgeInsets.all(isSmallScreen ? 2 : 4),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: iconSize.toDouble()),
+              child: Icon(icon, color: color, size: iconSize),
             ),
-            SizedBox(width: isMobile ? 6 : 10),
+            SizedBox(width: isSmallScreen ? 4 : (isMobile ? 6 : 10)),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     value.toString(),
                     style: TextStyle(
-                      fontSize: fontSize.toDouble(),
+                      fontSize: fontSize,
                       fontWeight: FontWeight.bold,
                       color: color,
                     ),
+                    maxLines: 1,
                   ),
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: labelSize.toDouble(),
+                      fontSize: labelSize,
                       color: Colors.grey.shade600,
                       fontWeight: FontWeight.w500,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
             Container(
-              padding: const EdgeInsets.all(3),
+              padding: EdgeInsets.all(isSmallScreen ? 2 : 3),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.arrow_forward_ios,
-                size: isMobile ? 8 : 12,
+                size: isSmallScreen ? 6 : (isMobile ? 8 : 12),
                 color: color,
               ),
             ),
@@ -1061,15 +1186,30 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isSmallScreen = screenWidth < 360;
+    final bool isTablet = screenWidth >= 600;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getTitle(), style: TextStyle(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold)),
+        title: Text(
+          _getTitle(), 
+          style: TextStyle(
+            fontSize: isSmallScreen ? 14 : (isMobile ? 16 : 18), 
+            fontWeight: FontWeight.bold
+          ),
+        ),
         backgroundColor: _getColor(),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadData),
+          IconButton(
+            icon: Icon(
+              Icons.refresh, 
+              size: isSmallScreen ? 18 : (isMobile ? 20 : 24)
+            ), 
+            onPressed: _loadData,
+          ),
         ],
       ),
       body: _isLoading
@@ -1103,7 +1243,7 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                       itemCount: _items.length,
                       itemBuilder: (context, index) {
                         final item = _items[index];
-                        return _buildItemCard(item, isMobile, fontSize, spacing);
+                        return _buildItemCard(item, isMobile, fontSize, spacing, screenWidth);
                       },
                     ),
     );
@@ -1112,7 +1252,15 @@ class _DetailListScreenState extends State<_DetailListScreen> {
   // ================================================================
   // ===== BUILD ITEM CARD WITH PROFILE AVATAR =====
   // ================================================================
-  Widget _buildItemCard(Map<String, dynamic> item, bool isMobile, double fontSize, double spacing) {
+  Widget _buildItemCard(
+    Map<String, dynamic> item, 
+    bool isMobile, 
+    double fontSize, 
+    double spacing,
+    double screenWidth
+  ) {
+    final bool isSmallScreen = screenWidth < 360;
+    final bool isTablet = screenWidth >= 600;
     final Color statusColor = _getStatusColor(item['status'] ?? 'pending');
     final String userId = item['userId'] ?? '';
     final String fullName = item['fullName'] ?? 'Unknown';
@@ -1123,11 +1271,22 @@ class _DetailListScreenState extends State<_DetailListScreen> {
     final String role = item['role'] ?? 'user';
     final String startDate = _formatDate(item['startDate']);
 
+    // Responsive sizes - all as double
+    final double avatarRadius = isSmallScreen ? 16 : (isTablet ? 24 : 20);
+    final double paddingSize = isSmallScreen ? 8 : (isMobile ? 12 : 16);
+    final double nameSize = isSmallScreen ? fontSize * 0.9 : (isMobile ? fontSize : fontSize + 2);
+    final double roleBadgeSize = isSmallScreen ? fontSize * 0.55 : (isMobile ? fontSize * 0.6 : fontSize * 0.7);
+    final double detailSize = isSmallScreen ? fontSize * 0.6 : (isMobile ? fontSize * 0.7 : fontSize * 0.85);
+    final double statusSize = isSmallScreen ? fontSize * 0.55 : (isMobile ? fontSize * 0.6 : fontSize * 0.75);
+    final double dateSize = isSmallScreen ? fontSize * 0.45 : (isMobile ? fontSize * 0.5 : fontSize * 0.65);
+    final double iconSize = isSmallScreen ? 8 : (isMobile ? 10 : 12);
+    final double spacingSmall = isSmallScreen ? 1 : (isMobile ? 2 : 4);
+
     return Card(
       margin: EdgeInsets.only(bottom: spacing * 1.2),
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 14),
         side: BorderSide(
           color: statusColor.withValues(alpha: 0.2),
           width: 0.5,
@@ -1137,21 +1296,21 @@ class _DetailListScreenState extends State<_DetailListScreen> {
         onTap: () {
           // Optional: Navigate to detail
         },
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(isSmallScreen ? 10 : 14),
         child: Padding(
-          padding: EdgeInsets.all(isMobile ? 12 : 16),
+          padding: EdgeInsets.all(paddingSize),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ✅ Profile Avatar
               ProfileAvatar(
                 userId: userId,
                 name: fullName,
-                radius: isMobile ? 20 : 26,
+                radius: avatarRadius,
                 backgroundColor: statusColor.withValues(alpha: 0.12),
                 textColor: statusColor,
               ),
-              SizedBox(width: isMobile ? 10 : 14),
+              SizedBox(width: isSmallScreen ? 6 : (isMobile ? 10 : 14)),
               
               // Content
               Expanded(
@@ -1160,29 +1319,30 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Name with Role Badge
-                    Row(
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 2,
+                      alignment: WrapAlignment.start,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Flexible(
-                          child: Text(
-                            fullName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: isMobile ? fontSize : fontSize + 2,
-                              color: Colors.black87,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          fullName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: nameSize,
+                            color: Colors.black87,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(width: 6),
                         Container(
                           padding: EdgeInsets.symmetric(
-                            horizontal: isMobile ? 6 : 8,
-                            vertical: isMobile ? 1 : 2,
+                            horizontal: isSmallScreen ? 4 : (isMobile ? 6 : 8),
+                            vertical: isSmallScreen ? 1 : (isMobile ? 1 : 2),
                           ),
                           decoration: BoxDecoration(
                             color: _getRoleColor(role).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                               color: _getRoleColor(role).withValues(alpha: 0.3),
                               width: 0.5,
@@ -1192,14 +1352,14 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                             _getRoleName(role),
                             style: TextStyle(
                               color: _getRoleColor(role),
-                              fontSize: isMobile ? fontSize * 0.6 : fontSize * 0.7,
+                              fontSize: roleBadgeSize,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: isMobile ? 2 : 4),
+                    SizedBox(height: spacingSmall),
                     
                     // Department
                     if (department != 'N/A')
@@ -1207,15 +1367,15 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                         children: [
                           Icon(
                             Icons.business_center,
-                            size: isMobile ? 10 : 12,
+                            size: iconSize,
                             color: Colors.grey.shade500,
                           ),
-                          const SizedBox(width: 4),
+                          SizedBox(width: isSmallScreen ? 2 : 4),
                           Flexible(
                             child: Text(
                               department,
                               style: TextStyle(
-                                fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85,
+                                fontSize: detailSize,
                                 color: Colors.grey.shade600,
                               ),
                               maxLines: 1,
@@ -1230,15 +1390,15 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                       children: [
                         Icon(
                           Icons.note,
-                          size: isMobile ? 10 : 12,
+                          size: iconSize,
                           color: Colors.grey.shade500,
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: isSmallScreen ? 2 : 4),
                         Flexible(
                           child: Text(
                             reason,
                             style: TextStyle(
-                              fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.9,
+                              fontSize: detailSize,
                               color: Colors.grey.shade700,
                             ),
                             maxLines: 1,
@@ -1253,15 +1413,15 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                       children: [
                         Icon(
                           Icons.access_time,
-                          size: isMobile ? 10 : 12,
+                          size: iconSize,
                           color: Colors.blue.shade400,
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: isSmallScreen ? 2 : 4),
                         Flexible(
                           child: Text(
                             'Submitted: $submitTime',
                             style: TextStyle(
-                              fontSize: isMobile ? fontSize * 0.65 : fontSize * 0.8,
+                              fontSize: detailSize * 0.9,
                               color: Colors.blue.shade700,
                               fontWeight: FontWeight.w500,
                             ),
@@ -1282,15 +1442,15 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                 children: [
                   Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 8 : 12,
-                      vertical: isMobile ? 4 : 6,
+                      horizontal: isSmallScreen ? 4 : (isMobile ? 8 : 12),
+                      vertical: isSmallScreen ? 2 : (isMobile ? 4 : 6),
                     ),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(isSmallScreen ? 8 : 12),
                       border: Border.all(
                         color: statusColor.withValues(alpha: 0.3),
-                        width: 1,
+                        width: 0.5,
                       ),
                     ),
                     child: Row(
@@ -1299,34 +1459,34 @@ class _DetailListScreenState extends State<_DetailListScreen> {
                         Icon(
                           _getStatusIcon(status),
                           color: statusColor,
-                          size: isMobile ? 10 : 14,
+                          size: isSmallScreen ? 8 : (isMobile ? 10 : 14),
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: isSmallScreen ? 2 : 4),
                         Text(
                           status.toUpperCase(),
                           style: TextStyle(
                             color: statusColor,
-                            fontSize: isMobile ? fontSize * 0.6 : fontSize * 0.75,
+                            fontSize: statusSize,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  SizedBox(height: isMobile ? 4 : 6),
+                  SizedBox(height: isSmallScreen ? 2 : (isMobile ? 4 : 6)),
                   Container(
                     padding: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 6 : 10,
-                      vertical: isMobile ? 2 : 4,
+                      horizontal: isSmallScreen ? 4 : (isMobile ? 6 : 10),
+                      vertical: isSmallScreen ? 1 : (isMobile ? 2 : 4),
                     ),
                     decoration: BoxDecoration(
                       color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(isSmallScreen ? 6 : 8),
                     ),
                     child: Text(
                       startDate,
                       style: TextStyle(
-                        fontSize: isMobile ? fontSize * 0.5 : fontSize * 0.65,
+                        fontSize: dateSize,
                         color: Colors.grey.shade500,
                         fontWeight: FontWeight.w500,
                       ),
