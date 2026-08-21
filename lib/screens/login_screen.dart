@@ -224,11 +224,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                  
-                  "Welcome Back to WESTLAND",
+                  "Welcome Back to WESTLAND INTERNATIONAL SCHOOL",
                   
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'Roboto',
                   ),

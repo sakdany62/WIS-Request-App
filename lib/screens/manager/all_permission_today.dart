@@ -886,294 +886,365 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     );
   }
 
-  // ================================================================
-  // ===== EXPORT EXCEL WITH LOGO 
-  // ================================================================
-  Future<void> _exportToExcel() async {
-    final dataToExport = _filteredRequests;
-    
-    if (dataToExport.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No data to export'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+/// ================================================================
+// ===== EXPORT EXCEL WITH ENGLISH HEADERS (NO LOGO, ONLY START DATE) =====
+// ================================================================
+Future<void> _exportToExcel() async {
+  final dataToExport = _filteredRequests;
+  
+  if (dataToExport.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No data to export'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    return;
+  }
 
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Generating Excel file...'),
-              ],
-            ),
+  // Show loading dialog
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(
+      child: Card(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Generating Excel file...'),
+            ],
           ),
         ),
       ),
+    ),
+  );
+
+  try {
+    // ===== CREATE EXCEL =====
+    var excelFile = excel.Excel.createExcel();
+
+    // Get Sheet1
+    var sheet = excelFile['Sheet1'];
+    if (sheet == null) {
+      throw Exception('No sheet available');
+    }
+
+    // ================================================================
+    // ===== HEADER: PERIOD ONLY =====
+    // ================================================================
+    
+    // Row 0: Period
+    sheet.merge(
+      excel.CellIndex.indexByString('A1'),
+      excel.CellIndex.indexByString('M1'),
+    );
+    var periodCell = sheet.cell(excel.CellIndex.indexByString('A1'));
+    periodCell.value = 'Period: ${_getDateLabel()}';
+    periodCell.cellStyle = excel.CellStyle(
+      bold: true,
+      fontSize: 14,
+      fontColorHex: '#173B69',
+      horizontalAlign: excel.HorizontalAlign.Center,
+      verticalAlign: excel.VerticalAlign.Center,
     );
 
-    try {
-      // ===== CREATE EXCEL =====
-      var excelFile = excel.Excel.createExcel();
-
-      // Get Sheet1
-      var sheet = excelFile['Sheet1'];
-      if (sheet == null) {
-        throw Exception('No sheet available');
-      }
-
-      // ================================================================
-      // ===== HEADER: LOGO + TITLE =====
-      // ================================================================
-      
-      // Row 0: Logo (Left) + Title (Center)
-      // Merge cells for logo (A1:C1)
-      sheet.merge(
-        excel.CellIndex.indexByString('A1'),
-        excel.CellIndex.indexByString('C1'),
-      );
-      var logoCell = sheet.cell(excel.CellIndex.indexByString('A1'));
-      logoCell.value = '🏫 SCHOOL LOGO';
-      logoCell.cellStyle = excel.CellStyle(
-        bold: true,
-        fontSize: 16,
-        fontColorHex: '#173B69',
-        horizontalAlign: excel.HorizontalAlign.Left,
-        verticalAlign: excel.VerticalAlign.Center,
-      );
-
-      // Merge cells for Title (D1:M1)
-      sheet.merge(
-        excel.CellIndex.indexByString('D1'),
-        excel.CellIndex.indexByString('M1'),
-      );
-      var titleCell = sheet.cell(excel.CellIndex.indexByString('D1'));
-      titleCell.value = 'PERMISSION REQUEST REPORT';
-      titleCell.cellStyle = excel.CellStyle(
-        bold: true,
-        fontSize: 18,
-        fontColorHex: '#173B69',
-        horizontalAlign: excel.HorizontalAlign.Center,
-        verticalAlign: excel.VerticalAlign.Center,
-      );
-
-      // Row 1: Subtitle
+    // Row 1: Department (if manager)
+    if (_isManager && _managerDepartment.isNotEmpty) {
       sheet.merge(
         excel.CellIndex.indexByString('A2'),
         excel.CellIndex.indexByString('M2'),
       );
-      var subtitleCell = sheet.cell(excel.CellIndex.indexByString('A2'));
-      subtitleCell.value = 'KINGDOM OF CAMBODIA - Nation Religion King';
-      subtitleCell.cellStyle = excel.CellStyle(
-        italic: true,
-        fontSize: 12,
-        fontColorHex: '#666666',
-        horizontalAlign: excel.HorizontalAlign.Center,
-        verticalAlign: excel.VerticalAlign.Center,
-      );
-
-      // Row 2: Period
-      sheet.merge(
-        excel.CellIndex.indexByString('A3'),
-        excel.CellIndex.indexByString('M3'),
-      );
-      var periodCell = sheet.cell(excel.CellIndex.indexByString('A3'));
-      periodCell.value = 'Period: ${_getDateLabel()}';
-      periodCell.cellStyle = excel.CellStyle(
+      var deptCell = sheet.cell(excel.CellIndex.indexByString('A2'));
+      deptCell.value = 'Department: $_managerDepartment';
+      deptCell.cellStyle = excel.CellStyle(
         italic: true,
         fontSize: 10,
         fontColorHex: '#666666',
         horizontalAlign: excel.HorizontalAlign.Center,
         verticalAlign: excel.VerticalAlign.Center,
       );
+    }
 
-      // Row 3: Department (if manager)
-      if (_isManager && _managerDepartment.isNotEmpty) {
-        sheet.merge(
-          excel.CellIndex.indexByString('A4'),
-          excel.CellIndex.indexByString('M4'),
-        );
-        var deptCell = sheet.cell(excel.CellIndex.indexByString('A4'));
-        deptCell.value = 'Department: $_managerDepartment';
-        deptCell.cellStyle = excel.CellStyle(
-          italic: true,
-          fontSize: 10,
-          fontColorHex: '#666666',
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-        );
-      }
+    // Empty row for spacing
+    int headerRowCount = _isManager && _managerDepartment.isNotEmpty ? 3 : 2;
+    int currentRow = headerRowCount;
 
-      // Empty row for spacing
-      int headerRowCount = _isManager && _managerDepartment.isNotEmpty ? 5 : 4;
-      int currentRow = headerRowCount;
+    // ================================================================
+    // ===== DATA TABLE HEADERS (ENGLISH) =====
+    // ================================================================
+    final headers = [
+      'No.',
+      'Staff Name',
+      'Email',
+      'Department',
+      'Date',            // Only Start Date
+      'Total Days',
+      'Reason',
+      'Status',
+      'Approval Type',
+      'Request #',
+      'Created At',
+      'Approved By',
+      'Rejection Reason',
+    ];
 
-      // ================================================================
-      // ===== DATA TABLE HEADERS =====
-      // ================================================================
-      final headers = [
-        'No.',
-        'Staff Name',
-        'Email',
-        'Department',
-        'Date',
-        'Total Days',
-        'Reason',
-        'Status',
-        'Type',
-        'Request #',
-        'Created At (Cambodia Time)',
-        'Approved By',
-        'Rejection Reason',
-      ];
-
-      sheet.appendRow(headers);
-      for (int col = 0; col < headers.length; col++) {
-        var cell = sheet.cell(
-          excel.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow),
-        );
-        cell.cellStyle = excel.CellStyle(
-          bold: true,
-          backgroundColorHex: '#173B69',
-          fontColorHex: '#FFFFFF',
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-        );
-      }
-      currentRow++;
-
-      // ===== ADD DATA ROWS =====
-      for (int i = 0; i < dataToExport.length; i++) {
-        final r = dataToExport[i];
-        final String cambodiaTime = _formatToCambodiaTime(r.createdAt);
-
-        String fullName = r.staffName;
-        if (r.userId.isNotEmpty && _userNameCache.containsKey(r.userId)) {
-          fullName = _userNameCache[r.userId]!;
-        }
-
-        sheet.appendRow([
-          (i + 1),
-          fullName,
-          r.userEmail,
-          r.department ?? 'N/A',
-          r.startDate,
-          r.totalDays,
-          r.reason,
-          r.status.toUpperCase(),
-          r.autoApproved ? 'Auto' : 'Manual',
-          r.requestNumber,
-          cambodiaTime,
-          r.approvedByName ?? '',
-          r.rejectionReason ?? '',
-        ]);
-        currentRow++;
-      }
-
-      // ================================================================
-      // ===== FOOTER =====
-      // ================================================================
-      int footerStartRow = currentRow + 1;
-
-      // Total summary
-      sheet.merge(
-        excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
-        excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: footerStartRow),
+    // Add headers row with styling
+    for (int col = 0; col < headers.length; col++) {
+      var cell = sheet.cell(
+        excel.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow),
       );
-      var summaryCell = sheet.cell(
-        excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
-      );
-      summaryCell.value = 'Total: ${dataToExport.length} request(s)';
-      summaryCell.cellStyle = excel.CellStyle(
+      cell.value = headers[col];
+      cell.cellStyle = excel.CellStyle(
         bold: true,
+        backgroundColorHex: '#173B69',
+        fontColorHex: '#FFFFFF',
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
         fontSize: 11,
-        fontColorHex: '#173B69',
-        horizontalAlign: excel.HorizontalAlign.Left,
-      );
-
-      footerStartRow++;
-
-      // Export date and prepared by (Right side)
-      sheet.merge(
-        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-        excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
-      );
-      var exportDateCell = sheet.cell(
-        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-      );
-      exportDateCell.value = 'Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}';
-      exportDateCell.cellStyle = excel.CellStyle(
-        italic: true,
-        fontSize: 9,
-        fontColorHex: '#666666',
-        horizontalAlign: excel.HorizontalAlign.Right,
-      );
-
-      footerStartRow++;
-
-      sheet.merge(
-        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-        excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
-      );
-      var preparedCell = sheet.cell(
-        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-      );
-      preparedCell.value = 'Prepared by: $_managerName';
-      preparedCell.cellStyle = excel.CellStyle(
-        bold: true,
-        fontSize: 11,
-        fontColorHex: '#173B69',
-        horizontalAlign: excel.HorizontalAlign.Right,
-      );
-
-      // ===== SET COLUMN WIDTHS =====
-      final colWidths = [6, 20, 25, 20, 15, 12, 25, 14, 10, 12, 25, 18, 25];
-      for (int i = 0; i < colWidths.length; i++) {
-        sheet.setColWidth(i, colWidths[i].toDouble());
-      }
-
-      final fileBytes = excelFile.encode();
-      if (fileBytes == null || fileBytes.isEmpty) {
-        throw Exception('Failed to encode Excel file');
-      }
-
-      // Close loading dialog
-      Navigator.pop(context);
-
-      // ===== HANDLE BASED ON PLATFORM =====
-      if (kIsWeb) {
-        _downloadExcelOnWeb(fileBytes);
-      } else {
-        await _saveExcelToFile(fileBytes);
-      }
-
-    } catch (e, stackTrace) {
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-
-      print('Export error: $e');
-      print('StackTrace: $stackTrace');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Export error: $e'),
-          backgroundColor: Colors.red,
-        ),
       );
     }
+    currentRow++;
+
+    // ===== ADD DATA ROWS =====
+    for (int i = 0; i < dataToExport.length; i++) {
+      final r = dataToExport[i];
+      final String cambodiaTime = _formatToCambodiaTime(r.createdAt);
+
+      // Get full name from cache or use staffName
+      String fullName = r.staffName;
+      if (r.userId.isNotEmpty && _userNameCache.containsKey(r.userId)) {
+        fullName = _userNameCache[r.userId]!;
+      }
+
+      final rowIndex = currentRow;
+      
+      // 1. No.
+      var cell0 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex));
+      cell0.value = i + 1;
+      cell0.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 2. Staff Name
+      var cell1 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex));
+      cell1.value = fullName;
+      cell1.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Left,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 3. Email
+      var cell2 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex));
+      cell2.value = r.userEmail;
+      cell2.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Left,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 4. Department
+      var cell3 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex));
+      cell3.value = r.department ?? 'N/A';
+      cell3.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Left,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 5. Date (Start Date only)
+      var cell4 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex));
+      cell4.value = r.startDate;
+      cell4.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 6. Total Days
+      var cell5 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex));
+      cell5.value = r.totalDays;
+      cell5.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 7. Reason
+      var cell6 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex));
+      cell6.value = r.reason;
+      cell6.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Left,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 8. Status (with color)
+      var cell7 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex));
+      String statusText = r.status.toUpperCase();
+      cell7.value = statusText;
+      String statusColor = '';
+      switch (r.status.toLowerCase()) {
+        case 'pending': statusColor = '#FFA500'; break;
+        case 'approved': statusColor = '#28A745'; break;
+        case 'rejected': statusColor = '#DC3545'; break;
+        default: statusColor = '#000000';
+      }
+      cell7.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontColorHex: statusColor,
+        bold: true,
+        fontSize: 10,
+      );
+
+      // 9. Approval Type
+      var cell8 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex));
+      cell8.value = r.autoApproved ? 'Auto' : 'Manual';
+      cell8.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 10. Request #
+      var cell9 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex));
+      cell9.value = r.requestNumber;
+      cell9.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 11. Created At
+      var cell10 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: rowIndex));
+      cell10.value = cambodiaTime;
+      cell10.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Center,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 12. Approved By
+      var cell11 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: rowIndex));
+      cell11.value = r.approvedByName ?? '';
+      cell11.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Left,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      // 13. Rejection Reason
+      var cell12 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: rowIndex));
+      cell12.value = r.rejectionReason ?? '';
+      cell12.cellStyle = excel.CellStyle(
+        horizontalAlign: excel.HorizontalAlign.Left,
+        verticalAlign: excel.VerticalAlign.Center,
+        fontSize: 10,
+      );
+
+      currentRow++;
+    }
+
+    // ================================================================
+    // ===== FOOTER =====
+    // ================================================================
+    int footerStartRow = currentRow + 1;
+
+    // Total summary
+    sheet.merge(
+      excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
+      excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: footerStartRow),
+    );
+    var summaryCell = sheet.cell(
+      excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
+    );
+    summaryCell.value = 'Total: ${dataToExport.length} request(s)';
+    summaryCell.cellStyle = excel.CellStyle(
+      bold: true,
+      fontSize: 11,
+      fontColorHex: '#173B69',
+      horizontalAlign: excel.HorizontalAlign.Left,
+    );
+
+    footerStartRow++;
+
+    // Export date and prepared by (Right side)
+    sheet.merge(
+      excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+      excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
+    );
+    var exportDateCell = sheet.cell(
+      excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+    );
+    exportDateCell.value = 'Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}';
+    exportDateCell.cellStyle = excel.CellStyle(
+      italic: true,
+      fontSize: 9,
+      fontColorHex: '#666666',
+      horizontalAlign: excel.HorizontalAlign.Right,
+    );
+
+    footerStartRow++;
+
+    sheet.merge(
+      excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+      excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
+    );
+    var preparedCell = sheet.cell(
+      excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+    );
+    preparedCell.value = 'Prepared by: $_managerName';
+    preparedCell.cellStyle = excel.CellStyle(
+      bold: true,
+      fontSize: 11,
+      fontColorHex: '#173B69',
+      horizontalAlign: excel.HorizontalAlign.Right,
+    );
+
+    // ===== SET COLUMN WIDTHS =====
+    final colWidths = [6, 22, 28, 20, 18, 14, 28, 16, 14, 14, 28, 20, 28];
+    for (int i = 0; i < colWidths.length; i++) {
+      sheet.setColWidth(i, colWidths[i].toDouble());
+    }
+
+    final fileBytes = excelFile.encode();
+    if (fileBytes == null || fileBytes.isEmpty) {
+      throw Exception('Failed to encode Excel file');
+    }
+
+    // Close loading dialog
+    Navigator.pop(context);
+
+    // ===== HANDLE BASED ON PLATFORM =====
+    if (kIsWeb) {
+      _downloadExcelOnWeb(fileBytes);
+    } else {
+      await _saveExcelToFile(fileBytes);
+    }
+
+  } catch (e, stackTrace) {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+
+    print('Export error: $e');
+    print('StackTrace: $stackTrace');
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Export error: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
 
   // ===== WEB DOWNLOAD EXCEL =====
   void _downloadExcelOnWeb(List<int> fileBytes) {
