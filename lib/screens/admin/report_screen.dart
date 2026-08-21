@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
 import 'dart:io';
 import 'dart:convert';
-import 'dart:html' as html;
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -14,6 +13,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/profile_avatar.dart';
+import 'package:permission_system/utils/web_utils.dart';
 
 class ReportScreen extends StatefulWidget {
   const ReportScreen({super.key});
@@ -450,18 +450,12 @@ class _ReportScreenState extends State<ReportScreen> {
     );
 
     try {
-      // ================================================================
-      // ===== CREATE EXCEL 
-      // ================================================================
       var excelFile = excel.Excel.createExcel();
-
-      // ✅ យក Sheet1 (បង្កើតដោយស្វ័យប្រវត្តិ)
       var sheet = excelFile['Sheet1'];
       if (sheet == null) {
         throw Exception('No sheet available');
       }
 
-      // ===== Headers =====
       final headers = [
         'No.',
         'Staff Name',
@@ -522,7 +516,6 @@ class _ReportScreenState extends State<ReportScreen> {
         ]);
       }
 
-      // ✅ Column widths (13 columns)
       final colWidths = [6, 20, 25, 20, 15, 12, 25, 14, 10, 12, 25, 18, 25];
       for (int i = 0; i < colWidths.length; i++) {
         sheet.setColWidth(i, colWidths[i].toDouble());
@@ -535,7 +528,6 @@ class _ReportScreenState extends State<ReportScreen> {
 
       Navigator.pop(context);
 
-      // ===== HANDLE BASED ON PLATFORM =====
       if (_isWeb) {
         _downloadOnWeb(fileBytes);
       } else if (_isWindows) {
@@ -560,18 +552,17 @@ class _ReportScreenState extends State<ReportScreen> {
   // ===== WEB DOWNLOAD =====
   // ================================================================
   void _downloadOnWeb(List<int> fileBytes) {
+    if (!kIsWeb) return;
+    
     final fileName =
         'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
 
     try {
-      final base64 = base64Encode(fileBytes);
-      final anchor = html.AnchorElement(
-        href: 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,$base64'
-      )
-        ..setAttribute('download', fileName)
-        ..style.display = 'none'
-        ..click();
-
+      downloadFileWeb(
+        fileBytes, 
+        fileName, 
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
       _showWebSuccessDialog(fileName);
     } catch (e) {
       print('Web download error: $e');
@@ -1148,12 +1139,10 @@ class _ReportScreenState extends State<ReportScreen> {
               )
             : Column(
                 children: [
-                  // ===== FILTER ROW =====
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Row(
                       children: [
-                        // Report Type
                         Expanded(
                           flex: 2,
                           child: Container(
@@ -1192,7 +1181,6 @@ class _ReportScreenState extends State<ReportScreen> {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // Date Picker
                         Expanded(
                           flex: 3,
                           child: GestureDetector(
@@ -1227,7 +1215,6 @@ class _ReportScreenState extends State<ReportScreen> {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        // ===== DEPARTMENT FILTER (FROM FIRESTORE) =====
                         Expanded(
                           flex: 2,
                           child: Container(
@@ -1275,7 +1262,6 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ),
                   
-                  // ===== SEARCH FIELD =====
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: TextField(
@@ -1313,7 +1299,6 @@ class _ReportScreenState extends State<ReportScreen> {
                     ),
                   ),
                   
-                  // ===== LIST =====
                   Expanded(
                     child: _filteredData.isEmpty
                         ? Center(
@@ -1360,9 +1345,6 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // ================================================================
-  // ===== BUILD REPORT CARD WITH AVATAR =====
-  // ================================================================
   Widget _buildReportCard(Map<String, dynamic> r, bool isMobile, double fontSize, double spacing) {
     final Color statusColor = _getStatusColor(r['status'] ?? 'pending');
     final String statusLabel = _getStatusLabel(r['status'] ?? 'pending');
@@ -1388,10 +1370,8 @@ class _ReportScreenState extends State<ReportScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row 1: Avatar + Name + Status
               Row(
                 children: [
-                  // Profile Avatar
                   ProfileAvatar(
                     userId: r['userId'] ?? '',
                     name: r['userName'] ?? 'Unknown',
@@ -1443,7 +1423,6 @@ class _ReportScreenState extends State<ReportScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              // Row 2: Date Range
               Row(
                 children: [
                   Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade500),
@@ -1460,7 +1439,6 @@ class _ReportScreenState extends State<ReportScreen> {
                 ],
               ),
               const SizedBox(height: 4),
-              // Row 3: Reason + Days
               Row(
                 children: [
                   Icon(Icons.note, size: 14, color: Colors.grey.shade500),
@@ -1494,7 +1472,6 @@ class _ReportScreenState extends State<ReportScreen> {
                 ],
               ),
               const SizedBox(height: 4),
-              // Row 4: Time + Type + Request #
               Wrap(
                 spacing: 8,
                 runSpacing: 4,
@@ -1533,7 +1510,6 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                 ],
               ),
-              // Rejection Reason / Approved By
               if (r['rejectionReason'] != null && r['rejectionReason'].isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
