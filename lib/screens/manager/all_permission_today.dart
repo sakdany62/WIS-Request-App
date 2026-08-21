@@ -1,8 +1,7 @@
-// lib/screens/manager/list_staff_screen.dart
+// lib/screens/manager/all_permission_today.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
@@ -11,7 +10,6 @@ import 'dart:io';
 import 'package:open_file/open_file.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:permission_system/app_fonts.dart';
 import '../../services/request_service.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/profile_avatar.dart';
@@ -19,6 +17,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:permission_system/utils/web_utils.dart';
+// ✅ THE ONLY IMPORT THAT ACTUALLY WORKS FOR KHMER PDF
+import 'package:khmer_pdf_fixer/khmer_pdf_fixer.dart';
 
 class TodayRequest {
   final String requestId;
@@ -67,7 +67,6 @@ class TodayRequest {
 
   factory TodayRequest.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-
     int requestNumber = 0;
     final requestNumberValue = data['requestNumber'];
     if (requestNumberValue != null) {
@@ -144,16 +143,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   bool _showAll = false;
 
   final Map<String, String> _userNameCache = {};
-
   String _searchQuery = '';
 
-  final List<String> _segmentLabels = [
-    'All',
-    'Pending',
-    'Approved',
-    'Rejected',
-    'Auto-App',
-  ];
+  final List<String> _segmentLabels = ['All', 'Pending', 'Approved', 'Rejected', 'Auto-App'];
 
   @override
   void initState() {
@@ -206,11 +198,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
             final timeParts = parts[1].split(':');
             if (dateParts.length == 3 && timeParts.length >= 2) {
               parsedDateTime = DateTime(
-                int.parse(dateParts[0]),
-                int.parse(dateParts[1]),
-                int.parse(dateParts[2]),
-                int.parse(timeParts[0]),
-                int.parse(timeParts[1]),
+                int.parse(dateParts[0]), int.parse(dateParts[1]), int.parse(dateParts[2]),
+                int.parse(timeParts[0]), int.parse(timeParts[1]),
               );
             }
           }
@@ -377,7 +366,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   void _applyFilters() {
     var filtered = _allRequests;
-    
     if (_currentSegment != 0) {
       switch (_currentSegment) {
         case 1: filtered = filtered.where((r) => r.status == 'pending').toList(); break;
@@ -418,17 +406,14 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   }
 
   // ================================================================
-  // ===== EXPORT PDF =====
+  // ===== EXPORT PDF (FINAL WORKING VERSION) =====
   // ================================================================
   Future<void> _exportToPDF() async {
     final dataToExport = _filteredRequests;
     
     if (dataToExport.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No data to export'),
-          backgroundColor: Colors.orange,
-        ),
+        const SnackBar(content: Text('No data to export'), backgroundColor: Colors.orange),
       );
       return;
     }
@@ -454,19 +439,20 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     );
 
     try {
+      // ✅ 1. Initialize the Khmer Font Manager (CRITICAL!)
+      await KhmerFontManager().initialize();
+
       pw.ImageProvider? logoImage;
       try {
         final ByteData imageData = await rootBundle.load('assets/img/logo1.png');
         final Uint8List imageBytes = imageData.buffer.asUint8List();
         logoImage = pw.MemoryImage(imageBytes);
-        print('✅ Logo loaded successfully');
       } catch (e) {
-        print('⚠️ Logo image not found: $e');
         logoImage = null;
       }
 
       final pdf = pw.Document();
-      final pageFormat = PdfPageFormat.a4.landscape;
+      final pageFormat = PdfPageFormat.a4;
 
       pdf.addPage(
         pw.MultiPage(
@@ -474,76 +460,52 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           margin: pw.EdgeInsets.all(20),
           build: (pw.Context context) {
             return [
+              // HEADER
               pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Container(
                     width: 70,
                     height: 70,
-                    child: pw.Center(
-                      child: logoImage != null
-                          ? pw.Image(
-                              logoImage!,
-                              width: 60,
-                              height: 60,
-                              fit: pw.BoxFit.contain,
-                            )
-                          : pw.Text(
-                              '🏫',
-                              style: pw.TextStyle(
-                                fontSize: 30,
-                              ),
-                            ),
-                    ),
+                    child: logoImage != null
+                        ? pw.Image(logoImage!, width: 60, height: 60, fit: pw.BoxFit.contain)
+                        : pw.SizedBox(),
                   ),
                   pw.SizedBox(width: 16),
                   pw.Expanded(
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
+                        // ✅ USE KhmerHeader
+                        KhmerHeader(
+                          'ព្រះរាជាណាចក្រកម្ពុជា',
+                          fontSize: 18,
+                          color: PdfColors.blue900,
+                        ),
                         pw.Text(
                           'KINGDOM OF CAMBODIA',
-                          style: pw.TextStyle(
-                            fontSize: 18,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue900,
-                          ),
+                          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
                         ),
                         pw.SizedBox(height: 2),
+                        // ✅ USE KhmerHeader
+                        KhmerHeader(
+                          'ជាតិ សាសនា ព្រះមហាក្សត្រ',
+                          fontSize: 14,
+                          color: PdfColors.blue900,
+                        ),
                         pw.Text(
-                          'Nation Religion King',
-                          style: pw.TextStyle(
-                            fontSize: 16,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue900,
-                          ),
+                          'NATION RELIGION KING',
+                          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
                         ),
                         pw.Divider(thickness: 1, color: PdfColors.blue900),
                         pw.SizedBox(height: 4),
                         pw.Text(
                           'PERMISSION REQUEST REPORT',
-                          style: pw.TextStyle(
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.grey800,
-                          ),
+                          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
                         ),
-                        pw.SizedBox(height: 2),
-                        pw.Text(
-                          'Period: ${_getDateLabel()}',
-                          style: pw.TextStyle(
-                            fontSize: 10,
-                            color: PdfColors.grey600,
-                          ),
-                        ),
+                        pw.Text('Period: ${_getDateLabel()}', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
                         if (_isManager && _managerDepartment.isNotEmpty)
-                          pw.Text(
-                            'Department: $_managerDepartment',
-                            style: pw.TextStyle(
-                              fontSize: 10,
-                              color: PdfColors.grey600,
-                            ),
-                          ),
+                          pw.Text('Department: $_managerDepartment', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
                       ],
                     ),
                   ),
@@ -552,6 +514,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
               pw.SizedBox(height: 10),
               pw.Divider(thickness: 2, color: PdfColors.blue900),
               pw.SizedBox(height: 10),
+
+              // TABLE
               pw.Table(
                 border: pw.TableBorder.all(),
                 columnWidths: {
@@ -571,9 +535,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                 },
                 children: [
                   pw.TableRow(
-                    decoration: pw.BoxDecoration(
-                      color: PdfColors.blue900,
-                    ),
+                    decoration: pw.BoxDecoration(color: PdfColors.blue900),
                     children: [
                       _buildHeaderCell('No.'),
                       _buildHeaderCell('Name'),
@@ -593,14 +555,10 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                   ...dataToExport.asMap().entries.map((entry) {
                     final index = entry.key;
                     final r = entry.value;
-                    final color = index % 2 == 0 
-                        ? PdfColors.grey100 
-                        : PdfColors.white;
-                    
+                    final color = index % 2 == 0 ? PdfColors.grey100 : PdfColors.white;
+
                     return pw.TableRow(
-                      decoration: pw.BoxDecoration(
-                        color: color,
-                      ),
+                      decoration: pw.BoxDecoration(color: color),
                       children: [
                         _buildDataCell('${index + 1}'),
                         _buildDataCell(r.staffName),
@@ -611,11 +569,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                         _buildDataCell(r.reason),
                         _buildDataCell(
                           r.status.toUpperCase(),
-                          color: r.status == 'approved' 
-                              ? PdfColors.green 
-                              : r.status == 'rejected' 
-                                  ? PdfColors.red 
-                                  : PdfColors.orange,
+                          color: r.status == 'approved' ? PdfColors.green : r.status == 'rejected' ? PdfColors.red : PdfColors.orange,
                         ),
                         _buildDataCell(r.autoApproved ? 'Auto' : 'Manual'),
                         _buildDataCell('${r.requestNumber}'),
@@ -631,33 +585,13 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text(
-                    'Total: ${dataToExport.length} request(s)',
-                    style: pw.TextStyle(
-                      fontSize: 11,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.blue900,
-                    ),
-                  ),
+                  pw.Text('Total: ${dataToExport.length} request(s)', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text(
-                        'Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
-                        style: pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
-                        ),
-                      ),
+                      pw.Text('Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}', style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
                       pw.SizedBox(height: 2),
-                      pw.Text(
-                        'Prepared by: $_managerName',
-                        style: pw.TextStyle(
-                          fontSize: 11,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue900,
-                        ),
-                      ),
+                      pw.Text('Prepared by: $_managerName', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
                     ],
                   ),
                 ],
@@ -668,58 +602,44 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       );
 
       final pdfBytes = await pdf.save();
-
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
+      if (Navigator.canPop(context)) Navigator.pop(context);
 
       if (kIsWeb) {
         _downloadPDFOnWeb(pdfBytes);
       } else {
         await _savePDFToFile(pdfBytes);
       }
-
     } catch (e, stackTrace) {
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
-
+      if (Navigator.canPop(context)) Navigator.pop(context);
       print('PDF Export error: $e');
       print('StackTrace: $stackTrace');
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('PDF Export error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('PDF Export error: $e'), backgroundColor: Colors.red),
       );
     }
   }
 
+  // ✅ USE KhmerHeader
   pw.Widget _buildHeaderCell(String text) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(4),
-      child: pw.Text(
+      child: KhmerHeader(
         text,
-        style: pw.TextStyle(
-          color: PdfColors.white,
-          fontWeight: pw.FontWeight.bold,
-          fontSize: 8,
-        ),
+        fontSize: 8,
+        color: PdfColors.white,
         textAlign: pw.TextAlign.center,
       ),
     );
   }
 
+  // ✅ USE KhmerParagraph
   pw.Widget _buildDataCell(String text, {PdfColor? color}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(3),
-      child: pw.Text(
+      child: KhmerParagraph(
         text,
-        style: pw.TextStyle(
-          color: color ?? PdfColors.black,
-          fontSize: 7,
-        ),
+        fontSize: 7,
+        color: color ?? PdfColors.black,
         textAlign: pw.TextAlign.center,
       ),
     );
@@ -732,19 +652,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
 
     try {
-      downloadFileWeb(
-        pdfBytes, 
-        fileName, 
-        'application/pdf'
-      );
+      downloadFileWeb(pdfBytes, fileName, 'application/pdf');
       _showWebSuccessDialog(fileName);
     } catch (e) {
       print('Web PDF download error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Download failed. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Download failed. Please try again.'), backgroundColor: Colors.red),
       );
     }
   }
@@ -795,10 +708,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           _showMobileSuccessDialog(filePath, fileName);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✅ Exported PDF: $fileName'),
-              backgroundColor: Colors.green,
-            ),
+            SnackBar(content: Text('✅ Exported PDF: $fileName'), backgroundColor: Colors.green),
           );
         }
       } catch (e) {
@@ -807,10 +717,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     } catch (e) {
       print('Save PDF error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Save failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Save failed: ${e.toString()}'), backgroundColor: Colors.red),
       );
     }
   }
@@ -842,25 +749,15 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Location:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                  Text(
-                    filePath,
-                    style: const TextStyle(fontSize: 11),
-                    maxLines: 2,
-                  ),
+                  const Text('Location:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text(filePath, style: const TextStyle(fontSize: 11), maxLines: 2),
                 ],
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
         ],
       ),
     );
@@ -874,10 +771,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     
     if (dataToExport.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No data to export'),
-          backgroundColor: Colors.orange,
-        ),
+        const SnackBar(content: Text('No data to export'), backgroundColor: Colors.orange),
       );
       return;
     }
@@ -909,7 +803,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         throw Exception('No sheet available');
       }
 
-      // Header: Period
       sheet.merge(
         excel.CellIndex.indexByString('A1'),
         excel.CellIndex.indexByString('M1'),
@@ -944,19 +837,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       int currentRow = headerRowCount;
 
       final headers = [
-        'No.',
-        'Staff Name',
-        'Email',
-        'Department',
-        'Date',
-        'Total Days',
-        'Reason',
-        'Status',
-        'Approval Type',
-        'Request #',
-        'Created At',
-        'Approved By',
-        'Rejection Reason',
+        'No.', 'Staff Name', 'Email', 'Department', 'Date', 'Total Days', 'Reason',
+        'Status', 'Approval Type', 'Request #', 'Created At', 'Approved By', 'Rejection Reason',
       ];
 
       for (int col = 0; col < headers.length; col++) {
@@ -988,59 +870,31 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         
         var cell0 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex));
         cell0.value = i + 1;
-        cell0.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell0.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell1 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex));
         cell1.value = fullName;
-        cell1.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell1.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell2 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex));
         cell2.value = r.userEmail;
-        cell2.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell2.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell3 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex));
         cell3.value = r.department ?? 'N/A';
-        cell3.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell3.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell4 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex));
         cell4.value = r.startDate;
-        cell4.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell4.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell5 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex));
         cell5.value = r.totalDays;
-        cell5.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell5.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell6 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex));
         cell6.value = r.reason;
-        cell6.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell6.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell7 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex));
         String statusText = r.status.toUpperCase();
@@ -1052,53 +906,27 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           case 'rejected': statusColor = '#DC3545'; break;
           default: statusColor = '#000000';
         }
-        cell7.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontColorHex: statusColor,
-          bold: true,
-          fontSize: 10,
-        );
+        cell7.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontColorHex: statusColor, bold: true, fontSize: 10);
 
         var cell8 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex));
         cell8.value = r.autoApproved ? 'Auto' : 'Manual';
-        cell8.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell8.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell9 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex));
         cell9.value = r.requestNumber;
-        cell9.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell9.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell10 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: rowIndex));
         cell10.value = cambodiaTime;
-        cell10.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell10.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell11 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: rowIndex));
         cell11.value = r.approvedByName ?? '';
-        cell11.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell11.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell12 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: rowIndex));
         cell12.value = r.rejectionReason ?? '';
-        cell12.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell12.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         currentRow++;
       }
@@ -1109,16 +937,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
         excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: footerStartRow),
       );
-      var summaryCell = sheet.cell(
-        excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
-      );
+      var summaryCell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow));
       summaryCell.value = 'Total: ${dataToExport.length} request(s)';
-      summaryCell.cellStyle = excel.CellStyle(
-        bold: true,
-        fontSize: 11,
-        fontColorHex: '#173B69',
-        horizontalAlign: excel.HorizontalAlign.Left,
-      );
+      summaryCell.cellStyle = excel.CellStyle(bold: true, fontSize: 11, fontColorHex: '#173B69', horizontalAlign: excel.HorizontalAlign.Left);
 
       footerStartRow++;
 
@@ -1126,16 +947,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
         excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
       );
-      var exportDateCell = sheet.cell(
-        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-      );
+      var exportDateCell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow));
       exportDateCell.value = 'Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}';
-      exportDateCell.cellStyle = excel.CellStyle(
-        italic: true,
-        fontSize: 9,
-        fontColorHex: '#666666',
-        horizontalAlign: excel.HorizontalAlign.Right,
-      );
+      exportDateCell.cellStyle = excel.CellStyle(italic: true, fontSize: 9, fontColorHex: '#666666', horizontalAlign: excel.HorizontalAlign.Right);
 
       footerStartRow++;
 
@@ -1143,16 +957,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
         excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
       );
-      var preparedCell = sheet.cell(
-        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-      );
+      var preparedCell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow));
       preparedCell.value = 'Prepared by: $_managerName';
-      preparedCell.cellStyle = excel.CellStyle(
-        bold: true,
-        fontSize: 11,
-        fontColorHex: '#173B69',
-        horizontalAlign: excel.HorizontalAlign.Right,
-      );
+      preparedCell.cellStyle = excel.CellStyle(bold: true, fontSize: 11, fontColorHex: '#173B69', horizontalAlign: excel.HorizontalAlign.Right);
 
       final colWidths = [6, 22, 28, 20, 18, 14, 28, 16, 14, 14, 28, 20, 28];
       for (int i = 0; i < colWidths.length; i++) {
@@ -1181,10 +988,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       print('StackTrace: $stackTrace');
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Export error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Export error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -1205,10 +1009,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     } catch (e) {
       print('Web download error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Download failed. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Download failed. Please try again.'), backgroundColor: Colors.red),
       );
     }
   }
@@ -1225,17 +1026,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     final result = await OpenFile.open(filePath);
     if (result.type != ResultType.done) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not open file: ${result.message}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Could not open file: ${result.message}'), backgroundColor: Colors.red),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('✅ Exported: $fileName'),
-          backgroundColor: Colors.green,
-        ),
+        SnackBar(content: Text('✅ Exported: $fileName'), backgroundColor: Colors.green),
       );
     }
   }
