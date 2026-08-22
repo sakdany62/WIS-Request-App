@@ -46,7 +46,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '174749190262',
     projectId: 'wis-permission-system',
     authDomain: 'wis-permission-system.firebaseapp.com',
-    storageBucket: 'wis-permission-system.firebasestorage.app',
+    // ✅ REMOVED: storageBucket
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -54,7 +54,7 @@ class DefaultFirebaseOptions {
     appId: '1:174749190262:android:55e68e6e1b64e811603757',
     messagingSenderId: '174749190262',
     projectId: 'wis-permission-system',
-    storageBucket: 'wis-permission-system.firebasestorage.app',
+    // ✅ REMOVED: storageBucket
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -62,8 +62,8 @@ class DefaultFirebaseOptions {
     appId: '1:174749190262:ios:49a14abc9475ad5d603757',
     messagingSenderId: '174749190262',
     projectId: 'wis-permission-system',
-    storageBucket: 'wis-permission-system.firebasestorage.app',
     iosBundleId: 'com.example.permissionSystem',
+    // ✅ REMOVED: storageBucket
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -71,8 +71,8 @@ class DefaultFirebaseOptions {
     appId: '1:174749190262:ios:49a14abc9475ad5d603757',
     messagingSenderId: '174749190262',
     projectId: 'wis-permission-system',
-    storageBucket: 'wis-permission-system.firebasestorage.app',
     iosBundleId: 'com.example.permissionSystem',
+    // ✅ REMOVED: storageBucket
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
@@ -81,7 +81,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '174749190262',
     projectId: 'wis-permission-system',
     authDomain: 'wis-permission-system.firebaseapp.com',
-    storageBucket: 'wis-permission-system.firebasestorage.app',
+    // ✅ REMOVED: storageBucket
   );
-
 }

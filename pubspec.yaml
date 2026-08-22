@@ -7,6 +7,7 @@ environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
+  translator: ^1.0.0
   flutter:
     sdk: flutter
   timezone: ^0.9.4
@@ -15,7 +16,7 @@ dependencies:
   firebase_core: ^3.15.2
   firebase_auth: ^5.5.1
   cloud_firestore: ^5.6.5
-  firebase_storage: ^12.4.4
+
   
   # Utilities
   cross_file: ^0.3.3+8

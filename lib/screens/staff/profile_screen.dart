@@ -1,9 +1,10 @@
 // lib/screens/staff/profile_screen.dart
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_system/screens/staff/staff_home_screen.dart';
 import '../../app_fonts.dart';
@@ -40,6 +41,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     _loadUserData();
   }
 
+  // =============================================
+  // 1. LOAD USER DATA
+  // =============================================
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -83,7 +87,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
 
   // ===== CHANGE PASSWORD METHOD WITH DIALOG STATE =====
   Future<void> _changePasswordWithDialog(StateSetter setDialogState) async {
-    // Clear previous error
     setDialogState(() {
       _passwordError = '';
     });
@@ -92,7 +95,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     String newPassword = newPasswordController.text.trim();
     String confirmPassword = confirmPasswordController.text.trim();
 
-    // Validate inputs
     if (currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
       setDialogState(() {
         _passwordError = 'Please fill in all password fields';
@@ -128,18 +130,14 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         return;
       }
 
-      // Re-authenticate user before changing password
       final credential = EmailAuthProvider.credential(
         email: user.email!,
         password: currentPassword,
       );
 
       await user.reauthenticateWithCredential(credential);
-
-      // Change password
       await user.updatePassword(newPassword);
 
-      // Clear password fields
       currentPasswordController.clear();
       newPasswordController.clear();
       confirmPasswordController.clear();
@@ -149,10 +147,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         _passwordError = '';
       });
 
-      // Show success message
       _showSnackBar(' Password changed successfully!', Colors.green);
-
-      // Close dialog
       Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
       setDialogState(() {
@@ -174,13 +169,13 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         _passwordError = errorMessage;
       });
 
-      _showSnackBar(' $errorMessage', Colors.red);
+      _showSnackBar('❌ $errorMessage', Colors.red);
     } catch (e) {
       setDialogState(() {
         isChangingPassword = false;
         _passwordError = 'An error occurred: $e';
       });
-      _showSnackBar(' Error: $e', Colors.red);
+      _showSnackBar('❌ Error: $e', Colors.red);
     }
   }
 
@@ -190,12 +185,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
 
-    // Reset controllers and errors when opening
     currentPasswordController.clear();
     newPasswordController.clear();
     confirmPasswordController.clear();
-
-    // Reset password error and visibility states
     _passwordError = '';
     obscureCurrentPassword = true;
     obscureNewPassword = true;
@@ -205,7 +197,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        // ===== USE StatefulBuilder =====
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setDialogState) {
             return AlertDialog(
@@ -222,7 +213,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Error message
                     if (_passwordError.isNotEmpty)
                       Container(
                         width: double.infinity,
@@ -241,8 +231,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                           ),
                         ),
                       ),
-
-                    // Current Password
                     Text(
                       'Current Password',
                       style: TextStyle(
@@ -279,10 +267,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                         ),
                       ),
                     ),
-
                     SizedBox(height: spacing * 1.5),
-
-                    // New Password
                     Text(
                       'New Password',
                       style: TextStyle(
@@ -319,10 +304,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                         ),
                       ),
                     ),
-
                     SizedBox(height: spacing * 1.5),
-
-                    // Confirm Password
                     Text(
                       'Confirm New Password',
                       style: TextStyle(
@@ -360,7 +342,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                         ),
                       ),
                     ),
-
                     SizedBox(height: spacing / 2),
                     Text(
                       'Password must be at least 6 characters',
@@ -426,7 +407,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     );
   }
 
-  // ✅ URL Dialog
+  // =============================================
+  // URL Dialog - ONLY THIS REMAINS!
+  // =============================================
   Future<void> _showUrlDialog() async {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -536,7 +519,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     );
   }
 
-  // ✅ Update Profile Image
+  // =============================================
+  // UPDATE PROFILE IMAGE URL
+  // =============================================
   Future<void> _updateProfileImageUrl(String imageUrl) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -569,7 +554,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     }
   }
 
-  // ✅ Delete Profile Image
+  // =============================================
+  // DELETE PROFILE IMAGE
+  // =============================================
   Future<void> _deleteProfileImage() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -628,14 +615,14 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         isUploading = false;
       });
 
-      _showSnackBar('Profile image deleted successfully', Colors.orange);
+      _showSnackBar(' Profile image deleted successfully', Colors.orange);
 
       Navigator.pop(context, true);
     } catch (e) {
       setState(() {
         isUploading = false;
       });
-      _showSnackBar('Error deleting image: $e', Colors.red);
+      _showSnackBar('❌ Error deleting image: $e', Colors.red);
       print('❌ Image deletion error: $e');
     }
   }
@@ -653,7 +640,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     );
   }
 
-  //  Show Image Picker Dialog
+  // =============================================
+  // SHOW IMAGE PICKER DIALOG - URL ONLY!
+  // =============================================
   Future<void> _showImagePickerDialog() async {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -667,6 +656,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // ===== URL ONLY =====
             ListTile(
               leading: Icon(Icons.link, color: const Color(0xFF173B69)),
               title: Text(
@@ -678,6 +668,8 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                 _showUrlDialog();
               },
             ),
+            
+            // ===== DELETE =====
             if (profileImageUrl != null && profileImageUrl!.isNotEmpty) ...[
               const Divider(),
               ListTile(
@@ -692,6 +684,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                 },
               ),
             ],
+            
             const Divider(),
             ListTile(
               leading: Icon(Icons.close, color: Colors.grey),
@@ -866,7 +859,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     );
   }
 
-  // Profile Header
+  // ===== PROFILE HEADER =====
   Widget _buildProfileHeader(User? user) {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -887,6 +880,8 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       return parts[0][0].toUpperCase();
     }
 
+    bool hasImage = profileImageUrl != null && profileImageUrl!.isNotEmpty;
+
     return Center(
       child: Column(
         children: [
@@ -897,9 +892,8 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                 child: CircleAvatar(
                   radius: avatarSize / 2,
                   backgroundColor: const Color(0xFF173B69),
-                  backgroundImage:
-                      (profileImageUrl != null && profileImageUrl!.isNotEmpty) ? NetworkImage(profileImageUrl!) : null,
-                  child: (profileImageUrl == null || profileImageUrl!.isEmpty)
+                  backgroundImage: hasImage ? NetworkImage(profileImageUrl!) : null,
+                  child: !hasImage
                       ? Text(
                           getInitials(),
                           style: TextStyle(
@@ -1015,7 +1009,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     return 'N/A';
   }
 
-  // ===== BUILD INFO CARD WITH CHANGE PASSWORD BUTTON =====
+  // ===== BUILD INFO CARD =====
   Widget _buildInfoCard() {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -1106,8 +1100,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             isMobile: isMobile,
             fontSize: fontSize,
           ),
-
-          // ===== CHANGE PASSWORD BUTTON =====
           SizedBox(height: spacing * 2),
           Divider(
             height: 1,
@@ -1115,7 +1107,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             color: Colors.grey.shade300,
           ),
           SizedBox(height: spacing * 1.5),
-
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -1145,7 +1136,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
               ),
             ),
           ),
-
           SizedBox(height: spacing / 2),
         ],
       ),
