@@ -1,10 +1,13 @@
+// lib/screens/manager/manager_profile_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:permission_system/services/cloudinary_service.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
-import '../../widgets/profile_avatar.dart';
 
 class ManagerProfileScreen extends StatefulWidget {
   const ManagerProfileScreen({super.key});
@@ -19,7 +22,21 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
   bool isUploading = false;
   String? errorMessage;
   String? profileImageUrl;
-  final TextEditingController _urlController = TextEditingController();
+
+  // Cloudinary Service
+  final CloudinaryService _cloudinaryService = CloudinaryService();
+  bool _isUploadingToCloudinary = false;
+  double _uploadProgress = 0.0;
+
+  // ===== Change Password Variables =====
+  bool isChangingPassword = false;
+  final TextEditingController currentPasswordController = TextEditingController();
+  final TextEditingController newPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
+  bool obscureCurrentPassword = true;
+  bool obscureNewPassword = true;
+  bool obscureConfirmPassword = true;
+  String _passwordError = '';
 
   @override
   void initState() {
@@ -29,10 +46,15 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
 
   @override
   void dispose() {
-    _urlController.dispose();
+    currentPasswordController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
+  // =============================================
+  // 1. LOAD USER DATA
+  // =============================================
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -47,7 +69,10 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     try {
       print('🔍 Loading manager data for UID: ${user.uid}');
 
-      final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
@@ -74,114 +99,66 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     }
   }
 
-  Future<void> _showUrlDialog() async {
-    final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14);
-    final double spacing = Responsive.spacing(context);
+  // =============================================
+  // 2. UPLOAD IMAGE TO CLOUDINARY
+  // =============================================
+  Future<void> _uploadImageToCloudinary(ImageSource source) async {
+    setState(() {
+      _isUploadingToCloudinary = true;
+      _uploadProgress = 0.0;
+    });
 
-    _urlController.text = profileImageUrl ?? '';
+    try {
+      _showSnackBar(' Please select your Image...', Colors.blue);
 
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Enter Image URL',
-          style: TextStyle(
-            fontSize: isMobile ? fontSize : fontSize + 2,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Paste the URL of your profile image',
-              style: TextStyle(
-                fontSize: fontSize,
-                color: Colors.grey[600],
-              ),
-            ),
-            SizedBox(height: spacing),
-            TextField(
-              controller: _urlController,
-              decoration: InputDecoration(
-                hintText: 'https://example.com/profile.jpg',
-                hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: spacing * 1.5,
-                  vertical: isMobile ? 12 : 14,
-                ),
-              ),
-              style: TextStyle(fontSize: fontSize, color: Colors.black),
-              keyboardType: TextInputType.url,
-            ),
-            SizedBox(height: spacing / 2),
-            Text(
-              ' You can use images from: Facebook, Google Drive, etc.',
-              style: TextStyle(
-                fontSize: fontSize * 0.8,
-                color: Colors.blue[700],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final url = _urlController.text.trim();
-              if (url.isNotEmpty) {
-                await _updateProfileImageUrl(url);
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Please enter a valid URL',
-                      style: TextStyle(fontSize: fontSize),
-                    ),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF173B69),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(
-              'Save',
-              style: TextStyle(fontSize: fontSize),
-            ),
-          ),
-        ],
-      ),
-    );
+      String? imageUrl;
+
+      if (source == ImageSource.gallery) {
+        imageUrl = await _cloudinaryService.uploadProfileImageFromGallery(
+          onProgress: (progress) {
+            setState(() {
+              _uploadProgress = progress;
+            });
+            print('📤 Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
+          },
+        );
+      } else {
+        imageUrl = await _cloudinaryService.uploadProfileImageFromCamera(
+          onProgress: (progress) {
+            setState(() {
+              _uploadProgress = progress;
+            });
+            print(' Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
+          },
+        );
+      }
+
+      setState(() {
+        _isUploadingToCloudinary = false;
+      });
+
+      if (imageUrl != null) {
+        setState(() {
+          profileImageUrl = imageUrl;
+          userData?['profileImageUrl'] = imageUrl;
+        });
+        _showSnackBar(' Profile image uploaded successfully!', Colors.green);
+        print(' Image uploaded to Cloudinary: $imageUrl');
+      } else {
+        _showSnackBar('❌ Failed to upload image. Please try again.', Colors.red);
+      }
+    } catch (e) {
+      setState(() {
+        _isUploadingToCloudinary = false;
+      });
+      _showSnackBar('❌ Error: $e', Colors.red);
+      print('❌ Upload error: $e');
+    }
   }
 
+  // =============================================
+  // 3. UPDATE PROFILE IMAGE URL (Manual)
+  // =============================================
   Future<void> _updateProfileImageUrl(String imageUrl) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -203,8 +180,6 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       });
 
       _showSnackBar(' Profile image updated successfully!', Colors.green);
-
-      // ✅ បញ្ជូន true ត្រឡប់ទៅ Home
       Navigator.pop(context, true);
     } catch (e) {
       setState(() {
@@ -215,6 +190,9 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     }
   }
 
+  // =============================================
+  // 4. DELETE PROFILE IMAGE
+  // =============================================
   Future<void> _deleteProfileImage() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -273,32 +251,520 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
         isUploading = false;
       });
 
-      _showSnackBar('Profile image deleted successfully', Colors.orange);
-
-      // ✅ បញ្ជូន true ត្រឡប់ទៅ Home
+      _showSnackBar(' Profile image deleted successfully', Colors.orange);
       Navigator.pop(context, true);
     } catch (e) {
       setState(() {
         isUploading = false;
       });
-      _showSnackBar('Error deleting image: $e', Colors.red);
+      _showSnackBar('❌ Error deleting image: $e', Colors.red);
       print('❌ Image deletion error: $e');
     }
   }
 
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(fontSize: AppFonts.md),
+  // =============================================
+  // 5. URL DIALOG
+  // =============================================
+  Future<void> _showUrlDialog() async {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+
+    final TextEditingController urlController = TextEditingController();
+    urlController.text = profileImageUrl ?? '';
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Enter Image URL',
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        backgroundColor: color,
-        duration: const Duration(seconds: 3),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Paste the URL of your profile image',
+              style: TextStyle(
+                fontSize: fontSize,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: spacing),
+            TextField(
+              controller: urlController,
+              decoration: InputDecoration(
+                hintText: 'https://example.com/profile.jpg',
+                hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: spacing * 1.5,
+                  vertical: isMobile ? 12 : 14,
+                ),
+              ),
+              style: TextStyle(fontSize: fontSize, color: Colors.black),
+              keyboardType: TextInputType.url,
+            ),
+            SizedBox(height: spacing / 2),
+            Text(
+              ' You can use images from: Facebook, Google Drive, etc.',
+              style: TextStyle(
+                fontSize: fontSize * 0.8,
+                color: Colors.blue[700],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final url = urlController.text.trim();
+              if (url.isNotEmpty) {
+                await _updateProfileImageUrl(url);
+                Navigator.pop(context);
+              } else {
+                _showSnackBar('Please enter a valid URL', Colors.orange);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF173B69),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Save',
+              style: TextStyle(fontSize: fontSize),
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  // =============================================
+  // 6. SHOW IMAGE PICKER DIALOG
+  // =============================================
+  Future<void> _showImagePickerDialog() async {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ===== GALLERY =====
+            ListTile(
+              leading: Icon(Icons.photo_library, color: const Color(0xFF173B69)),
+              title: Text(
+                ' Choose from Gallery',
+                style: TextStyle(fontSize: fontSize),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _uploadImageToCloudinary(ImageSource.gallery);
+              },
+            ),
+            
+            // ===== URL =====
+            ListTile(
+              leading: Icon(Icons.link, color: const Color(0xFF173B69)),
+              title: Text(
+                ' Enter Image URL',
+                style: TextStyle(fontSize: fontSize),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showUrlDialog();
+              },
+            ),
+            
+            // ===== DELETE =====
+            if (profileImageUrl != null && profileImageUrl!.isNotEmpty) ...[
+              const Divider(),
+              ListTile(
+                leading: Icon(Icons.delete, color: Colors.red),
+                title: Text(
+                  ' Remove Photo',
+                  style: TextStyle(fontSize: fontSize, color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteProfileImage();
+                },
+              ),
+            ],
+            
+            const Divider(),
+            ListTile(
+              leading: Icon(Icons.close, color: Colors.grey),
+              title: Text(
+                'Cancel',
+                style: TextStyle(fontSize: fontSize, color: Colors.grey),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =============================================
+  // 7. CHANGE PASSWORD
+  // =============================================
+  Future<void> _changePasswordWithDialog(StateSetter setDialogState) async {
+    setDialogState(() {
+      _passwordError = '';
+    });
+
+    String currentPassword = currentPasswordController.text.trim();
+    String newPassword = newPasswordController.text.trim();
+    String confirmPassword = confirmPasswordController.text.trim();
+
+    if (currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
+      setDialogState(() {
+        _passwordError = 'Please fill in all password fields';
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setDialogState(() {
+        _passwordError = 'New password must be at least 6 characters';
+      });
+      return;
+    }
+
+    if (newPassword != confirmPassword) {
+      setDialogState(() {
+        _passwordError = 'New passwords do not match';
+      });
+      return;
+    }
+
+    setDialogState(() {
+      isChangingPassword = true;
+    });
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setDialogState(() {
+          _passwordError = 'No user logged in';
+          isChangingPassword = false;
+        });
+        return;
+      }
+
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+
+      currentPasswordController.clear();
+      newPasswordController.clear();
+      confirmPasswordController.clear();
+
+      setDialogState(() {
+        isChangingPassword = false;
+        _passwordError = '';
+      });
+
+      _showSnackBar(' Password changed successfully!', Colors.green);
+      Navigator.pop(context);
+    } on FirebaseAuthException catch (e) {
+      setDialogState(() {
+        isChangingPassword = false;
+      });
+
+      String errorMessage = 'Failed to change password';
+      if (e.code == 'wrong-password') {
+        errorMessage = 'Current password is incorrect';
+      } else if (e.code == 'too-many-requests') {
+        errorMessage = 'Too many attempts. Please try again later';
+      } else if (e.code == 'requires-recent-login') {
+        errorMessage = 'Please log out and log in again to change password';
+      } else {
+        errorMessage = e.message ?? 'Failed to change password';
+      }
+
+      setDialogState(() {
+        _passwordError = errorMessage;
+      });
+
+      _showSnackBar('❌ $errorMessage', Colors.red);
+    } catch (e) {
+      setDialogState(() {
+        isChangingPassword = false;
+        _passwordError = 'An error occurred: $e';
+      });
+      _showSnackBar('❌ Error: $e', Colors.red);
+    }
+  }
+
+  void _showChangePasswordDialog() {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+
+    currentPasswordController.clear();
+    newPasswordController.clear();
+    confirmPasswordController.clear();
+    _passwordError = '';
+    obscureCurrentPassword = true;
+    obscureNewPassword = true;
+    obscureConfirmPassword = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return AlertDialog(
+              title: Text(
+                'Change Password',
+                style: TextStyle(
+                  fontSize: isMobile ? fontSize : fontSize + 2,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF173B69),
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_passwordError.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(spacing),
+                        margin: EdgeInsets.only(bottom: spacing),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade300),
+                        ),
+                        child: Text(
+                          _passwordError,
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                      ),
+                    Text(
+                      'Current Password',
+                      style: TextStyle(
+                        fontSize: fontSize * 0.9,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    SizedBox(height: spacing / 2),
+                    TextField(
+                      controller: currentPasswordController,
+                      obscureText: obscureCurrentPassword,
+                      style: TextStyle(fontSize: fontSize),
+                      decoration: InputDecoration(
+                        hintText: 'Enter current password',
+                        hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureCurrentPassword ? Icons.visibility : Icons.visibility_off,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              obscureCurrentPassword = !obscureCurrentPassword;
+                            });
+                          },
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: spacing * 1.5,
+                          vertical: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: spacing * 1.5),
+                    Text(
+                      'New Password',
+                      style: TextStyle(
+                        fontSize: fontSize * 0.9,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    SizedBox(height: spacing / 2),
+                    TextField(
+                      controller: newPasswordController,
+                      obscureText: obscureNewPassword,
+                      style: TextStyle(fontSize: fontSize),
+                      decoration: InputDecoration(
+                        hintText: 'Enter new password (min 6 chars)',
+                        hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureNewPassword ? Icons.visibility : Icons.visibility_off,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              obscureNewPassword = !obscureNewPassword;
+                            });
+                          },
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: spacing * 1.5,
+                          vertical: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: spacing * 1.5),
+                    Text(
+                      'Confirm New Password',
+                      style: TextStyle(
+                        fontSize: fontSize * 0.9,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    SizedBox(height: spacing / 2),
+                    TextField(
+                      controller: confirmPasswordController,
+                      obscureText: obscureConfirmPassword,
+                      style: TextStyle(fontSize: fontSize),
+                      onSubmitted: (_) => _changePasswordWithDialog(setDialogState),
+                      decoration: InputDecoration(
+                        hintText: 'Confirm new password',
+                        hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setDialogState(() {
+                              obscureConfirmPassword = !obscureConfirmPassword;
+                            });
+                          },
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: spacing * 1.5,
+                          vertical: isMobile ? 12 : 14,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: spacing / 2),
+                    Text(
+                      'Password must be at least 6 characters',
+                      style: TextStyle(
+                        fontSize: fontSize * 0.75,
+                        color: Colors.grey.shade500,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isChangingPassword
+                      ? null
+                      : () {
+                          setDialogState(() {
+                            _passwordError = '';
+                          });
+                          Navigator.pop(context);
+                        },
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      fontSize: fontSize,
+                      color: isChangingPassword ? Colors.grey : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isChangingPassword
+                      ? null
+                      : () {
+                          _changePasswordWithDialog(setDialogState);
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF173B69),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: isChangingPassword
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          'Update Password',
+                          style: TextStyle(fontSize: fontSize),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // =============================================
+  // 8. LOGOUT
+  // =============================================
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
     if (context.mounted) {
@@ -347,57 +813,54 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     );
   }
 
-  Future<void> _showImagePickerDialog() async {
-    final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14);
-
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: Icon(Icons.link, color: const Color(0xFF173B69)),
-              title: Text(
-                'Enter Image URL',
-                style: TextStyle(fontSize: fontSize),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showUrlDialog();
-              },
-            ),
-            if (profileImageUrl != null && profileImageUrl!.isNotEmpty) ...[
-              const Divider(),
-              ListTile(
-                leading: Icon(Icons.delete, color: Colors.red),
-                title: Text(
-                  'Remove Photo',
-                  style: TextStyle(fontSize: fontSize, color: Colors.red),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _deleteProfileImage();
-                },
-              ),
-            ],
-            const Divider(),
-            ListTile(
-              leading: Icon(Icons.close, color: Colors.grey),
-              title: Text(
-                'Cancel',
-                style: TextStyle(fontSize: fontSize, color: Colors.grey),
-              ),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
+  // =============================================
+  // 9. HELPER METHODS
+  // =============================================
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(fontSize: AppFonts.md),
         ),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
       ),
     );
+  }
+
+  String _getValue(String key, [String? fallbackKey]) {
+    final String defaultValue = 'N/A';
+
+    if (userData != null &&
+        userData!.containsKey(key) &&
+        userData![key] != null &&
+        userData![key]!.toString().isNotEmpty) {
+      return userData![key].toString();
+    }
+    if (fallbackKey != null &&
+        userData != null &&
+        userData!.containsKey(fallbackKey) &&
+        userData![fallbackKey] != null) {
+      return userData![fallbackKey].toString();
+    }
+    return defaultValue;
+  }
+
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+
+    try {
+      if (timestamp is Timestamp) {
+        final date = timestamp.toDate();
+        return '${date.day}/${date.month}/${date.year}';
+      } else if (timestamp is DateTime) {
+        return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+      }
+    } catch (e) {
+      print('Error formatting date: $e');
+    }
+    return 'N/A';
   }
 
   @override
@@ -511,6 +974,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     );
   }
 
+  // ===== PROFILE HEADER =====
   Widget _buildProfileHeader(User? user) {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -531,20 +995,24 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       return parts[0][0].toUpperCase();
     }
 
+    bool hasImage = profileImageUrl != null && profileImageUrl!.isNotEmpty;
+
     return Center(
       child: Column(
         children: [
           Stack(
             children: [
               GestureDetector(
-                onTap: isUploading ? null : _showImagePickerDialog,
+                onTap: (_isUploadingToCloudinary || isUploading)
+                    ? null
+                    : _showImagePickerDialog,
                 child: CircleAvatar(
                   radius: avatarSize / 2,
                   backgroundColor: const Color(0xFF173B69),
-                  backgroundImage: (profileImageUrl != null && profileImageUrl!.isNotEmpty)
+                  backgroundImage: hasImage
                       ? CachedNetworkImageProvider(profileImageUrl!)
                       : null,
-                  child: (profileImageUrl == null || profileImageUrl!.isEmpty)
+                  child: !hasImage
                       ? Text(
                           getInitials(),
                           style: TextStyle(
@@ -556,11 +1024,42 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                       : null,
                 ),
               ),
+              // Upload Progress Overlay
+              if (_isUploadingToCloudinary)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black45,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: _uploadProgress,
+                          strokeWidth: 3,
+                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                        SizedBox(height: spacing / 2),
+                        Text(
+                          '${(_uploadProgress * 100).toInt()}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               Positioned(
                 bottom: 0,
                 right: 0,
                 child: GestureDetector(
-                  onTap: isUploading ? null : _showImagePickerDialog,
+                  onTap: (_isUploadingToCloudinary || isUploading)
+                      ? null
+                      : _showImagePickerDialog,
                   child: Container(
                     padding: EdgeInsets.all(cameraPadding),
                     decoration: BoxDecoration(
@@ -568,7 +1067,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
                     ),
-                    child: isUploading
+                    child: isUploading || _isUploadingToCloudinary
                         ? SizedBox(
                             width: iconSize - 4,
                             height: iconSize - 4,
@@ -587,6 +1086,18 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
               ),
             ],
           ),
+          // Upload Status Text
+          if (_isUploadingToCloudinary) ...[
+            SizedBox(height: spacing),
+            Text(
+              ' Uploading Image...',
+              style: TextStyle(
+                fontSize: fontSize * 0.8,
+                color: Colors.blue.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
           SizedBox(height: spacing * 1.5),
           Text(
             userData?['fullName'] ?? userData?['username'] ?? 'Manager User',
@@ -626,40 +1137,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     );
   }
 
-  String _getValue(String key, [String? fallbackKey]) {
-    final String defaultValue = 'N/A';
-
-    if (userData != null &&
-        userData!.containsKey(key) &&
-        userData![key] != null &&
-        userData![key]!.toString().isNotEmpty) {
-      return userData![key].toString();
-    }
-    if (fallbackKey != null &&
-        userData != null &&
-        userData!.containsKey(fallbackKey) &&
-        userData![fallbackKey] != null) {
-      return userData![fallbackKey].toString();
-    }
-    return defaultValue;
-  }
-
-  String _formatDate(dynamic timestamp) {
-    if (timestamp == null) return 'N/A';
-
-    try {
-      if (timestamp is Timestamp) {
-        final date = timestamp.toDate();
-        return '${date.day}/${date.month}/${date.year}';
-      } else if (timestamp is DateTime) {
-        return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
-      }
-    } catch (e) {
-      print('Error formatting date: $e');
-    }
-    return 'N/A';
-  }
-
+  // ===== BUILD INFO CARD =====
   Widget _buildInfoCard() {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -743,6 +1221,43 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             isMobile: isMobile,
             fontSize: fontSize,
           ),
+          SizedBox(height: spacing * 2),
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: Colors.grey.shade300,
+          ),
+          SizedBox(height: spacing * 1.5),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _showChangePasswordDialog,
+              icon: Icon(
+                Icons.lock_outline,
+                size: Responsive.iconSize(context, 20),
+                color: Colors.white,
+              ),
+              label: Text(
+                'Change Password',
+                style: TextStyle(
+                  fontSize: isMobile ? fontSize : fontSize + 2,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF173B69),
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(
+                  vertical: isMobile ? 14 : 16,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: spacing / 2),
         ],
       ),
     );
@@ -759,6 +1274,9 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
   }
 }
 
+// =============================================
+// INFO ROW WIDGET
+// =============================================
 class _InfoRowManager extends StatelessWidget {
   final String label;
   final String value;

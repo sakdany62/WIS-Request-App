@@ -1,12 +1,10 @@
 // lib/screens/staff/profile_screen.dart
 import 'dart:io';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_system/screens/staff/staff_home_screen.dart';
+import 'package:permission_system/services/cloudinary_service.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 
@@ -23,7 +21,11 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
   bool isUploading = false;
   String? errorMessage;
   String? profileImageUrl;
-  final ImagePicker _imagePicker = ImagePicker();
+
+  // Cloudinary Service
+  final CloudinaryService _cloudinaryService = CloudinaryService();
+  bool _isUploadingToCloudinary = false;
+  double _uploadProgress = 0.0;
 
   // ===== Change Password Variables =====
   bool isChangingPassword = false;
@@ -58,7 +60,10 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     try {
       print('🔍 Loading staff data for UID: ${user.uid}');
 
-      final docSnapshot = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
@@ -85,7 +90,348 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     }
   }
 
-  // ===== CHANGE PASSWORD METHOD WITH DIALOG STATE =====
+  // =============================================
+  // 2. UPLOAD IMAGE TO CLOUDINARY
+  // =============================================
+  Future<void> _uploadImageToCloudinary(ImageSource source) async {
+    setState(() {
+      _isUploadingToCloudinary = true;
+      _uploadProgress = 0.0;
+    });
+
+    try {
+      _showSnackBar('Please select your Image...', Colors.blue);
+
+      String? imageUrl;
+
+      if (source == ImageSource.gallery) {
+        imageUrl = await _cloudinaryService.uploadProfileImageFromGallery(
+          onProgress: (progress) {
+            setState(() {
+              _uploadProgress = progress;
+            });
+            print(' Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
+          },
+        );
+      } else {
+        imageUrl = await _cloudinaryService.uploadProfileImageFromCamera(
+          onProgress: (progress) {
+            setState(() {
+              _uploadProgress = progress;
+            });
+            print(' Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
+          },
+        );
+      }
+
+      setState(() {
+        _isUploadingToCloudinary = false;
+      });
+
+      if (imageUrl != null) {
+        setState(() {
+          profileImageUrl = imageUrl;
+          userData?['profileImageUrl'] = imageUrl;
+        });
+        _showSnackBar(' Profile image uploaded successfully!', Colors.green);
+        print(' Image uploaded to Cloudinary: $imageUrl');
+      } else {
+        _showSnackBar(' Failed to upload image. Please try again.', Colors.red);
+      }
+    } catch (e) {
+      setState(() {
+        _isUploadingToCloudinary = false;
+      });
+      _showSnackBar('❌ Error: $e', Colors.red);
+      print('❌ Upload error: $e');
+    }
+  }
+
+  // =============================================
+  // 3. UPDATE PROFILE IMAGE URL (Manual)
+  // =============================================
+  Future<void> _updateProfileImageUrl(String imageUrl) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() {
+      isUploading = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'profileImageUrl': imageUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      setState(() {
+        profileImageUrl = imageUrl;
+        userData?['profileImageUrl'] = imageUrl;
+        isUploading = false;
+      });
+
+      _showSnackBar(' Profile image updated successfully!', Colors.green);
+    } catch (e) {
+      setState(() {
+        isUploading = false;
+      });
+      _showSnackBar('❌ Error: $e', Colors.red);
+      print('❌ Error updating profile: $e');
+    }
+  }
+
+  // =============================================
+  // 4. DELETE PROFILE IMAGE
+  // =============================================
+  Future<void> _deleteProfileImage() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Delete Profile Image',
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to delete your profile image?',
+          style: TextStyle(fontSize: fontSize),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Delete',
+              style: TextStyle(fontSize: fontSize, color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() {
+      isUploading = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'profileImageUrl': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      setState(() {
+        profileImageUrl = null;
+        userData?['profileImageUrl'] = '';
+        isUploading = false;
+      });
+
+      _showSnackBar(' Profile image deleted successfully', Colors.orange);
+    } catch (e) {
+      setState(() {
+        isUploading = false;
+      });
+      _showSnackBar('❌ Error deleting image: $e', Colors.red);
+      print('❌ Image deletion error: $e');
+    }
+  }
+
+  // =============================================
+  // 5. URL DIALOG
+  // =============================================
+  Future<void> _showUrlDialog() async {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+    final double spacing = Responsive.spacing(context);
+
+    final TextEditingController urlController = TextEditingController();
+    urlController.text = profileImageUrl ?? '';
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Enter Image URL',
+          style: TextStyle(
+            fontSize: isMobile ? fontSize : fontSize + 2,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Paste the URL of your profile image',
+              style: TextStyle(
+                fontSize: fontSize,
+                color: Colors.grey[600],
+              ),
+            ),
+            SizedBox(height: spacing),
+            TextField(
+              controller: urlController,
+              decoration: InputDecoration(
+                hintText: 'https://example.com/profile.jpg',
+                hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: spacing * 1.5,
+                  vertical: isMobile ? 12 : 14,
+                ),
+              ),
+              style: TextStyle(fontSize: fontSize, color: Colors.black),
+              keyboardType: TextInputType.url,
+            ),
+            SizedBox(height: spacing / 2),
+            Text(
+              ' You can use images from: Facebook, Google Drive, etc.',
+              style: TextStyle(
+                fontSize: fontSize * 0.8,
+                color: Colors.blue[700],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final url = urlController.text.trim();
+              if (url.isNotEmpty) {
+                await _updateProfileImageUrl(url);
+                Navigator.pop(context);
+              } else {
+                _showSnackBar('Please enter a valid URL', Colors.orange);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF173B69),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: Text(
+              'Save',
+              style: TextStyle(fontSize: fontSize),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =============================================
+  // 6. SHOW IMAGE PICKER DIALOG
+  // =============================================
+  Future<void> _showImagePickerDialog() async {
+    final bool isMobile = Responsive.isMobile(context);
+    final double fontSize = Responsive.fontSize(context, 14);
+
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            
+            // ===== GALLERY =====
+            ListTile(
+              leading: Icon(Icons.photo_library, color: const Color(0xFF173B69)),
+              title: Text(
+                ' Choose from Gallery',
+                style: TextStyle(fontSize: fontSize),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _uploadImageToCloudinary(ImageSource.gallery);
+              },
+            ),
+            
+            // ===== URL =====
+            ListTile(
+              leading: Icon(Icons.link, color: const Color(0xFF173B69)),
+              title: Text(
+                ' Enter Image URL',
+                style: TextStyle(fontSize: fontSize),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showUrlDialog();
+              },
+            ),
+            
+            // ===== DELETE =====
+            if (profileImageUrl != null && profileImageUrl!.isNotEmpty) ...[
+              const Divider(),
+              ListTile(
+                leading: Icon(Icons.delete, color: Colors.red),
+                title: Text(
+                  ' Remove Photo',
+                  style: TextStyle(fontSize: fontSize, color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteProfileImage();
+                },
+              ),
+            ],
+            
+            const Divider(),
+            ListTile(
+              leading: Icon(Icons.close, color: Colors.grey),
+              title: Text(
+                'Cancel',
+                style: TextStyle(fontSize: fontSize, color: Colors.grey),
+              ),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =============================================
+  // 7. CHANGE PASSWORD
+  // =============================================
   Future<void> _changePasswordWithDialog(StateSetter setDialogState) async {
     setDialogState(() {
       _passwordError = '';
@@ -179,7 +525,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     }
   }
 
-  // ===== SHOW CHANGE PASSWORD DIALOG =====
   void _showChangePasswordDialog() {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -408,298 +753,8 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
   }
 
   // =============================================
-  // URL Dialog - ONLY THIS REMAINS!
+  // 8. LOGOUT
   // =============================================
-  Future<void> _showUrlDialog() async {
-    final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14);
-    final double spacing = Responsive.spacing(context);
-
-    final TextEditingController urlController = TextEditingController();
-    urlController.text = profileImageUrl ?? '';
-
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Enter Image URL',
-          style: TextStyle(
-            fontSize: isMobile ? fontSize : fontSize + 2,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Paste the URL of your profile image',
-              style: TextStyle(
-                fontSize: fontSize,
-                color: Colors.grey[600],
-              ),
-            ),
-            SizedBox(height: spacing),
-            TextField(
-              controller: urlController,
-              decoration: InputDecoration(
-                hintText: 'https://example.com/profile.jpg',
-                hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.grey, width: 1.0),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFF173B69), width: 2.0),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: spacing * 1.5,
-                  vertical: isMobile ? 12 : 14,
-                ),
-              ),
-              style: TextStyle(fontSize: fontSize, color: Colors.black),
-              keyboardType: TextInputType.url,
-            ),
-            SizedBox(height: spacing / 2),
-            Text(
-              ' You can use images from: Facebook, Google Drive, etc.',
-              style: TextStyle(
-                fontSize: fontSize * 0.8,
-                color: Colors.blue[700],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final url = urlController.text.trim();
-              if (url.isNotEmpty) {
-                await _updateProfileImageUrl(url);
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Please enter a valid URL',
-                      style: TextStyle(fontSize: fontSize),
-                    ),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF173B69),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(
-              'Save',
-              style: TextStyle(fontSize: fontSize),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // =============================================
-  // UPDATE PROFILE IMAGE URL
-  // =============================================
-  Future<void> _updateProfileImageUrl(String imageUrl) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    setState(() {
-      isUploading = true;
-    });
-
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'profileImageUrl': imageUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      setState(() {
-        profileImageUrl = imageUrl;
-        userData?['profileImageUrl'] = imageUrl;
-        isUploading = false;
-      });
-
-      _showSnackBar(' Profile image updated successfully!', Colors.green);
-
-      Navigator.pop(context, true);
-    } catch (e) {
-      setState(() {
-        isUploading = false;
-      });
-      _showSnackBar('❌ Error: $e', Colors.red);
-      print('❌ Error updating profile: $e');
-    }
-  }
-
-  // =============================================
-  // DELETE PROFILE IMAGE
-  // =============================================
-  Future<void> _deleteProfileImage() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14);
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Delete Profile Image',
-          style: TextStyle(
-            fontSize: isMobile ? fontSize : fontSize + 2,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Text(
-          'Are you sure you want to delete your profile image?',
-          style: TextStyle(fontSize: fontSize),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(fontSize: fontSize),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              'Delete',
-              style: TextStyle(fontSize: fontSize, color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    setState(() {
-      isUploading = true;
-    });
-
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'profileImageUrl': '',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      setState(() {
-        profileImageUrl = null;
-        userData?['profileImageUrl'] = '';
-        isUploading = false;
-      });
-
-      _showSnackBar(' Profile image deleted successfully', Colors.orange);
-
-      Navigator.pop(context, true);
-    } catch (e) {
-      setState(() {
-        isUploading = false;
-      });
-      _showSnackBar('❌ Error deleting image: $e', Colors.red);
-      print('❌ Image deletion error: $e');
-    }
-  }
-
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(fontSize: AppFonts.md),
-        ),
-        backgroundColor: color,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-
-  // =============================================
-  // SHOW IMAGE PICKER DIALOG - URL ONLY!
-  // =============================================
-  Future<void> _showImagePickerDialog() async {
-    final bool isMobile = Responsive.isMobile(context);
-    final double fontSize = Responsive.fontSize(context, 14);
-
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ===== URL ONLY =====
-            ListTile(
-              leading: Icon(Icons.link, color: const Color(0xFF173B69)),
-              title: Text(
-                'Enter Image URL',
-                style: TextStyle(fontSize: fontSize),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showUrlDialog();
-              },
-            ),
-            
-            // ===== DELETE =====
-            if (profileImageUrl != null && profileImageUrl!.isNotEmpty) ...[
-              const Divider(),
-              ListTile(
-                leading: Icon(Icons.delete, color: Colors.red),
-                title: Text(
-                  'Remove Photo',
-                  style: TextStyle(fontSize: fontSize, color: Colors.red),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _deleteProfileImage();
-                },
-              ),
-            ],
-            
-            const Divider(),
-            ListTile(
-              leading: Icon(Icons.close, color: Colors.grey),
-              title: Text(
-                'Cancel',
-                style: TextStyle(fontSize: fontSize, color: Colors.grey),
-              ),
-              onTap: () => Navigator.pop(context),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
     if (context.mounted) {
@@ -748,6 +803,67 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     );
   }
 
+  // =============================================
+  // 9. HELPER METHODS
+  // =============================================
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: TextStyle(fontSize: AppFonts.md),
+        ),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  String _getValue(String key, [String? fallbackKey]) {
+    final String defaultValue = 'N/A';
+
+    if (userData != null &&
+        userData!.containsKey(key) &&
+        userData![key] != null &&
+        userData![key]!.toString().isNotEmpty) {
+      return userData![key].toString();
+    }
+    if (fallbackKey != null &&
+        userData != null &&
+        userData!.containsKey(fallbackKey) &&
+        userData![fallbackKey] != null) {
+      return userData![fallbackKey].toString();
+    }
+    return defaultValue;
+  }
+
+  String _formatDate(dynamic timestamp) {
+    if (timestamp == null) return 'N/A';
+
+    try {
+      if (timestamp is Timestamp) {
+        final date = timestamp.toDate();
+        return '${date.day}/${date.month}/${date.year}';
+      } else if (timestamp is DateTime) {
+        return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+      }
+    } catch (e) {
+      print('Error formatting date: $e');
+    }
+    return 'N/A';
+  }
+
+  @override
+  void dispose() {
+    currentPasswordController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  // =============================================
+  // 10. BUILD METHODS
+  // =============================================
   @override
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
@@ -888,7 +1004,9 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
           Stack(
             children: [
               GestureDetector(
-                onTap: isUploading ? null : _showImagePickerDialog,
+                onTap: (_isUploadingToCloudinary || isUploading)
+                    ? null
+                    : _showImagePickerDialog,
                 child: CircleAvatar(
                   radius: avatarSize / 2,
                   backgroundColor: const Color(0xFF173B69),
@@ -905,11 +1023,42 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                       : null,
                 ),
               ),
+              // Upload Progress Overlay
+              if (_isUploadingToCloudinary)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black45,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: _uploadProgress,
+                          strokeWidth: 3,
+                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                        SizedBox(height: spacing / 2),
+                        Text(
+                          '${(_uploadProgress * 100).toInt()}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               Positioned(
                 bottom: 0,
                 right: 0,
                 child: GestureDetector(
-                  onTap: isUploading ? null : _showImagePickerDialog,
+                  onTap: (_isUploadingToCloudinary || isUploading)
+                      ? null
+                      : _showImagePickerDialog,
                   child: Container(
                     padding: EdgeInsets.all(cameraPadding),
                     decoration: BoxDecoration(
@@ -917,7 +1066,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
                     ),
-                    child: isUploading
+                    child: isUploading || _isUploadingToCloudinary
                         ? SizedBox(
                             width: iconSize - 4,
                             height: iconSize - 4,
@@ -936,6 +1085,18 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
               ),
             ],
           ),
+          // Upload Status Text
+          if (_isUploadingToCloudinary) ...[
+            SizedBox(height: spacing),
+            Text(
+              ' Uploading Image',
+              style: TextStyle(
+                fontSize: fontSize * 0.8,
+                color: Colors.blue.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
           SizedBox(height: spacing * 1.5),
           Text(
             userData?['fullName'] ?? userData?['username'] ?? 'Staff User',
@@ -973,40 +1134,6 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
         ],
       ),
     );
-  }
-
-  String _getValue(String key, [String? fallbackKey]) {
-    final String defaultValue = 'N/A';
-
-    if (userData != null &&
-        userData!.containsKey(key) &&
-        userData![key] != null &&
-        userData![key]!.toString().isNotEmpty) {
-      return userData![key].toString();
-    }
-    if (fallbackKey != null &&
-        userData != null &&
-        userData!.containsKey(fallbackKey) &&
-        userData![fallbackKey] != null) {
-      return userData![fallbackKey].toString();
-    }
-    return defaultValue;
-  }
-
-  String _formatDate(dynamic timestamp) {
-    if (timestamp == null) return 'N/A';
-
-    try {
-      if (timestamp is Timestamp) {
-        final date = timestamp.toDate();
-        return '${date.day}/${date.month}/${date.year}';
-      } else if (timestamp is DateTime) {
-        return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
-      }
-    } catch (e) {
-      print('Error formatting date: $e');
-    }
-    return 'N/A';
   }
 
   // ===== BUILD INFO CARD =====
@@ -1151,16 +1278,11 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
       endIndent: 0,
     );
   }
-
-  @override
-  void dispose() {
-    currentPasswordController.dispose();
-    newPasswordController.dispose();
-    confirmPasswordController.dispose();
-    super.dispose();
-  }
 }
 
+// =============================================
+// INFO ROW WIDGET
+// =============================================
 class _InfoRowStaff extends StatelessWidget {
   final String label;
   final String value;
