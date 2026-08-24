@@ -5,11 +5,17 @@ import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/translation_service.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 import '../../widgets/profile_avatar.dart';
@@ -386,7 +392,575 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ================================================================
-  // ===== EXPORT FUNCTION =====
+  // ===== GET DATE LABEL =====
+  // ================================================================
+  String _getDateLabel() {
+    switch (_selectedReportType) {
+      case 'daily':
+        return DateFormat('dd MMM yyyy').format(_selectedDate);
+      case 'weekly':
+        return _getWeekLabel(_selectedDate);
+      case 'monthly':
+        return DateFormat('MMMM yyyy').format(_selectedDate);
+      case 'yearly':
+        return DateFormat('yyyy').format(_selectedDate);
+      default:
+        return '';
+    }
+  }
+
+  String _getCurrentDepartmentName() {
+    if (_filterDepartment == 'all') {
+      return 'All Departments';
+    }
+    final dept = _departments.firstWhere(
+      (d) => d['id'] == _filterDepartment,
+      orElse: () => {},
+    );
+    return dept['name'] ?? 'Unknown Department';
+  }
+
+  // ================================================================
+  // ===== EXPORT TO PDF =====
+  // ================================================================
+  Future<void> _exportToPDF() async {
+    final dataToExport = _filteredData;
+    
+    if (dataToExport.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No data to export'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Generating PDF file...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // ===== TRANSLATE DATA =====
+      List<Map<String, dynamic>> translatedData = [];
+      
+      for (var request in dataToExport) {
+        final translatedName = await TranslationService.translateToEnglish(
+          request['userName'] ?? 'Unknown'
+        );
+        final translatedReason = await TranslationService.translateToEnglish(
+          request['reason'] ?? ''
+        );
+        final translatedDepartment = request['department'] != null && request['department'].toString().isNotEmpty
+            ? await TranslationService.translateToEnglish(request['department'].toString())
+            : 'N/A';
+        final translatedStatus = await TranslationService.translateToEnglish(
+          request['status'] ?? 'pending'
+        );
+        final translatedApprovedBy = request['approvedByName'] != null && request['approvedByName'].toString().isNotEmpty
+            ? await TranslationService.translateToEnglish(request['approvedByName'].toString())
+            : '';
+        final translatedRejectionReason = request['rejectionReason'] != null && request['rejectionReason'].toString().isNotEmpty
+            ? await TranslationService.translateToEnglish(request['rejectionReason'].toString())
+            : '';
+        
+        translatedData.add({
+          'id': request['id'],
+          'userId': request['userId'],
+          'userName': translatedName,
+          'userEmail': request['userEmail'] ?? '',
+          'department': translatedDepartment,
+          'departmentId': request['departmentId'] ?? '',
+          'startDate': request['startDate'] ?? '',
+          'endDate': request['endDate'] ?? '',
+          'totalDays': request['totalDays'] ?? 0,
+          'reason': translatedReason,
+          'status': translatedStatus,
+          'autoApproved': request['autoApproved'] ?? false,
+          'createdAt': request['createdAt'],
+          'approvedByName': translatedApprovedBy,
+          'rejectionReason': translatedRejectionReason,
+          'requestNumber': request['requestNumber'] ?? 0,
+        });
+      }
+
+      // ===== LOAD LOGO =====
+      pw.ImageProvider? logoImage;
+      try {
+        final ByteData imageData = await rootBundle.load('assets/img/logo1.png');
+        final Uint8List imageBytes = imageData.buffer.asUint8List();
+        logoImage = pw.MemoryImage(imageBytes);
+        print('✅ Logo loaded successfully');
+      } catch (e) {
+        print('⚠️ Logo image not found: $e');
+        logoImage = null;
+      }
+
+      // ===== GENERATE PDF =====
+      final pdf = pw.Document();
+      final pageFormat = PdfPageFormat.a4.landscape;
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: pageFormat,
+          margin: pw.EdgeInsets.all(20),
+          build: (pw.Context context) {
+            return [
+              // ===== HEADER =====
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Container(
+                    width: 100,
+                    height: 100,
+                    child: pw.Center(
+                      child: logoImage != null
+                          ? pw.Image(
+                              logoImage!,
+                              width: 90,
+                              height: 90,
+                              fit: pw.BoxFit.contain,
+                            )
+                          : pw.Text(
+                              '🏫',
+                              style: pw.TextStyle(
+                                fontSize: 40,
+                              ),
+                            ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 16),
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'KINGDOM OF CAMBODIA',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue900,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Nation  Religion  King',
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue900,
+                          ),
+                        ),
+                        pw.SizedBox(height: 35),
+                        pw.Text(
+                          'PERMISSION REQUEST REPORT',
+                          style: pw.TextStyle(
+                            fontSize: 11,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey800,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Period: ${_getDateLabel()}',
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                        pw.Text(
+                          'Department: ${_getCurrentDepartmentName()}',
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+              pw.SizedBox(height: 10),
+
+           
+
+              // ===== TABLE =====
+              pw.Table(
+                border: pw.TableBorder.all(),
+                columnWidths: {
+                  0: pw.FixedColumnWidth(25),
+                  1: pw.FixedColumnWidth(70),
+                  2: pw.FixedColumnWidth(80),
+                  3: pw.FixedColumnWidth(70),
+                  4: pw.FixedColumnWidth(60),
+                  5: pw.FixedColumnWidth(35),
+                  6: pw.FixedColumnWidth(70),
+                  7: pw.FixedColumnWidth(50),
+                  8: pw.FixedColumnWidth(40),
+                  9: pw.FixedColumnWidth(45),
+                  10: pw.FixedColumnWidth(75),
+                  11: pw.FixedColumnWidth(60),
+                  12: pw.FixedColumnWidth(60),
+                },
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.blue900,
+                    ),
+                    children: [
+                      _buildHeaderCell('No.'),
+                      _buildHeaderCell('Name'),
+                      _buildHeaderCell('Email'),
+                      _buildHeaderCell('Dept'),
+                      _buildHeaderCell('Date'),
+                      _buildHeaderCell('Days'),
+                      _buildHeaderCell('Reason'),
+                      _buildHeaderCell('Status'),
+                      _buildHeaderCell('Type'),
+                      _buildHeaderCell('Req #'),
+                      _buildHeaderCell('Created'),
+                      _buildHeaderCell('Approved By'),
+                      _buildHeaderCell('Rejection'),
+                    ],
+                  ),
+                  ...translatedData.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final r = entry.value;
+                    final color = index % 2 == 0 
+                        ? PdfColors.grey100 
+                        : PdfColors.white;
+                    
+                    final status = r['status'] ?? 'pending';
+                    PdfColor statusColor;
+                    if (status == 'approved') {
+                      statusColor = PdfColors.green;
+                    } else if (status == 'rejected') {
+                      statusColor = PdfColors.red;
+                    } else {
+                      statusColor = PdfColors.orange;
+                    }
+                    
+                    return pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: color,
+                      ),
+                      children: [
+                        _buildDataCell('${index + 1}'),
+                        _buildDataCell(r['userName'] ?? 'Unknown'),
+                        _buildDataCell(r['userEmail'] ?? ''),
+                        _buildDataCell(r['department'] ?? 'N/A'),
+                        _buildDataCell(r['startDate'] ?? ''),
+                        _buildDataCell('${r['totalDays'] ?? 0}'),
+                        _buildDataCell(r['reason'] ?? ''),
+                        _buildDataCell(
+                          (r['status'] ?? 'pending').toString().toUpperCase(),
+                          color: statusColor,
+                        ),
+                        _buildDataCell(r['autoApproved'] == true ? 'Auto' : 'Manual'),
+                        _buildDataCell('${r['requestNumber'] ?? 0}'),
+                        _buildDataCell(_formatToCambodiaTime(r['createdAt'])),
+                        _buildDataCell(r['approvedByName'] ?? ''),
+                        _buildDataCell(r['rejectionReason'] ?? ''),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Total: ${translatedData.length} request(s)',
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
+                    ),
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
+                        style: pw.TextStyle(
+                          fontSize: 9,
+                          color: PdfColors.grey600,
+                        ),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        'Prepared by: $_adminName',
+                        style: pw.TextStyle(
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      final pdfBytes = await pdf.save();
+
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (_isWeb) {
+        _downloadPDFOnWeb(pdfBytes);
+      } else {
+        await _savePDFToFile(pdfBytes);
+      }
+
+      // Clear translation cache after export
+      TranslationService.clearCache();
+
+    } catch (e, stackTrace) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      print('PDF Export error: $e');
+      print('StackTrace: $stackTrace');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('PDF Export error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ================================================================
+  // ===== PDF HELPER FUNCTIONS =====
+  // ================================================================
+
+  pw.Widget _buildHeaderCell(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(4),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          color: PdfColors.white,
+          fontWeight: pw.FontWeight.bold,
+          fontSize: 8,
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  pw.Widget _buildDataCell(String text, {PdfColor? color}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(3),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          color: color ?? PdfColors.black,
+          fontSize: 7,
+        ),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  pw.Widget _buildSummaryItem(String label, int value, PdfColor color) {
+    return pw.Column(
+      children: [
+        pw.Text(
+          value.toString(),
+          style: pw.TextStyle(
+            fontSize: 14,
+            fontWeight: pw.FontWeight.bold,
+            color: color,
+          ),
+        ),
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            fontSize: 8,
+            color: PdfColors.grey600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ================================================================
+  // ===== WEB DOWNLOAD PDF =====
+  // ================================================================
+
+  void _downloadPDFOnWeb(List<int> pdfBytes) {
+    if (!kIsWeb) return;
+    
+    final fileName =
+        'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+
+    try {
+      downloadFileWeb(
+        pdfBytes, 
+        fileName, 
+        'application/pdf'
+      );
+      _showWebSuccessDialog(fileName);
+    } catch (e) {
+      print('Web PDF download error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Download failed. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  // ================================================================
+  // ===== SAVE PDF TO FILE =====
+  // ================================================================
+
+  Future<void> _savePDFToFile(List<int> pdfBytes) async {
+    try {
+      final dir = await getTemporaryDirectory();
+      final fileName =
+          'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+      final filePath = '${dir.path}/$fileName';
+
+      final file = File(filePath);
+      await file.writeAsBytes(pdfBytes, flush: true);
+
+      try {
+        final result = await OpenFile.open(filePath);
+        if (result.type != ResultType.done) {
+          _showMobileSuccessDialog(filePath, fileName);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Exported PDF: $fileName'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        _showMobileSuccessDialog(filePath, fileName);
+      }
+    } catch (e) {
+      print('Save PDF error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Save failed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showMobileSuccessDialog(String filePath, String fileName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Export Successful'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('PDF saved: $fileName'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Location:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  Text(
+                    filePath,
+                    style: const TextStyle(fontSize: 11),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showWebSuccessDialog(String fileName) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Download Succeeded'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('File: $fileName'),
+            const SizedBox(height: 12),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================================================================
+  // ===== EXPORT TO EXCEL =====
   // ================================================================
   Future<void> _exportToExcel() async {
     final dataToExport = _filteredData;
@@ -529,13 +1103,13 @@ class _ReportScreenState extends State<ReportScreen> {
       Navigator.pop(context);
 
       if (_isWeb) {
-        _downloadOnWeb(fileBytes);
+        _downloadExcelOnWeb(fileBytes);
       } else if (_isWindows) {
-        await _saveOnWindows(fileBytes);
+        await _saveExcelOnWindows(fileBytes);
       } else if (_isMobile) {
-        await _saveOnMobile(fileBytes);
+        await _saveExcelOnMobile(fileBytes);
       } else {
-        await _saveGeneric(fileBytes);
+        await _saveExcelGeneric(fileBytes);
       }
     } catch (e, stackTrace) {
       if (Navigator.canPop(context)) {
@@ -549,9 +1123,9 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   // ================================================================
-  // ===== WEB DOWNLOAD =====
+  // ===== EXCEL EXPORT HELPERS =====
   // ================================================================
-  void _downloadOnWeb(List<int> fileBytes) {
+  void _downloadExcelOnWeb(List<int> fileBytes) {
     if (!kIsWeb) return;
     
     final fileName =
@@ -575,79 +1149,7 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  void _showWebSuccessDialog(String fileName) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Download Succeeded'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('File: $fileName'),
-            const SizedBox(height: 12),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ================================================================
-  // ===== PERMISSION DIALOG =====
-  // ================================================================
-  void _showPermissionDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Storage Permission Required'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Please allow storage permission to export Excel files.'),
-            SizedBox(height: 12),
-            Text(
-              'Go to Settings > Apps > Permission System > Permissions > '
-              'Enable "Files and Media" or "Manage External Storage".',
-              style: TextStyle(fontSize: 13),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              openAppSettings();
-            },
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ================================================================
-  // ===== WINDOWS DESKTOP SAVE =====
-  // ================================================================
-  Future<void> _saveOnWindows(List<int> fileBytes) async {
+  Future<void> _saveExcelOnWindows(List<int> fileBytes) async {
     String fileName =
         'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
     String desktopPath = '${Platform.environment['USERPROFILE']}\\Desktop';
@@ -663,10 +1165,7 @@ class _ReportScreenState extends State<ReportScreen> {
     _showWindowsSuccessDialog(filePath, fileName);
   }
 
-  // ================================================================
-  // ===== MOBILE SAVE =====
-  // ================================================================
-  Future<void> _saveOnMobile(List<int> fileBytes) async {
+  Future<void> _saveExcelOnMobile(List<int> fileBytes) async {
     String fileName =
         'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
     
@@ -691,13 +1190,10 @@ class _ReportScreenState extends State<ReportScreen> {
     final file = File(filePath);
     await file.writeAsBytes(fileBytes, flush: true);
 
-    _showMobileSuccessDialog(filePath, fileName);
+    _showMobileExcelSuccessDialog(filePath, fileName);
   }
 
-  // ================================================================
-  // ===== GENERIC SAVE =====
-  // ================================================================
-  Future<void> _saveGeneric(List<int> fileBytes) async {
+  Future<void> _saveExcelGeneric(List<int> fileBytes) async {
     String fileName =
         'report_${_selectedReportType}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
     final directory = await getApplicationDocumentsDirectory();
@@ -781,7 +1277,7 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  void _showMobileSuccessDialog(String filePath, String fileName) {
+  void _showMobileExcelSuccessDialog(String filePath, String fileName) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -906,21 +1402,42 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
-  // ================================================================
-  // ===== OPEN WINDOWS FOLDER =====
-  // ================================================================
-  void _openWindowsFolder() {
-    try {
-      String desktopPath = Platform.environment['USERPROFILE']! + '\\Desktop';
-      Process.run('explorer', [desktopPath], runInShell: true);
-    } catch (e) {
-      // Silent fail
-    }
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Storage Permission Required'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Please allow storage permission to export Excel files.'),
+            SizedBox(height: 12),
+            Text(
+              'Go to Settings > Apps > Permission System > Permissions > '
+              'Enable "Files and Media" or "Manage External Storage".',
+              style: TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
   }
 
-  // ================================================================
-  // ===== EXPORT ERROR DIALOG =====
-  // ================================================================
   void _showExportError(String error) {
     showDialog(
       context: context,
@@ -981,6 +1498,15 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  void _openWindowsFolder() {
+    try {
+      String desktopPath = Platform.environment['USERPROFILE']! + '\\Desktop';
+      Process.run('explorer', [desktopPath], runInShell: true);
+    } catch (e) {
+      // Silent fail
+    }
+  }
+
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -994,32 +1520,6 @@ class _ReportScreenState extends State<ReportScreen> {
       });
       _loadReport();
     }
-  }
-
-  String _getDateLabel() {
-    switch (_selectedReportType) {
-      case 'daily':
-        return DateFormat('dd MMM yyyy').format(_selectedDate);
-      case 'weekly':
-        return _getWeekLabel(_selectedDate);
-      case 'monthly':
-        return DateFormat('MMMM yyyy').format(_selectedDate);
-      case 'yearly':
-        return DateFormat('yyyy').format(_selectedDate);
-      default:
-        return '';
-    }
-  }
-
-  String _getCurrentDepartmentName() {
-    if (_filterDepartment == 'all') {
-      return 'All Departments';
-    }
-    final dept = _departments.firstWhere(
-      (d) => d['id'] == _filterDepartment,
-      orElse: () => {},
-    );
-    return dept['name'] ?? 'Unknown Department';
   }
 
   String _getStatusLabel(String status) {
@@ -1072,9 +1572,16 @@ class _ReportScreenState extends State<ReportScreen> {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          // Export PDF button
+          IconButton(
+            onPressed: _exportToPDF,
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Export to PDF',
+          ),
+          // Export Excel button
           IconButton(
             onPressed: _exportToExcel,
-            icon: const Icon(Icons.file_download),
+            icon: const Icon(Icons.table_chart),
             tooltip: 'Export to Excel',
           ),
         ],
