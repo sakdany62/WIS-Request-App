@@ -26,6 +26,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   String _selectedDepartmentId = '';
   String _selectedStatus = 'Active';
   bool _isLoading = false;
+  bool _hasManagerInDepartment = false; // សម្រាប់រក្សាទុកស្ថានភាព Manager
 
   // ===== DEPARTMENT LIST (Default + Dynamic from Firestore) =====
   List<Map<String, String>> _departments = [];
@@ -83,6 +84,78 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       setState(() {
         _departments = _getDefaultDepartments();
       });
+    }
+  }
+
+  // ==================== CHECK IF DEPARTMENT HAS MANAGER ====================
+  Future<bool> _checkDepartmentHasManager(String departmentId) async {
+    try {
+      if (departmentId.isEmpty) {
+        return false;
+      }
+
+      final snapshot = await _firestore
+          .collection('users')
+          .where('roleId', isEqualTo: '3')
+          .where('departmentId', isEqualTo: departmentId)
+          .where('status', isEqualTo: 'Active')
+          .get();
+
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('❌ Error checking manager in department: $e');
+      return false;
+    }
+  }
+
+  // ==================== CHECK IF MANAGER EXISTS IN DEPARTMENT ====================
+  Future<bool> _checkManagerExistsInDepartment(String departmentId) async {
+    try {
+      if (departmentId.isEmpty) {
+        return false;
+      }
+
+      final snapshot = await _firestore
+          .collection('users')
+          .where('roleId', isEqualTo: '3')
+          .where('departmentId', isEqualTo: departmentId)
+          .where('status', isEqualTo: 'Active')
+          .get();
+
+      return snapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('❌ Error checking manager exists in department: $e');
+      return false;
+    }
+  }
+
+  // ==================== GET DEPARTMENT MANAGER INFO ====================
+  Future<Map<String, dynamic>?> _getDepartmentManager(String departmentId) async {
+    try {
+      if (departmentId.isEmpty) {
+        return null;
+      }
+
+      final snapshot = await _firestore
+          .collection('users')
+          .where('roleId', isEqualTo: '3')
+          .where('departmentId', isEqualTo: departmentId)
+          .where('status', isEqualTo: 'Active')
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final data = snapshot.docs.first.data();
+        return {
+          'name': data['fullName'] ?? data['username'] ?? 'Unknown',
+          'email': data['email'] ?? '',
+          'userId': data['userId'] ?? '',
+        };
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error getting department manager: $e');
+      return null;
     }
   }
 
@@ -621,28 +694,35 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     return _selectedRole == '3';
   }
 
-  // ==================== CHECK IF MANAGER EXISTS IN DEPARTMENT ====================
-  Future<bool> _checkManagerExistsInDepartment(String departmentId) async {
+  // ==================== CHECK IF DEPARTMENT CAN HAVE STAFF ====================
+  Future<bool> _canCreateStaffInDepartment(String departmentId) async {
+    if (departmentId.isEmpty) return false;
+
     try {
-      if (departmentId.isEmpty) {
+      final hasManager = await _checkManagerExistsInDepartment(departmentId);
+
+      if (!hasManager) {
+        if (mounted) {
+          setState(() {
+            _hasManagerInDepartment = false;
+          });
+        }
         return false;
       }
 
-      final snapshot = await _firestore
-          .collection('users')
-          .where('roleId', isEqualTo: '3')
-          .where('departmentId', isEqualTo: departmentId)
-          .where('status', isEqualTo: 'Active')
-          .get();
-
-      return snapshot.docs.isNotEmpty;
+      if (mounted) {
+        setState(() {
+          _hasManagerInDepartment = true;
+        });
+      }
+      return true;
     } catch (e) {
-      print('❌ Error checking manager exists in department: $e');
+      print('❌ Error checking if staff can be created: $e');
       return false;
     }
   }
 
-  // ==================== GENERATE USER NUMBER ====================
+  // ===== GENERATE USER NUMBER =====
   Future<int> _generateUserNumber() async {
     try {
       final counterRef = _firestore.collection('counters').doc('user_counter');
@@ -669,12 +749,12 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     }
   }
 
-  // ==================== FORMAT USER NUMBER ====================
+  // ===== FORMAT USER NUMBER =====
   String _formatUserNumber(int number) {
     return number.toString().padLeft(4, '0');
   }
 
-  // ==================== GET ROLE NAME ====================
+  // ===== GET ROLE NAME =====
   String _getRoleName(String roleId) {
     final roleNames = {
       '1': 'Admin',
@@ -684,7 +764,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     return roleNames[roleId] ?? 'User';
   }
 
-  // ==================== SEND TELEGRAM TO GROUP ====================
+  // ===== SEND TELEGRAM TO GROUP =====
   Future<void> _sendTelegramToGroup({
     required String fullName,
     required String username,
@@ -736,7 +816,7 @@ IMPORTANT:
     }
   }
 
-  // ==================== GET ADMIN CREDENTIALS ====================
+  // ===== GET ADMIN CREDENTIALS =====
   Future<Map<String, String>?> _getAdminCredentials() async {
     final prefs = await SharedPreferences.getInstance();
     final email = prefs.getString('admin_email');
@@ -747,7 +827,7 @@ IMPORTANT:
     return null;
   }
 
-  // ==================== AUTO RE-LOGIN ADMIN ====================
+  // ===== AUTO RE-LOGIN ADMIN =====
   Future<bool> _autoReLoginAdmin() async {
     final credentials = await _getAdminCredentials();
 
@@ -768,10 +848,102 @@ IMPORTANT:
     return false;
   }
 
+  // ===== CHECK IF DEPARTMENT HAS MANAGER BEFORE CREATING STAFF =====
+  Future<bool> _validateDepartmentHasManagerForStaff() async {
+    // ប្រសិនបើមិនមែន Staff ទេ មិនត្រូវពិនិត្យ
+    if (_selectedRole != '2') {
+      return true;
+    }
+
+    // ប្រសិនបើមិនបានជ្រើស Department
+    if (_selectedDepartmentId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⚠️ Please select a Department for Staff.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return false;
+    }
+
+    // ពិនិត្យមើលថាតើ Department មាន Manager ហើយឬនៅ
+    final hasManager = await _checkManagerExistsInDepartment(_selectedDepartmentId);
+
+    if (!hasManager) {
+      // ស្វែងរកឈ្មោះ Department
+      String departmentName = '';
+      final dept = _departments.firstWhere(
+        (d) => d['id'] == _selectedDepartmentId,
+        orElse: () => {},
+      );
+      departmentName = dept['name'] ?? 'this department';
+
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text(
+              '⚠️ Cannot Create Staff',
+              style: TextStyle(color: Colors.orange),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Department "$departmentName" does not have a Manager yet.',
+                  style: TextStyle(fontSize: Responsive.fontSize(context, 14)),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '📌 Please create a Manager for this department first.',
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 13),
+                    color: Colors.blue[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Each department must have at least one Manager before Staff can be created.',
+                  style: TextStyle(
+                    fontSize: Responsive.fontSize(context, 12),
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+      return false;
+    }
+
+    return true;
+  }
+
   // ==================== CREATE USER ====================
   Future<void> _createUser() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // ===== ពិនិត្យមើល Department សម្រាប់ Staff =====
+    if (_selectedRole == '2') {
+      final canCreate = await _validateDepartmentHasManagerForStaff();
+      if (!canCreate) {
+        return;
+      }
+    }
+
+    // ===== ពិនិត្យមើល Manager ក្នុង Department =====
     if (_selectedRole == '3') {
       if (_selectedDepartmentId.isEmpty) {
         if (mounted) {
@@ -1380,7 +1552,6 @@ IMPORTANT:
                 ),
                 SizedBox(height: spacing * 0.6),
                 DropdownButtonFormField<String>(
-                  // ===== FIX: Check if value exists in items =====
                   initialValue: _departments.any((d) => d['id'] == _selectedDepartmentId)
                       ? (_selectedDepartmentId.isEmpty ? null : _selectedDepartmentId)
                       : null,

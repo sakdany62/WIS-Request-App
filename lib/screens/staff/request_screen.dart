@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../services/request_service.dart';
 import '../../services/telegram_service.dart';
 import '../../services/manager_telegram_service.dart';
@@ -33,7 +34,6 @@ class _RequestScreenState extends State<RequestScreen> {
   final RequestService _requestService = RequestService();
   final PolicyService _policyService = PolicyService();
 
-  // ✅ ប្រើ XFile ជំនួស File
   XFile? _selectedImage;
   String? _imageName;
 
@@ -193,7 +193,7 @@ class _RequestScreenState extends State<RequestScreen> {
   }
 
   String formatDate(DateTime? date) {
-    if (date == null) return "Select Date";
+    if (date == null) return "select_date".tr();
     return DateFormat('dd MMM yyyy').format(date);
   }
 
@@ -235,12 +235,9 @@ class _RequestScreenState extends State<RequestScreen> {
   }
 
   Future<void> pickEndDate() async {
-    _showError('Request can only be for 1 day');
+    _showError('request_one_day_only'.tr());
   }
 
-  // ================================================================
-  // ===== PICK IMAGE USING XFile =====
-  // ================================================================
   Future<void> _pickImage() async {
     try {
       final ImagePicker picker = ImagePicker();
@@ -253,15 +250,15 @@ class _RequestScreenState extends State<RequestScreen> {
 
       if (image != null) {
         setState(() {
-          _selectedImage = image;  // ✅ រក្សា XFile ដើម
+          _selectedImage = image;
           _imageName = image.name;
         });
 
-        _showSuccess('Image selected: ${image.name}');
+        _showSuccess('image_selected'.tr(args: [image.name]));
         print('✅ Image selected: ${image.path}, size: ${await image.length()} bytes');
       }
     } catch (e) {
-      _showError('Failed to pick image: $e');
+      _showError('failed_to_pick_image'.tr());
       print('❌ Error picking image: $e');
     }
   }
@@ -271,7 +268,7 @@ class _RequestScreenState extends State<RequestScreen> {
       _selectedImage = null;
       _imageName = null;
     });
-    _showSuccess('Image removed');
+    _showSuccess('image_removed'.tr());
   }
 
   void _clearAllData() {
@@ -374,28 +371,25 @@ class _RequestScreenState extends State<RequestScreen> {
     }
   }
 
-  // ================================================================
-  // ===== SUBMIT REQUEST (WITH IMAGE SENDING) =====
-  // ================================================================
   Future<void> _submitRequest() async {
     if (startDate == null) {
-      _showError('Please select a start date');
+      _showError('please_select_start_date'.tr());
       return;
     }
     if (endDate == null) {
-      _showError('Please select an end date');
+      _showError('please_select_end_date'.tr());
       return;
     }
     if (totalDays <= 0) {
-      _showError('Invalid date range');
+      _showError('invalid_date_range'.tr());
       return;
     }
     if (totalDays > 1) {
-      _showError('Request can only be for 1 day');
+      _showError('request_one_day_only'.tr());
       return;
     }
     if (selectedReason == null) {
-      _showError('Please select a reason');
+      _showError('please_select_reason'.tr());
       return;
     }
 
@@ -419,7 +413,7 @@ class _RequestScreenState extends State<RequestScreen> {
       if (selectedReasonAtSubmit == 'Other') {
         otherReasonToSend = otherReasonAtSubmit;
         if (otherReasonToSend.isEmpty) {
-          _showError('Please specify a reason');
+          _showError('please_specify_reason'.tr());
           if (mounted) {
             setState(() {
               _isSubmitting = false;
@@ -435,11 +429,10 @@ class _RequestScreenState extends State<RequestScreen> {
 
       String? imageUrl;
 
-      // 🔥 Read image bytes from XFile
       List<int>? photoBytes;
       if (_selectedImage != null) {
         try {
-          photoBytes = await _selectedImage!.readAsBytes();  // ✅ ដំណើរការជាមួយ XFile
+          photoBytes = await _selectedImage!.readAsBytes();
           imageUrl = 'sent_to_telegram_${DateTime.now().millisecondsSinceEpoch}';
           print('✅ Image read successfully from XFile, size: ${photoBytes.length} bytes');
         } catch (e) {
@@ -466,7 +459,6 @@ class _RequestScreenState extends State<RequestScreen> {
         userEmail: _staffEmail.isNotEmpty ? _staffEmail : FirebaseAuth.instance.currentUser?.email ?? '',
       );
 
-      // 🔥 Send notification with image
       await _sendTelegramNotification(
         requestId: result['requestId'] ?? 'N/A',
         status: result['status'] ?? 'pending',
@@ -478,7 +470,7 @@ class _RequestScreenState extends State<RequestScreen> {
         final status = result['status'];
         final message = result['message'];
 
-        final timeDisplay = _submitTimeString.isNotEmpty ? '\nSubmitted at: $_submitTimeString' : '';
+        final timeDisplay = _submitTimeString.isNotEmpty ? '\n${'submitted_at'.tr()}: $_submitTimeString' : '';
 
         _clearAllData();
 
@@ -487,19 +479,19 @@ class _RequestScreenState extends State<RequestScreen> {
         });
 
         if (status == 'approved') {
-          _showSuccessAndNavigate('Request automatically approved!$timeDisplay');
+          _showSuccessAndNavigate('request_auto_approved'.tr() + timeDisplay);
         } else if (message?.contains('contact') == true) {
-          _showSuccessAndNavigate('${message ?? 'You must contact your manager directly'}$timeDisplay');
+          _showSuccessAndNavigate('${message ?? 'contact_manager_directly'.tr()}$timeDisplay');
         } else {
-          _showSuccessAndNavigate('${message ?? 'Request submitted successfully'}$timeDisplay');
+          _showSuccessAndNavigate('${message ?? 'request_submitted_successfully'.tr()}$timeDisplay');
         }
       }
     } on FirebaseException catch (e) {
       if (mounted) {
         if (e.code == 'permission-denied') {
-          _showError('You do not have permission to submit requests. Please contact Admin');
+          _showError('permission_denied_contact_admin'.tr());
         } else {
-          _showError('System error: ${e.message}');
+          _showError('system_error'.tr(args: [e.message ?? '']));
         }
         setState(() {
           _isSubmitting = false;
@@ -507,7 +499,7 @@ class _RequestScreenState extends State<RequestScreen> {
       }
     } catch (e) {
       if (mounted) {
-        _showError('Error: ${e.toString().replaceFirst('Exception: ', '')}');
+        _showError('error_submitting'.tr(args: [e.toString().replaceFirst('Exception: ', '')]));
         setState(() {
           _isSubmitting = false;
         });
@@ -515,9 +507,6 @@ class _RequestScreenState extends State<RequestScreen> {
     }
   }
 
-  // ================================================================
-  // ===== SEND TELEGRAM NOTIFICATION WITH PHOTO + FULL CAPTION =====
-  // ================================================================
   Future<void> _sendTelegramNotification({
     required String requestId,
     required String status,
@@ -531,7 +520,6 @@ class _RequestScreenState extends State<RequestScreen> {
               FirebaseAuth.instance.currentUser?.email?.split('@').first ??
               'Staff');
 
-      //  Build FULL CAPTION with all details
       final String fullCaption = '''
 NEW PERMISSION REQUEST!
 
@@ -549,7 +537,6 @@ Details:
 Status: PENDING
 ''';
 
-      //  If photo exists, send photo with full caption
       if (photoBytes != null && photoBytes.isNotEmpty) {
         final photoSent = await TelegramService.sendPhotoToTelegram(
           photoBytes: photoBytes,
@@ -563,7 +550,6 @@ Status: PENDING
           await _sendTextMessageOnly(requestId, displayName, reasonText, status);
         }
       } else {
-        // No photo, send text message only
         print('📨 No photo, sending text message only');
         await _sendTextMessageOnly(requestId, displayName, reasonText, status);
       }
@@ -582,7 +568,6 @@ Status: PENDING
     }
   }
 
-  // ===== SEND TEXT MESSAGE ONLY (FALLBACK) =====
   Future<void> _sendTextMessageOnly(
     String requestId,
     String displayName,
@@ -747,6 +732,9 @@ Status: PENDING
 
   @override
   Widget build(BuildContext context) {
+    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរពី Settings
+    final locale = context.locale;
+    
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -785,7 +773,7 @@ Status: PENDING
                   ),
                   SizedBox(height: isMobile ? 4 : 8),
                   Text(
-                    "Leave Request",
+                    "leave_request".tr(),
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -813,7 +801,7 @@ Status: PENDING
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Select Date",
+                              "select_date".tr(),
                               style: TextStyle(
                                 fontSize: Responsive.fontSize(context, AppFonts.md),
                                 fontWeight: FontWeight.bold,
@@ -837,7 +825,7 @@ Status: PENDING
                                       color: Colors.green, size: Responsive.iconSize(context, 20)),
                                   SizedBox(width: spacing),
                                   Text(
-                                    "Total Days: 1 day",
+                                    "total_days_one".tr(),
                                     style: TextStyle(
                                       fontSize: Responsive.fontSize(context, AppFonts.md),
                                       fontWeight: FontWeight.bold,
@@ -863,7 +851,7 @@ Status: PENDING
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Document Reference (Optional)",
+                              "document_reference_optional".tr(),
                               style: TextStyle(
                                 fontSize: Responsive.fontSize(context, AppFonts.md),
                                 fontWeight: FontWeight.bold,
@@ -895,7 +883,7 @@ Status: PENDING
                                       SizedBox(width: spacing * 1.5),
                                       Expanded(
                                         child: Text(
-                                          _selectedImage != null ? _imageName ?? 'Image selected' : 'Select Image',
+                                          _selectedImage != null ? _imageName ?? 'image_selected'.tr() : 'select_image'.tr(),
                                           style: TextStyle(
                                             fontSize: Responsive.fontSize(context, AppFonts.md),
                                             color: _selectedImage != null ? Colors.black : Colors.grey.shade600,
@@ -938,7 +926,7 @@ Status: PENDING
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Reason for Leave",
+                              "reason_for_leave".tr(),
                               style: TextStyle(
                                 fontSize: Responsive.fontSize(context, AppFonts.md),
                                 fontWeight: FontWeight.bold,
@@ -968,7 +956,7 @@ Status: PENDING
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "Please specify your reason:",
+                                    "please_specify_reason".tr(),
                                     style: TextStyle(
                                       fontSize: Responsive.fontSize(context, AppFonts.md),
                                       color: Colors.grey.shade600,
@@ -984,7 +972,7 @@ Status: PENDING
                                       controller: otherController,
                                       style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
                                       decoration: InputDecoration(
-                                        hintText: "Enter other reason...",
+                                        hintText: "enter_other_reason".tr(),
                                         hintStyle: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
                                         border: InputBorder.none,
                                         filled: true,
@@ -1034,7 +1022,7 @@ Status: PENDING
                                   Icon(Icons.send, size: Responsive.iconSize(context, 20)),
                                   SizedBox(width: spacing),
                                   Text(
-                                    "Submit Request",
+                                    "submit_request".tr(),
                                     style: TextStyle(fontSize: Responsive.fontSize(context, AppFonts.md)),
                                   ),
                                 ],
@@ -1064,16 +1052,16 @@ Status: PENDING
       child: Row(
         children: [
           Icon(
-            text == "Select Date" ? Icons.calendar_today : Icons.check_circle,
+            text == "select_date".tr() ? Icons.calendar_today : Icons.check_circle,
             size: Responsive.iconSize(context, 18),
-            color: text == "Select Date" ? Colors.grey : Colors.green,
+            color: text == "select_date".tr() ? Colors.grey : Colors.green,
           ),
           SizedBox(width: spacing),
           Text(
             text,
             style: TextStyle(
               fontSize: Responsive.fontSize(context, AppFonts.md),
-              color: text == "Select Date" ? Colors.grey : Colors.black,
+              color: text == "select_date".tr() ? Colors.grey : Colors.black,
             ),
           ),
         ],
@@ -1119,6 +1107,11 @@ Status: PENDING
               activeColor: appBarColor,
             ),
             Text(
+              title == 'Sick' ? 'sick'.tr() :
+              title == 'Personal issue' ? 'personal_issue'.tr() :
+              title == 'Vacation' ? 'vacation'.tr() :
+              title == 'Emergency' ? 'emergency'.tr() :
+              title == 'Other' ? 'other'.tr() :
               title,
               style: TextStyle(
                 fontSize: Responsive.fontSize(context, AppFonts.md),

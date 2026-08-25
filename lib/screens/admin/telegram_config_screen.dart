@@ -659,8 +659,9 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
                             '   - Click Start, bot will give your Chat ID\n\n'
                             '2. For Group Chat:\n'
                             '   - Open Telegram\n'
-                            '   - Add @userinfobot to your group\n'
-                            '   - Type /start in group, bot will give Group ID\n',
+                            '   - Search @userinfobot\n'
+                            '   - Choose Button Group\n'
+                            '   - Choose Your Group, @userinfobot will give your group ID\n',
                             style: TextStyle(
                               fontSize: isMobile ? fontSize * 0.85 : fontSize,
                               color: Colors.grey[600],

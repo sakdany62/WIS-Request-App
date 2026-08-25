@@ -1,8 +1,10 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -15,6 +17,7 @@ import 'providers/auth_provider.dart';
 import 'app_fonts.dart';
 import 'services/notification_permission_service.dart';
 import 'services/telegram_config_service.dart';
+import 'services/language_service.dart';
 
 //  Global navigator key for notifications
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -35,15 +38,22 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print(' Firebase initialized successfully');
+    print('✅ Firebase initialized successfully');
   } catch (e) {
     print('❌ Firebase initialization error: $e');
   }
   
+  // Initialize EasyLocalization
+  await EasyLocalization.ensureInitialized();
+
+  // Get saved language
+  final savedLanguage = await LanguageService.getLanguage();
+  print('📝 Saved language: $savedLanguage');
+  
   // ដំឡើង notifications
   try {
     await NotificationPermissionService.initializeNotifications();
-    print(' Notifications initialized');
+    print('✅ Notifications initialized');
   } catch (e) {
     print('❌ Notification initialization error: $e');
   }
@@ -51,17 +61,26 @@ void main() async {
   // Initialize default Telegram configs
   try {
     await TelegramConfigService.initializeDefaultConfigs();
-    print(' Telegram configs initialized');
+    print('✅ Telegram configs initialized');
   } catch (e) {
     print('❌ Telegram config initialization error: $e');
   }
   
   runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+    EasyLocalization(
+      supportedLocales: const [
+        Locale('en', 'US'),
+        Locale('km', 'KH'),
       ],
-      child: const MyApp(),
+      path: 'assets/translations',
+      fallbackLocale: const Locale('en', 'US'),
+      startLocale: Locale(savedLanguage),
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ],
+        child: const MyApp(),
+      ),
     ),
   );
 }
@@ -75,6 +94,9 @@ class MyApp extends StatelessWidget {
       title: 'Westland Permission App',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
+      localizationsDelegates: context.localizationDelegates,
+      supportedLocales: context.supportedLocales,
+      locale: context.locale,
       theme: ThemeData(
         primaryColor: const Color(0xFF1A3B68),
         scaffoldBackgroundColor: const Color(0xFFF7F8FA),
@@ -132,9 +154,12 @@ class MyApp extends StatelessWidget {
       },
       onUnknownRoute: (settings) {
         return MaterialPageRoute(
-          builder: (context) => const Scaffold(
+          builder: (context) => Scaffold(
             body: Center(
-              child: Text('Page not found'),
+              child: Text(
+                'page_not_found'.tr(),
+                style: const TextStyle(fontSize: 18),
+              ),
             ),
           ),
         );

@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../app_fonts.dart';
 import '../../providers/auth_provider.dart' as app_auth;
 import '../../utils/responsive.dart';
 import '../../services/terms_service.dart';
 import '../../services/warning_service.dart';
 import '../../widgets/warning_popup.dart';
+import '../../widgets/language_picker.dart';
 import 'warning_popup_settings_screen.dart';
 import '../admin/warning_management_screen.dart' as warning;
 import '../admin/terms_read_tracking_screen.dart';
@@ -24,6 +26,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final Color primary = const Color(0xFF1A3B68);
 
   final List<SettingsItem> _allItems = const [
+    SettingsItem(
+      icon: Icons.language,
+      title: 'Language',
+    ),
     SettingsItem(
       icon: Icons.description,
       title: 'Terms & Conditions',
@@ -44,7 +50,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    //  Responsive
+    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    EasyLocalization.of(context);
+    
+    // Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -81,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   SizedBox(height: isMobile ? 4 : 8),
                   Text(
-                    "Settings",
+                    'settings'.tr(),
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -108,6 +117,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         fontSize,
                       ),
                     ),
+                    // ---------- Logout ----------
+                    _buildLogoutItem(context, isMobile, fontSize),
                   ],
                 ),
               ),
@@ -130,7 +141,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: ListTile(
         leading: const Icon(Icons.logout, color: Colors.red),
         title: Text(
-          'Logout',
+          'logout'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize : AppFonts.md,
             color: Colors.red,
@@ -155,20 +166,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Logout',
+          'logout'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize : AppFonts.md + 2,
           ),
         ),
         content: Text(
-          'Are you sure you want to logout?',
+          'confirm_logout'.tr(),
           style: TextStyle(fontSize: isMobile ? fontSize : AppFonts.md),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancel',
+              'cancel'.tr(),
               style: TextStyle(fontSize: isMobile ? fontSize : AppFonts.md),
             ),
           ),
@@ -188,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
             child: Text(
-              'Logout',
+              'logout'.tr(),
               style: TextStyle(
                 fontSize: isMobile ? fontSize : AppFonts.md,
                 color: Colors.red,
@@ -210,6 +221,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) {
     final isAdmin = _isUserAdmin();
 
+    // ✅ ប្រសិនបើជា "Language"
+    if (title == 'Language') {
+      return Card(
+        margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+        ),
+        color: Colors.white,
+        child: ListTile(
+          leading: Icon(
+            Icons.language,
+            color: primary,
+            size: isMobile ? 20 : 24,
+          ),
+          title: Text(
+            'language'.tr(),
+            style: TextStyle(
+              fontSize: isMobile ? fontSize : AppFonts.md,
+              color: Colors.black,
+            ),
+          ),
+          subtitle: Text(
+            context.locale.languageCode == 'en' ? 'English' : 'ភាសាខ្មែរ',
+            style: TextStyle(
+              fontSize: isMobile ? fontSize * 0.8 : AppFonts.md * 0.8,
+              color: Colors.grey[600],
+            ),
+          ),
+          trailing: Icon(
+            Icons.arrow_forward_ios,
+            size: isMobile ? 14 : 16,
+            color: Colors.grey,
+          ),
+          onTap: () {
+            _showLanguagePicker(context, isMobile, fontSize);
+          },
+        ),
+      );
+    }
+
     return Card(
       margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
       elevation: 0,
@@ -224,6 +276,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           size: isMobile ? 20 : 24,
         ),
         title: Text(
+          title == 'Terms & Conditions' ? 'terms_conditions'.tr() :
+          title == 'Telegram Notifications' ? 'telegram_notifications'.tr() :
+          title == 'Warning Popup' ? 'warning_popup'.tr() :
+          title == 'About App' ? 'about_app'.tr() :
           title,
           style: TextStyle(
             fontSize: isMobile ? fontSize : AppFonts.md,
@@ -255,7 +311,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => warning.WarningManagementScreen(), // ✅ កែប្រែនេះ
+                  builder: (context) => warning.WarningManagementScreen(),
                 ),
               );
             } else {
@@ -272,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  '$title feature coming soon',
+                  '${title.tr()} feature coming soon',
                   style: TextStyle(fontSize: isMobile ? fontSize : AppFonts.md),
                 ),
                 backgroundColor: Colors.grey[800],
@@ -284,10 +340,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ---------- Show Language Picker ----------
+  void _showLanguagePicker(BuildContext context, bool isMobile, double fontSize) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => LanguagePicker(
+        isMobile: isMobile,
+        fontSize: fontSize,
+      ),
+    );
+  }
+
   // Check if current user is admin
   bool _isUserAdmin() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
+    // Implement your admin check logic here
     return false;
   }
 
@@ -297,7 +368,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Telegram Notifications',
+          'telegram_notifications'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize + 2 : AppFonts.md + 2,
             fontWeight: FontWeight.bold,
@@ -308,14 +379,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Telegram notifications are sent to the staff group when:',
+              'telegram_notifications_description'.tr(),
               style: TextStyle(fontSize: isMobile ? fontSize : AppFonts.md),
             ),
             SizedBox(height: isMobile ? 8 : 12),
-            _buildBulletPoint('New leave requests are submitted', isMobile, fontSize),
-            _buildBulletPoint('Requests are approved or rejected', isMobile, fontSize),
-            _buildBulletPoint('Auto-approval occurs', isMobile, fontSize),
-            _buildBulletPoint('Manager approvals are needed', isMobile, fontSize),
+            _buildBulletPoint('telegram_notification_1'.tr(), isMobile, fontSize),
+            _buildBulletPoint('telegram_notification_2'.tr(), isMobile, fontSize),
+            _buildBulletPoint('telegram_notification_3'.tr(), isMobile, fontSize),
+            _buildBulletPoint('telegram_notification_4'.tr(), isMobile, fontSize),
             SizedBox(height: isMobile ? 8 : 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -330,7 +401,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SizedBox(width: isMobile ? 6 : 8),
                   Expanded(
                     child: Text(
-                      'Notifications are sent automatically. No configuration needed.',
+                      'telegram_notifications_info'.tr(),
                       style: TextStyle(
                         fontSize: isMobile ? fontSize : AppFonts.md,
                         color: Colors.blue.shade700,
@@ -346,7 +417,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'OK',
+              'ok'.tr(),
               style: TextStyle(fontSize: isMobile ? fontSize : AppFonts.md),
             ),
           ),
@@ -522,6 +593,9 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    EasyLocalization.of(context);
+    
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -533,7 +607,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          _termsData != null ? _termsData!['title'] ?? 'Terms & Conditions' : 'Terms & Conditions',
+          _termsData != null ? _termsData!['title'] ?? 'terms_conditions'.tr() : 'terms_conditions'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize : AppFonts.md,
             fontWeight: FontWeight.bold,
@@ -588,7 +662,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                           onPressed: _loadTerms,
                           icon: const Icon(Icons.refresh),
                           label: Text(
-                            'Retry',
+                            'retry'.tr(),
                             style: TextStyle(
                               fontSize: isMobile ? fontSize : AppFonts.md,
                             ),
@@ -623,7 +697,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                             ),
                             SizedBox(height: isMobile ? 12 : 16),
                             Text(
-                              'No terms & conditions available',
+                              'no_terms'.tr(),
                               style: TextStyle(
                                 fontSize: isMobile ? fontSize : AppFonts.md,
                                 color: Colors.grey,
@@ -631,7 +705,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                             ),
                             SizedBox(height: isMobile ? 8 : 12),
                             Text(
-                              'Please check back later or contact admin.',
+                              'contact_admin'.tr(),
                               style: TextStyle(
                                 fontSize: isMobile ? fontSize * 0.85 : AppFonts.md * 0.85,
                                 color: Colors.grey.shade400,
@@ -673,7 +747,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Text(
-                                        'Updated: ${_termsData!['lastUpdated'] ?? 'N/A'}',
+                                        '${'updated'.tr()}: ${_termsData!['lastUpdated'] ?? 'N/A'}',
                                         style: TextStyle(
                                           fontSize: isMobile ? fontSize * 0.85 : AppFonts.md,
                                           color: Colors.green.shade700,
@@ -744,8 +818,8 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                                   Expanded(
                                     child: Text(
                                       _hasRead
-                                          ? ' You have confirmed reading these Terms & Conditions'
-                                          : ' Please check the box to confirm you have read and agree to these Terms & Conditions',
+                                          ? 'confirmed_read_terms'.tr()
+                                          : 'please_confirm_read_terms'.tr(),
                                       style: TextStyle(
                                         fontSize: isMobile ? fontSize : AppFonts.md,
                                         color: _hasRead ? Colors.green.shade700 : Colors.orange.shade700,
@@ -770,7 +844,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                                 ),
                               ),
                               child: Text(
-                                'Back to Settings',
+                                'back_to_settings'.tr(),
                                 style: TextStyle(
                                   fontSize: isMobile ? fontSize : AppFonts.md,
                                   fontWeight: FontWeight.bold,
@@ -835,6 +909,9 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    EasyLocalization.of(context);
+    
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double logoSize = isMobile ? 90 : 120;
@@ -846,7 +923,7 @@ class AboutScreen extends StatelessWidget {
         elevation: 0,
         centerTitle: true,
         title: Text(
-          'About Application',
+          'about_app'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize : AppFonts.md,
             fontWeight: FontWeight.bold,
@@ -893,7 +970,7 @@ class AboutScreen extends StatelessWidget {
             SizedBox(height: isMobile ? 10 : 14),
 
             Text(
-              "Leave Request Mobile App",
+              "app_name".tr(),
               style: TextStyle(
                 fontSize: isMobile ? fontSize + 2 : AppFonts.md,
                 fontWeight: FontWeight.bold,
@@ -909,7 +986,7 @@ class AboutScreen extends StatelessWidget {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(height: isMobile ? 16 : 24), // បន្ថយបន្តិច
+            SizedBox(height: isMobile ? 16 : 24),
 
             Padding(
               padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 20),
@@ -925,7 +1002,7 @@ class AboutScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Application Description",
+                        "about_description_title".tr(),
                         style: TextStyle(
                           fontSize: isMobile ? fontSize + 2 : AppFonts.md,
                           fontWeight: FontWeight.bold,
@@ -934,7 +1011,7 @@ class AboutScreen extends StatelessWidget {
                       ),
                       SizedBox(height: isMobile ? 4 : 8),
                       Text(
-                        "This mobile leave request application is designed to modernize and streamline the leave-taking workflow for staff at Westland International School.",
+                        "about_description".tr(),
                         style: TextStyle(
                           fontSize: isMobile ? fontSize : AppFonts.md,
                           color: const Color(0xFF475569),
@@ -944,21 +1021,21 @@ class AboutScreen extends StatelessWidget {
                       ),
                       Divider(height: isMobile ? 16 : 24, thickness: 0.5),
                       _buildInfoRow(
-                        "Institution:",
+                        "institution".tr(),
                         "Westland International School",
                         isMobile,
                         fontSize,
                       ),
                       SizedBox(height: isMobile ? 4 : 8),
                       _buildInfoRow(
-                        "Academic Year:",
+                        "academic_year".tr(),
                         "2025 - 2026",
                         isMobile,
                         fontSize,
                       ),
                       SizedBox(height: isMobile ? 4 : 8),
                       _buildInfoRow(
-                        "Developed by:",
+                        "developed_by".tr(),
                         "WIS IT Team",
                         isMobile,
                         fontSize,

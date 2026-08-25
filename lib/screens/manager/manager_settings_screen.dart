@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../app_fonts.dart';
 import '../../providers/auth_provider.dart' as app_auth;
 import '../../utils/responsive.dart';
 import '../../services/terms_service.dart';
 import '../../services/warning_service.dart';
+import '../../widgets/language_picker.dart';
 import '../staff/warning_popup_settings_screen.dart';
 import '../staff/settings_screen.dart';
 import '../staff/dashboard.dart' as staff;
@@ -27,6 +29,10 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
     SettingsItem(
       icon: Icons.visibility_outlined,
       title: 'View as Staff',
+    ),
+    SettingsItem(
+      icon: Icons.language,
+      title: 'Language',
     ),
     SettingsItem(
       icon: Icons.description,
@@ -78,10 +84,10 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/manager-dashboard');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Returned to Manager view'),
+          SnackBar(
+            content: Text('returned_to_manager_view'.tr()),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -98,10 +104,10 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/staff-dashboard');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Viewing as Staff'),
+          SnackBar(
+            content: Text('viewing_as_staff'.tr()),
             backgroundColor: Colors.blue,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -147,7 +153,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
                   ),
                   SizedBox(height: isMobile ? 4 : 8),
                   Text(
-                    _isViewingAsStaff ? "Settings (Viewing as Staff)" : "Manager Settings",
+                    _isViewingAsStaff ? "settings_viewing_as_staff".tr() : "manager_settings".tr(),
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -170,7 +176,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'You are viewing as Staff.',
+                        'viewing_as_staff_indicator'.tr(),
                         style: TextStyle(
                           fontSize: isMobile ? fontSize * 0.85 : AppFonts.md * 0.85,
                           color: Colors.orange.shade700,
@@ -197,6 +203,8 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
                         fontSize,
                       ),
                     ),
+                    // ---------- Logout ----------
+                    _buildLogoutItem(context, isMobile, fontSize),
                   ],
                 ),
               ),
@@ -219,7 +227,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
       child: ListTile(
         leading: const Icon(Icons.logout, color: Colors.red),
         title: Text(
-          'Logout',
+          'logout'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize : AppFonts.md,
             color: Colors.red,
@@ -244,20 +252,20 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Logout',
+          'logout'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize : AppFonts.md + 2,
           ),
         ),
         content: Text(
-          'Are you sure you want to logout?',
+          'confirm_logout'.tr(),
           style: TextStyle(fontSize: isMobile ? fontSize : AppFonts.md),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancel',
+              'cancel'.tr(),
               style: TextStyle(fontSize: isMobile ? fontSize : AppFonts.md),
             ),
           ),
@@ -281,7 +289,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
               }
             },
             child: Text(
-              'Logout',
+              'logout'.tr(),
               style: TextStyle(
                 fontSize: isMobile ? fontSize : AppFonts.md,
                 color: Colors.red,
@@ -317,7 +325,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
             size: isMobile ? 20 : 24,
           ),
           title: Text(
-            _isViewingAsStaff ? 'Return to Manager View' : 'View as Staff',
+            _isViewingAsStaff ? 'return_to_manager_view'.tr() : 'view_as_staff'.tr(),
             style: TextStyle(
               fontSize: isMobile ? fontSize : AppFonts.md,
               color: _isViewingAsStaff ? Colors.orange.shade700 : Colors.black,
@@ -331,6 +339,47 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
             activeTrackColor: Colors.orange.shade200,
           ),
           onTap: _toggleViewMode,
+        ),
+      );
+    }
+
+    // ✅ ប្រសិនបើជា "Language"
+    if (title == 'Language') {
+      return Card(
+        margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
+        ),
+        color: Colors.white,
+        child: ListTile(
+          leading: Icon(
+            Icons.language,
+            color: primary,
+            size: isMobile ? 20 : 24,
+          ),
+          title: Text(
+            'language'.tr(),
+            style: TextStyle(
+              fontSize: isMobile ? fontSize : AppFonts.md,
+              color: Colors.black,
+            ),
+          ),
+          subtitle: Text(
+            context.locale.languageCode == 'en' ? 'English' : 'ភាសាខ្មែរ',
+            style: TextStyle(
+              fontSize: isMobile ? fontSize * 0.8 : AppFonts.md * 0.8,
+              color: Colors.grey[600],
+            ),
+          ),
+          trailing: Icon(
+            Icons.arrow_forward_ios,
+            size: isMobile ? 14 : 16,
+            color: Colors.grey,
+          ),
+          onTap: () {
+            _showLanguagePicker(context, isMobile, fontSize);
+          },
         ),
       );
     }
@@ -349,6 +398,10 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
           size: isMobile ? 20 : 24,
         ),
         title: Text(
+          title == 'Telegram Notifications' ? 'telegram_notifications'.tr() :
+          title == 'Warning Popup' ? 'warning_popup'.tr() :
+          title == 'Terms & Conditions' ? 'terms_conditions'.tr() :
+          title == 'About App' ? 'about_app'.tr() :
           title,
           style: TextStyle(
             fontSize: isMobile ? fontSize : AppFonts.md,
@@ -362,7 +415,6 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
         ),
         onTap: () {
           if (title == 'About App') {
-            // ប្រើ AboutScreen ពី settings_screen.dart
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -370,7 +422,6 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
               ),
             );
           } else if (title == 'Terms & Conditions') {
-            //  ប្រើ TermsConditionsScreen ពី settings_screen.dart
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -390,7 +441,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  '$title feature coming soon',
+                  '${title.tr()} feature coming soon',
                   style: TextStyle(fontSize: isMobile ? fontSize : AppFonts.md),
                 ),
                 backgroundColor: Colors.grey[800],
@@ -402,13 +453,27 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
     );
   }
 
+  // ---------- Show Language Picker ----------
+  void _showLanguagePicker(BuildContext context, bool isMobile, double fontSize) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => LanguagePicker(
+        isMobile: isMobile,
+        fontSize: fontSize,
+      ),
+    );
+  }
+
   // Show Telegram Notification Settings
   void _showTelegramSettings(BuildContext context, bool isMobile, double fontSize) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Telegram Notifications',
+          'telegram_notifications'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize + 2 : AppFonts.md + 2,
             fontWeight: FontWeight.bold,
@@ -419,14 +484,14 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Telegram notifications are sent to the staff group when:',
+              'telegram_notifications_description'.tr(),
               style: TextStyle(fontSize: isMobile ? fontSize : AppFonts.md),
             ),
             SizedBox(height: isMobile ? 8 : 12),
-            _buildBulletPoint('New leave requests are submitted', isMobile, fontSize),
-            _buildBulletPoint('Requests are approved or rejected', isMobile, fontSize),
-            _buildBulletPoint('Auto-approval occurs', isMobile, fontSize),
-            _buildBulletPoint('Manager approvals are needed', isMobile, fontSize),
+            _buildBulletPoint('telegram_notification_1'.tr(), isMobile, fontSize),
+            _buildBulletPoint('telegram_notification_2'.tr(), isMobile, fontSize),
+            _buildBulletPoint('telegram_notification_3'.tr(), isMobile, fontSize),
+            _buildBulletPoint('telegram_notification_4'.tr(), isMobile, fontSize),
             SizedBox(height: isMobile ? 8 : 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -441,7 +506,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
                   SizedBox(width: isMobile ? 6 : 8),
                   Expanded(
                     child: Text(
-                      'Notifications are sent automatically. No configuration needed.',
+                      'telegram_notifications_info'.tr(),
                       style: TextStyle(
                         fontSize: isMobile ? fontSize : AppFonts.md,
                         color: Colors.blue.shade700,
@@ -457,7 +522,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'OK',
+              'ok'.tr(),
               style: TextStyle(fontSize: isMobile ? fontSize : AppFonts.md),
             ),
           ),
