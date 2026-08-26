@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../providers/auth_provider.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
@@ -56,10 +57,10 @@ class _DashboardState extends State<Dashboard> {
     if (mounted) {
       Navigator.pushReplacementNamed(context, '/manager-dashboard');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Returned to Manager view'),
+        SnackBar(
+          content: Text('returned_to_manager_view'.tr()),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
     }
@@ -67,6 +68,9 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    EasyLocalization.of(context);
+    
     final bool isMobile = Responsive.isMobile(context);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 24);
@@ -87,13 +91,12 @@ class _DashboardState extends State<Dashboard> {
           iconSize: iconSize,
           fontSize: fontSize,
         ),
-        //  FAB តូចជាងមុន
         floatingActionButton: _isViewingAsStaff
             ? FloatingActionButton.small(
                 onPressed: _returnToManagerView,
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
-                tooltip: 'Switch back to Manager view',
+                tooltip: 'return_to_manager_view'.tr(),
                 child: const Icon(Icons.arrow_back, size: 20),
               )
             : null,
@@ -110,21 +113,21 @@ class _DashboardState extends State<Dashboard> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Exit App',
+          'exit_app'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize : fontSize + 2,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
-          'Do you want to exit the app?',
+          'exit_app_message'.tr(),
           style: TextStyle(fontSize: fontSize),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancel',
+              'cancel'.tr(),
               style: TextStyle(fontSize: fontSize),
             ),
           ),
@@ -134,7 +137,7 @@ class _DashboardState extends State<Dashboard> {
               SystemNavigator.pop();
             },
             child: Text(
-              'Exit',
+              'exit'.tr(),
               style: TextStyle(fontSize: fontSize, color: Colors.red),
             ),
           ),
@@ -180,7 +183,7 @@ class _DashboardState extends State<Dashboard> {
                     0,
                     Icons.home_outlined,
                     Icons.home,
-                    'Home',
+                    'home'.tr(),
                     isMobile,
                     iconSize,
                     fontSize,
@@ -189,7 +192,7 @@ class _DashboardState extends State<Dashboard> {
                     1,
                     Icons.assignment_outlined,
                     Icons.assignment,
-                    'Request',
+                    'request'.tr(),
                     isMobile,
                     iconSize,
                     fontSize,
@@ -198,7 +201,7 @@ class _DashboardState extends State<Dashboard> {
                     2,
                     Icons.settings_outlined,
                     Icons.settings,
-                    'Settings',
+                    'settings'.tr(),
                     isMobile,
                     iconSize,
                     fontSize,

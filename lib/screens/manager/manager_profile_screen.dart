@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:permission_system/services/cloudinary_service.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
@@ -60,7 +61,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
 
     if (user == null) {
       setState(() {
-        errorMessage = 'No user logged in';
+        errorMessage = 'no_user_logged_in'.tr();
         isLoading = false;
       });
       return;
@@ -86,14 +87,14 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       } else {
         print('⚠️ No manager document found for UID: ${user.uid}');
         setState(() {
-          errorMessage = 'Manager profile not found in database';
+          errorMessage = 'profile_not_found'.tr();
           isLoading = false;
         });
       }
     } catch (e) {
       print('❌ Error loading manager data: $e');
       setState(() {
-        errorMessage = 'Failed to load manager data: $e';
+        errorMessage = 'failed_to_load_profile'.tr(args: [e.toString()]);
         isLoading = false;
       });
     }
@@ -109,7 +110,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     });
 
     try {
-      _showSnackBar(' Please select your Image...', Colors.blue);
+      _showSnackBar('please_select_image'.tr(), Colors.blue);
 
       String? imageUrl;
 
@@ -142,16 +143,16 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
           profileImageUrl = imageUrl;
           userData?['profileImageUrl'] = imageUrl;
         });
-        _showSnackBar(' Profile image uploaded successfully!', Colors.green);
+        _showSnackBar('profile_image_uploaded'.tr(), Colors.green);
         print(' Image uploaded to Cloudinary: $imageUrl');
       } else {
-        _showSnackBar('❌ Failed to upload image. Please try again.', Colors.red);
+        _showSnackBar('failed_to_upload_image'.tr(), Colors.red);
       }
     } catch (e) {
       setState(() {
         _isUploadingToCloudinary = false;
       });
-      _showSnackBar('❌ Error: $e', Colors.red);
+      _showSnackBar('error'.tr() + ': $e', Colors.red);
       print('❌ Upload error: $e');
     }
   }
@@ -179,13 +180,13 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
         isUploading = false;
       });
 
-      _showSnackBar(' Profile image updated successfully!', Colors.green);
+      _showSnackBar('profile_image_updated'.tr(), Colors.green);
       Navigator.pop(context, true);
     } catch (e) {
       setState(() {
         isUploading = false;
       });
-      _showSnackBar('❌ Error: $e', Colors.red);
+      _showSnackBar('error'.tr() + ': $e', Colors.red);
       print('❌ Error updating profile: $e');
     }
   }
@@ -204,28 +205,28 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Delete Profile Image',
+          'delete_profile_image'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize : fontSize + 2,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
-          'Are you sure you want to delete your profile image?',
+          'confirm_delete_profile_image'.tr(),
           style: TextStyle(fontSize: fontSize),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
-              'Cancel',
+              'cancel'.tr(),
               style: TextStyle(fontSize: fontSize),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
-              'Delete',
+              'delete'.tr(),
               style: TextStyle(fontSize: fontSize, color: Colors.red),
             ),
           ),
@@ -251,13 +252,13 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
         isUploading = false;
       });
 
-      _showSnackBar(' Profile image deleted successfully', Colors.orange);
+      _showSnackBar('profile_image_deleted'.tr(), Colors.orange);
       Navigator.pop(context, true);
     } catch (e) {
       setState(() {
         isUploading = false;
       });
-      _showSnackBar('❌ Error deleting image: $e', Colors.red);
+      _showSnackBar('error'.tr() + ': $e', Colors.red);
       print('❌ Image deletion error: $e');
     }
   }
@@ -277,7 +278,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Enter Image URL',
+          'enter_image_url'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize : fontSize + 2,
             fontWeight: FontWeight.bold,
@@ -287,7 +288,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Paste the URL of your profile image',
+              'paste_image_url'.tr(),
               style: TextStyle(
                 fontSize: fontSize,
                 color: Colors.grey[600],
@@ -323,7 +324,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             ),
             SizedBox(height: spacing / 2),
             Text(
-              ' You can use images from: Facebook, Google Drive, etc.',
+              'image_url_info'.tr(),
               style: TextStyle(
                 fontSize: fontSize * 0.8,
                 color: Colors.blue[700],
@@ -335,7 +336,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancel',
+              'cancel'.tr(),
               style: TextStyle(fontSize: fontSize, color: Colors.grey[700]),
             ),
           ),
@@ -346,7 +347,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                 await _updateProfileImageUrl(url);
                 Navigator.pop(context);
               } else {
-                _showSnackBar('Please enter a valid URL', Colors.orange);
+                _showSnackBar('please_enter_valid_url'.tr(), Colors.orange);
               }
             },
             style: ElevatedButton.styleFrom(
@@ -357,7 +358,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
               ),
             ),
             child: Text(
-              'Save',
+              'save'.tr(),
               style: TextStyle(fontSize: fontSize),
             ),
           ),
@@ -386,7 +387,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             ListTile(
               leading: Icon(Icons.photo_library, color: const Color(0xFF173B69)),
               title: Text(
-                ' Choose from Gallery',
+                'choose_from_gallery'.tr(),
                 style: TextStyle(fontSize: fontSize),
               ),
               onTap: () {
@@ -399,7 +400,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             ListTile(
               leading: Icon(Icons.link, color: const Color(0xFF173B69)),
               title: Text(
-                ' Enter Image URL',
+                'enter_image_url'.tr(),
                 style: TextStyle(fontSize: fontSize),
               ),
               onTap: () {
@@ -414,7 +415,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
               ListTile(
                 leading: Icon(Icons.delete, color: Colors.red),
                 title: Text(
-                  ' Remove Photo',
+                  'remove_photo'.tr(),
                   style: TextStyle(fontSize: fontSize, color: Colors.red),
                 ),
                 onTap: () {
@@ -428,7 +429,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             ListTile(
               leading: Icon(Icons.close, color: Colors.grey),
               title: Text(
-                'Cancel',
+                'cancel'.tr(),
                 style: TextStyle(fontSize: fontSize, color: Colors.grey),
               ),
               onTap: () => Navigator.pop(context),
@@ -453,21 +454,21 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
 
     if (currentPassword.isEmpty || newPassword.isEmpty || confirmPassword.isEmpty) {
       setDialogState(() {
-        _passwordError = 'Please fill in all password fields';
+        _passwordError = 'please_fill_all_password_fields'.tr();
       });
       return;
     }
 
     if (newPassword.length < 6) {
       setDialogState(() {
-        _passwordError = 'New password must be at least 6 characters';
+        _passwordError = 'password_min_length'.tr();
       });
       return;
     }
 
     if (newPassword != confirmPassword) {
       setDialogState(() {
-        _passwordError = 'New passwords do not match';
+        _passwordError = 'passwords_do_not_match'.tr();
       });
       return;
     }
@@ -480,7 +481,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         setDialogState(() {
-          _passwordError = 'No user logged in';
+          _passwordError = 'no_user_logged_in'.tr();
           isChangingPassword = false;
         });
         return;
@@ -503,35 +504,35 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
         _passwordError = '';
       });
 
-      _showSnackBar(' Password changed successfully!', Colors.green);
+      _showSnackBar('password_changed'.tr(), Colors.green);
       Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
       setDialogState(() {
         isChangingPassword = false;
       });
 
-      String errorMessage = 'Failed to change password';
+      String errorMessage = 'failed_to_change_password'.tr();
       if (e.code == 'wrong-password') {
-        errorMessage = 'Current password is incorrect';
+        errorMessage = 'current_password_incorrect'.tr();
       } else if (e.code == 'too-many-requests') {
-        errorMessage = 'Too many attempts. Please try again later';
+        errorMessage = 'too_many_attempts'.tr();
       } else if (e.code == 'requires-recent-login') {
-        errorMessage = 'Please log out and log in again to change password';
+        errorMessage = 'requires_recent_login'.tr();
       } else {
-        errorMessage = e.message ?? 'Failed to change password';
+        errorMessage = e.message ?? 'failed_to_change_password'.tr();
       }
 
       setDialogState(() {
         _passwordError = errorMessage;
       });
 
-      _showSnackBar('❌ $errorMessage', Colors.red);
+      _showSnackBar('error'.tr() + ': $errorMessage', Colors.red);
     } catch (e) {
       setDialogState(() {
         isChangingPassword = false;
-        _passwordError = 'An error occurred: $e';
+        _passwordError = 'error'.tr() + ': $e';
       });
-      _showSnackBar('❌ Error: $e', Colors.red);
+      _showSnackBar('error'.tr() + ': $e', Colors.red);
     }
   }
 
@@ -556,7 +557,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
           builder: (BuildContext context, StateSetter setDialogState) {
             return AlertDialog(
               title: Text(
-                'Change Password',
+                'change_password'.tr(),
                 style: TextStyle(
                   fontSize: isMobile ? fontSize : fontSize + 2,
                   fontWeight: FontWeight.bold,
@@ -587,7 +588,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                         ),
                       ),
                     Text(
-                      'Current Password',
+                      'current_password'.tr(),
                       style: TextStyle(
                         fontSize: fontSize * 0.9,
                         fontWeight: FontWeight.w500,
@@ -600,7 +601,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                       obscureText: obscureCurrentPassword,
                       style: TextStyle(fontSize: fontSize),
                       decoration: InputDecoration(
-                        hintText: 'Enter current password',
+                        hintText: 'enter_current_password'.tr(),
                         hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -624,7 +625,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                     ),
                     SizedBox(height: spacing * 1.5),
                     Text(
-                      'New Password',
+                      'new_password'.tr(),
                       style: TextStyle(
                         fontSize: fontSize * 0.9,
                         fontWeight: FontWeight.w500,
@@ -637,7 +638,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                       obscureText: obscureNewPassword,
                       style: TextStyle(fontSize: fontSize),
                       decoration: InputDecoration(
-                        hintText: 'Enter new password (min 6 chars)',
+                        hintText: 'enter_new_password'.tr(),
                         hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -661,7 +662,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                     ),
                     SizedBox(height: spacing * 1.5),
                     Text(
-                      'Confirm New Password',
+                      'confirm_new_password'.tr(),
                       style: TextStyle(
                         fontSize: fontSize * 0.9,
                         fontWeight: FontWeight.w500,
@@ -675,7 +676,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                       style: TextStyle(fontSize: fontSize),
                       onSubmitted: (_) => _changePasswordWithDialog(setDialogState),
                       decoration: InputDecoration(
-                        hintText: 'Confirm new password',
+                        hintText: 'confirm_new_password'.tr(),
                         hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -699,7 +700,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                     ),
                     SizedBox(height: spacing / 2),
                     Text(
-                      'Password must be at least 6 characters',
+                      'password_min_length_info'.tr(),
                       style: TextStyle(
                         fontSize: fontSize * 0.75,
                         color: Colors.grey.shade500,
@@ -720,7 +721,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                           Navigator.pop(context);
                         },
                   child: Text(
-                    'Cancel',
+                    'cancel'.tr(),
                     style: TextStyle(
                       fontSize: fontSize,
                       color: isChangingPassword ? Colors.grey : Colors.grey.shade700,
@@ -750,7 +751,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                           ),
                         )
                       : Text(
-                          'Update Password',
+                          'update_password'.tr(),
                           style: TextStyle(fontSize: fontSize),
                         ),
                 ),
@@ -780,21 +781,21 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Confirm Logout',
+          'confirm_logout'.tr(),
           style: TextStyle(
             fontSize: isMobile ? fontSize : fontSize + 2,
             fontWeight: FontWeight.bold,
           ),
         ),
         content: Text(
-          'Are you sure you want to logout?',
+          'confirm_logout_message'.tr(),
           style: TextStyle(fontSize: fontSize),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              'Cancel',
+              'cancel'.tr(),
               style: TextStyle(fontSize: fontSize),
             ),
           ),
@@ -804,7 +805,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
               _logout();
             },
             child: Text(
-              'Confirm',
+              'confirm'.tr(),
               style: TextStyle(fontSize: fontSize, color: Colors.red),
             ),
           ),
@@ -865,6 +866,9 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    EasyLocalization.of(context);
+    
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -876,7 +880,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       backgroundColor: const Color(0xFFF6F8FA),
       appBar: AppBar(
         title: Text(
-          'Manager Profile',
+          'profile'.tr(),
           style: TextStyle(
             fontSize: isMobile ? 16 : 18,
             color: Colors.white,
@@ -927,7 +931,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                 _loadUserData();
               },
               child: Text(
-                'Retry',
+                'retry'.tr(),
                 style: TextStyle(fontSize: fontSize),
               ),
             ),
@@ -939,7 +943,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     if (userData == null) {
       return Center(
         child: Text(
-          'No manager data available',
+          'no_data'.tr(),
           style: TextStyle(fontSize: fontSize),
         ),
       );
@@ -957,7 +961,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Manager Information',
+                  'manager_information'.tr(),
                   style: TextStyle(
                     fontSize: isMobile ? fontSize : fontSize + 2,
                     fontWeight: FontWeight.bold,
@@ -986,7 +990,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     final double cameraPadding = isMobile ? 8 : 10;
 
     String getInitials() {
-      final name = userData?['fullName'] ?? userData?['username'] ?? 'Manager';
+      final name = userData?['fullName'] ?? userData?['username'] ?? 'manager'.tr();
       if (name.isEmpty) return 'M';
       final parts = name.split(' ');
       if (parts.length >= 2) {
@@ -1090,7 +1094,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
           if (_isUploadingToCloudinary) ...[
             SizedBox(height: spacing),
             Text(
-              ' Uploading Image...',
+              'uploading_image'.tr(),
               style: TextStyle(
                 fontSize: fontSize * 0.8,
                 color: Colors.blue.shade700,
@@ -1100,7 +1104,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
           ],
           SizedBox(height: spacing * 1.5),
           Text(
-            userData?['fullName'] ?? userData?['username'] ?? 'Manager User',
+            userData?['fullName'] ?? userData?['username'] ?? 'manager'.tr(),
             style: TextStyle(
               fontSize: isMobile ? fontSize + 2 : fontSize + 4,
               fontWeight: FontWeight.bold,
@@ -1125,7 +1129,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              'Manager',
+              'manager'.tr(),
               style: TextStyle(
                 fontSize: isMobile ? fontSize * 0.85 : fontSize,
                 color: const Color(0xFF173B69),
@@ -1160,63 +1164,63 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
       child: Column(
         children: [
           _InfoRowManager(
-            label: 'Employee ID',
+            label: 'employee_id'.tr(),
             value: _getValue('employeeId', 'userId'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
           _InfoRowManager(
-            label: 'Username',
+            label: 'username'.tr(),
             value: _getValue('username'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
           _InfoRowManager(
-            label: 'Full Name',
+            label: 'full_name'.tr(),
             value: _getValue('fullName'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
           _InfoRowManager(
-            label: 'Email',
+            label: 'email'.tr(),
             value: _getValue('email'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
           _InfoRowManager(
-            label: 'Phone',
+            label: 'phone'.tr(),
             value: _getValue('phone'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
           _InfoRowManager(
-            label: 'Department',
+            label: 'department'.tr(),
             value: _getValue('department'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
           _InfoRowManager(
-            label: 'Role',
-            value: 'Manager',
+            label: 'role'.tr(),
+            value: 'manager'.tr(),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
           _InfoRowManager(
-            label: 'Status',
+            label: 'status'.tr(),
             value: _getValue('status'),
             isMobile: isMobile,
             fontSize: fontSize,
           ),
           _buildDivider(),
           _InfoRowManager(
-            label: 'Member Since',
+            label: 'member_since'.tr(),
             value: _formatDate(userData?['createdAt']),
             isMobile: isMobile,
             fontSize: fontSize,
@@ -1238,7 +1242,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
                 color: Colors.white,
               ),
               label: Text(
-                'Change Password',
+                'change_password'.tr(),
                 style: TextStyle(
                   fontSize: isMobile ? fontSize : fontSize + 2,
                   fontWeight: FontWeight.w600,

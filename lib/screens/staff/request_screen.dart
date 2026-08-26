@@ -1110,7 +1110,7 @@ Status: PENDING
               title == 'Sick' ? 'sick'.tr() :
               title == 'Personal issue' ? 'personal_issue'.tr() :
               title == 'Vacation' ? 'vacation'.tr() :
-              title == 'Emergency' ? 'emergency'.tr() :
+              title == 'Busy' ? 'Busy'.tr() :
               title == 'Other' ? 'other'.tr() :
               title,
               style: TextStyle(

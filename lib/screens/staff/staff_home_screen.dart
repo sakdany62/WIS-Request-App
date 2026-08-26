@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:permission_system/screens/staff/staff_detail_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
@@ -99,7 +100,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
           final data = docSnapshot.data()!;
           if (mounted) {
             setState(() {
-              userName = data['fullName'] ?? data['username'] ?? 'Staff User';
+              userName = data['fullName'] ?? data['username'] ?? 'staff'.tr();
               profileImageUrl = data['profileImageUrl'] ?? '';
               isLoading = false;
             });
@@ -107,7 +108,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
         } else {
           if (mounted) {
             setState(() {
-              userName = user.email?.split('@').first ?? 'Staff User';
+              userName = user.email?.split('@').first ?? 'staff'.tr();
               isLoading = false;
             });
           }
@@ -148,7 +149,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
           'id': doc.id,
           'month': _getMonthFromDate(data['startDate']),
           'date': _getDateRange(data['startDate'], data['endDate']),
-          'title': data['reason'] ?? 'Leave Request',
+          'title': data['reason'] ?? 'leave_request'.tr(),
           'status': data['status'] ?? 'pending',
           'statusColor': _getStatusColor(data['status'] ?? 'pending'),
           'totalDays': (data['totalDays'] as num?)?.toInt() ?? 0,
@@ -227,6 +228,9 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    EasyLocalization.of(context);
+    
     final bool isMobile = Responsive.isMobile(context);
     final double spacing = Responsive.spacing(context);
     final EdgeInsets padding = Responsive.padding(context);
@@ -306,7 +310,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Your Leave Balance',
+          'your_leave_balance'.tr(),
           style: TextStyle(
             color: const Color(0xFF1A3B68),
             fontSize: isMobile ? 16 : 22,
@@ -320,7 +324,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
           children: [
             _BalanceCard(
               count: '${leaveStats.total}',
-              type: 'Total',
+              type: 'total'.tr(),
               color: const Color(0xFF4A90D9),
               icon: Icons.calendar_today,
               cardWidth: cardWidth,
@@ -332,7 +336,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
             ),
             _BalanceCard(
               count: '${leaveStats.used}',
-              type: 'Used',
+              type: 'used'.tr(),
               color: const Color(0xFF2ECC71),
               icon: Icons.check_circle_outline,
               cardWidth: cardWidth,
@@ -344,7 +348,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
             ),
             _BalanceCard(
               count: '${leaveStats.autoApproved}',
-              type: 'Auto-Approved',
+              type: 'auto_approved'.tr(),
               color: const Color(0xFF1ABC9C),
               icon: Icons.autorenew,
               cardWidth: cardWidth,
@@ -356,7 +360,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
             ),
             _BalanceCard(
               count: '${leaveStats.pending}',
-              type: 'Pending',
+              type: 'pending'.tr(),
               color: const Color(0xFFF39C12),
               icon: Icons.hourglass_empty,
               cardWidth: cardWidth,
@@ -368,7 +372,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
             ),
             _BalanceCard(
               count: '${leaveStats.approved}',
-              type: 'Approved',
+              type: 'approved'.tr(),
               color: Colors.green,
               icon: Icons.thumb_up_alt_outlined,
               cardWidth: cardWidth,
@@ -380,7 +384,7 @@ class _StaffHomeScreenState extends State<StaffHomeScreen> {
             ),
             _BalanceCard(
               count: '${leaveStats.rejected}',
-              type: 'Rejected',
+              type: 'rejected'.tr(),
               color: const Color(0xFFE74C3C),
               icon: Icons.cancel_outlined,
               cardWidth: cardWidth,
@@ -440,22 +444,22 @@ class _BalanceCard extends StatelessWidget {
           String title = '';
           switch (statType) {
             case 'total':
-              title = 'Total Leave Requests';
+              title = 'total_leave_requests'.tr();
               break;
             case 'used':
-              title = 'Used Leave Requests';
+              title = 'used_leave_requests'.tr();
               break;
             case 'pending':
-              title = 'Pending Leave Requests';
+              title = 'pending_leave_requests'.tr();
               break;
             case 'approved':
-              title = 'Approved Leave Requests';
+              title = 'approved_leave_requests'.tr();
               break;
             case 'rejected':
-              title = 'Rejected Leave Requests';
+              title = 'rejected_leave_requests'.tr();
               break;
             case 'autoApproved':
-              title = 'Auto-Approved Leave Requests';
+              title = 'auto_approved_leave_requests'.tr();
               break;
           }
 
@@ -611,7 +615,7 @@ class _UserHeader extends StatelessWidget {
                 ),
               SizedBox(height: isSmallScreen ? 2 : (isTablet ? 6 : 4)),
               Text(
-                'Staff',
+                'staff'.tr(),
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: roleSize,
@@ -734,7 +738,7 @@ class _LeaveStatusSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Recent Leave Requests',
+          'recent_leave_requests'.tr(),
           style: TextStyle(
             fontSize: titleSize,
             fontWeight: FontWeight.bold,
@@ -755,7 +759,7 @@ class _LeaveStatusSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'No leave requests yet',
+                    'no_leave_requests'.tr(),
                     style: TextStyle(
                       color: Colors.grey.shade500,
                       fontSize: isMobile ? 14 : 16,
@@ -795,7 +799,7 @@ class _LeaveStatusSection extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    showAll ? 'Show Less' : 'See More',
+                    showAll ? 'show_less'.tr() : 'see_more'.tr(),
                     style: TextStyle(
                       fontSize: isMobile ? 14 : 16,
                       fontWeight: FontWeight.w600,
@@ -852,19 +856,19 @@ class LeaveStatusCard extends StatelessWidget {
 
         switch (status.toLowerCase()) {
           case 'pending':
-            title = 'Pending Leave Requests';
+            title = 'pending_leave_requests'.tr();
             statType = 'pending';
             break;
           case 'approved':
-            title = 'Approved Leave Requests';
+            title = 'approved_leave_requests'.tr();
             statType = 'approved';
             break;
           case 'rejected':
-            title = 'Rejected Leave Requests';
+            title = 'rejected_leave_requests'.tr();
             statType = 'rejected';
             break;
           default:
-            title = 'Leave Requests';
+            title = 'leave_requests'.tr();
             statType = 'total';
         }
 

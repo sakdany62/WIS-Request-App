@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:open_file/open_file.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:permission_system/app_fonts.dart';
 import '../../services/request_service.dart';
 import '../../utils/responsive.dart';
@@ -96,9 +97,9 @@ class TodayRequest {
     return TodayRequest(
       requestId: doc.id,
       userId: data['userId'] ?? '',
-      staffName: data['userName'] ?? data['userEmail'] ?? 'Unknown',
+      staffName: data['userName'] ?? data['userEmail'] ?? 'unknown'.tr(),
       userEmail: data['userEmail'] ?? '',
-      reason: data['reason'] ?? 'No reason',
+      reason: data['reason'] ?? 'no_reason'.tr(),
       startDate: data['startDate'] ?? '',
       endDate: data['endDate'] ?? '',
       totalDays: totalDays,
@@ -149,11 +150,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   String _searchQuery = '';
 
   final List<String> _segmentLabels = [
-    'All',
-    'Pending',
-    'Approved',
-    'Rejected',
-    'Auto-App',
+    'all',
+    'pending',
+    'approved',
+    'rejected',
+    'auto_app',
   ];
 
   @override
@@ -163,21 +164,21 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   }
 
   Future<String> _getUserFullName(String userId) async {
-    if (userId.isEmpty) return 'Unknown';
+    if (userId.isEmpty) return 'unknown'.tr();
     try {
       final docSnapshot = await _firestore.collection('users').doc(userId).get();
       if (docSnapshot.exists) {
         final data = docSnapshot.data();
-        return data?['fullName'] ?? data?['username'] ?? 'Unknown';
+        return data?['fullName'] ?? data?['username'] ?? 'unknown'.tr();
       }
-      return 'Unknown';
+      return 'unknown'.tr();
     } catch (e) {
-      return 'Unknown';
+      return 'unknown'.tr();
     }
   }
 
   Future<String> _getUserFullNameCached(String userId) async {
-    if (userId.isEmpty) return 'Unknown';
+    if (userId.isEmpty) return 'unknown'.tr();
     if (_userNameCache.containsKey(userId)) {
       return _userNameCache[userId]!;
     }
@@ -306,7 +307,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         if (roleId == '3' || roleId == '4') {
           _isManager = true;
           _managerDepartment = data['department'] ?? '';
-          _managerName = data['fullName'] ?? data['username'] ?? 'Manager';
+          _managerName = data['fullName'] ?? data['username'] ?? 'manager'.tr();
         }
       }
     } catch (e) {
@@ -417,327 +418,322 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       'totalDays': data.fold(0, (sum, r) => sum + r.totalDays),
     };
   }
-  // ================================================================
-// ===== EXPORT PDF with Translation =====
-// ================================================================
-Future<void> _exportToPDF() async {
-  final dataToExport = _filteredRequests;
-  
-  if (dataToExport.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('No data to export'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => const Center(
-      child: Card(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Generating PDF file...'),
-            ],
+  Future<void> _exportToPDF() async {
+    final dataToExport = _filteredRequests;
+    
+    if (dataToExport.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('no_data_to_export'.tr()),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('generating_pdf'.tr()),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
 
-  try {
-    // Translate all data before generating PDF
-    List<TodayRequest> translatedData = [];
-    
-    for (var request in dataToExport) {
-      // Translate fields that may contain Khmer
-      final translatedName = await TranslationService.translateToEnglish(request.staffName);
-      final translatedReason = await TranslationService.translateToEnglish(request.reason);
-      final translatedDepartment = request.department != null 
-          ? await TranslationService.translateToEnglish(request.department!)
-          : '';
-      final translatedStatus = await TranslationService.translateToEnglish(request.status);
-      final translatedApprovedBy = request.approvedByName != null 
-          ? await TranslationService.translateToEnglish(request.approvedByName!)
-          : '';
-      final translatedRejectionReason = request.rejectionReason != null 
-          ? await TranslationService.translateToEnglish(request.rejectionReason!)
-          : '';
-      
-      translatedData.add(TodayRequest(
-        requestId: request.requestId,
-        userId: request.userId,
-        staffName: translatedName,
-        userEmail: request.userEmail,
-        reason: translatedReason,
-        startDate: request.startDate,
-        endDate: request.endDate,
-        totalDays: request.totalDays,
-        status: translatedStatus,
-        approvalType: request.approvalType,
-        createdAt: request.createdAt,
-        autoApproved: request.autoApproved,
-        requestNumber: request.requestNumber,
-        fileUrl: request.fileUrl,
-        imageUrl: request.imageUrl,
-        rejectionReason: translatedRejectionReason,
-        approvedBy: request.approvedBy,
-        approvedByName: translatedApprovedBy,
-        department: translatedDepartment,
-        submitTime: request.submitTime,
-      ));
-    }
-
-    pw.ImageProvider? logoImage;
     try {
-      final ByteData imageData = await rootBundle.load('assets/img/logo1.png');
-      final Uint8List imageBytes = imageData.buffer.asUint8List();
-      logoImage = pw.MemoryImage(imageBytes);
-      print('✅ Logo loaded successfully');
-    } catch (e) {
-      print('⚠️ Logo image not found: $e');
-      logoImage = null;
-    }
+      List<TodayRequest> translatedData = [];
+      
+      for (var request in dataToExport) {
+        final translatedName = await TranslationService.translateToEnglish(request.staffName);
+        final translatedReason = await TranslationService.translateToEnglish(request.reason);
+        final translatedDepartment = request.department != null 
+            ? await TranslationService.translateToEnglish(request.department!)
+            : '';
+        final translatedStatus = await TranslationService.translateToEnglish(request.status);
+        final translatedApprovedBy = request.approvedByName != null 
+            ? await TranslationService.translateToEnglish(request.approvedByName!)
+            : '';
+        final translatedRejectionReason = request.rejectionReason != null 
+            ? await TranslationService.translateToEnglish(request.rejectionReason!)
+            : '';
+        
+        translatedData.add(TodayRequest(
+          requestId: request.requestId,
+          userId: request.userId,
+          staffName: translatedName,
+          userEmail: request.userEmail,
+          reason: translatedReason,
+          startDate: request.startDate,
+          endDate: request.endDate,
+          totalDays: request.totalDays,
+          status: translatedStatus,
+          approvalType: request.approvalType,
+          createdAt: request.createdAt,
+          autoApproved: request.autoApproved,
+          requestNumber: request.requestNumber,
+          fileUrl: request.fileUrl,
+          imageUrl: request.imageUrl,
+          rejectionReason: translatedRejectionReason,
+          approvedBy: request.approvedBy,
+          approvedByName: translatedApprovedBy,
+          department: translatedDepartment,
+          submitTime: request.submitTime,
+        ));
+      }
 
-    final pdf = pw.Document();
-    final pageFormat = PdfPageFormat.a4.landscape;
+      pw.ImageProvider? logoImage;
+      try {
+        final ByteData imageData = await rootBundle.load('assets/img/logo1.png');
+        final Uint8List imageBytes = imageData.buffer.asUint8List();
+        logoImage = pw.MemoryImage(imageBytes);
+        print('✅ Logo loaded successfully');
+      } catch (e) {
+        print('⚠️ Logo image not found: $e');
+        logoImage = null;
+      }
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: pageFormat,
-        margin: pw.EdgeInsets.all(20),
-        build: (pw.Context context) {
-          return [
-            pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Container(
-                  width: 100,
-                  height: 100,
-                  child: pw.Center(
-                    child: logoImage != null
-                        ? pw.Image(
-                            logoImage!,
-                            width: 90,
-                            height: 90,
-                            fit: pw.BoxFit.contain,
-                          )
-                        : pw.Text(
-                            '🏫',
+      final pdf = pw.Document();
+      final pageFormat = PdfPageFormat.a4.landscape;
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: pageFormat,
+          margin: pw.EdgeInsets.all(20),
+          build: (pw.Context context) {
+            return [
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Container(
+                    width: 100,
+                    height: 100,
+                    child: pw.Center(
+                      child: logoImage != null
+                          ? pw.Image(
+                              logoImage!,
+                              width: 90,
+                              height: 90,
+                              fit: pw.BoxFit.contain,
+                            )
+                          : pw.Text(
+                              '🏫',
+                              style: pw.TextStyle(
+                                fontSize: 40,
+                              ),
+                            ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 16),
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'KINGDOM OF CAMBODIA',
+                          style: pw.TextStyle(
+                            fontSize: 16,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue900,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Nation  Religion  King',
+                          style: pw.TextStyle(
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.blue900,
+                          ),
+                        ),
+                        pw.SizedBox(height: 35),
+                        pw.Text(
+                          'permission_request_report'.tr(),
+                          style: pw.TextStyle(
+                            fontSize: 11,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.grey800,
+                          ),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          '${'period'.tr()}: ${_getDateLabel()}',
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                        if (_isManager && _managerDepartment.isNotEmpty)
+                          pw.Text(
+                            '${'department'.tr()}: $_managerDepartment',
                             style: pw.TextStyle(
-                              fontSize: 40,
+                              fontSize: 10,
+                              color: PdfColors.grey600,
                             ),
                           ),
+                      ],
+                    ),
                   ),
-                ),
-                pw.SizedBox(width: 16),
-                pw.Expanded(
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.center,
+                ],
+              ),
+              
+              pw.SizedBox(height: 10),
+              pw.Table(
+                border: pw.TableBorder.all(),
+                columnWidths: {
+                  0: pw.FixedColumnWidth(25),
+                  1: pw.FixedColumnWidth(70),
+                  2: pw.FixedColumnWidth(80),
+                  3: pw.FixedColumnWidth(70),
+                  4: pw.FixedColumnWidth(60),
+                  5: pw.FixedColumnWidth(35),
+                  6: pw.FixedColumnWidth(70),
+                  7: pw.FixedColumnWidth(50),
+                  8: pw.FixedColumnWidth(40),
+                  9: pw.FixedColumnWidth(45),
+                  10: pw.FixedColumnWidth(75),
+                  11: pw.FixedColumnWidth(60),
+                  12: pw.FixedColumnWidth(60),
+                },
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.blue900,
+                    ),
+                    children: [
+                      _buildHeaderCell('no'.tr()),
+                      _buildHeaderCell('staff_name'.tr()),
+                      _buildHeaderCell('email'.tr()),
+                      _buildHeaderCell('dept'.tr()),
+                      _buildHeaderCell('date'.tr()),
+                      _buildHeaderCell('days'.tr()),
+                      _buildHeaderCell('reason'.tr()),
+                      _buildHeaderCell('status'.tr()),
+                      _buildHeaderCell('type'.tr()),
+                      _buildHeaderCell('req_no'.tr()),
+                      _buildHeaderCell('created'.tr()),
+                      _buildHeaderCell('approved_by'.tr()),
+                      _buildHeaderCell('rejection'.tr()),
+                    ],
+                  ),
+                  ...translatedData.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final r = entry.value;
+                    final color = index % 2 == 0 
+                        ? PdfColors.grey100 
+                        : PdfColors.white;
+                    
+                    return pw.TableRow(
+                      decoration: pw.BoxDecoration(
+                        color: color,
+                      ),
+                      children: [
+                        _buildDataCell('${index + 1}'),
+                        _buildDataCell(r.staffName),
+                        _buildDataCell(r.userEmail),
+                        _buildDataCell(r.department ?? 'N/A'),
+                        _buildDataCell(r.startDate),
+                        _buildDataCell('${r.totalDays}'),
+                        _buildDataCell(r.reason),
+                        _buildDataCell(
+                          r.status.toUpperCase(),
+                          color: r.status == 'approved' 
+                              ? PdfColors.green 
+                              : r.status == 'rejected' 
+                                  ? PdfColors.red 
+                                  : PdfColors.orange,
+                        ),
+                        _buildDataCell(r.autoApproved ? 'Auto' : 'Manual'),
+                        _buildDataCell('${r.requestNumber}'),
+                        _buildDataCell(_formatToCambodiaTime(r.createdAt)),
+                        _buildDataCell(r.approvedByName ?? ''),
+                        _buildDataCell(r.rejectionReason ?? ''),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    '${'total'.tr()}: ${translatedData.length} ${'requests'.tr()}',
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
+                    ),
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text(
-                        'KINGDOM OF CAMBODIA',
-                        style: pw.TextStyle(
-                          fontSize: 16,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue900,
-                        ),
-                      ),
-                      pw.SizedBox(height: 2),
-                      pw.Text(
-                        'Nation  Religion  King',
-                        style: pw.TextStyle(
-                          fontSize: 14,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue900,
-                        ),
-                      ),
-                      pw.SizedBox(height: 35),
-                      pw.Text(
-                        'PERMISSION REQUEST REPORT',
-                        style: pw.TextStyle(
-                          fontSize: 11,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.grey800,
-                        ),
-                      ),
-                      pw.SizedBox(height: 2),
-                      pw.Text(
-                        'Period: ${_getDateLabel()}',
+                        '${'date'.tr()}: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
                         style: pw.TextStyle(
                           fontSize: 9,
                           color: PdfColors.grey600,
                         ),
                       ),
-                      if (_isManager && _managerDepartment.isNotEmpty)
-                        pw.Text(
-                          'Department: $_managerDepartment',
-                          style: pw.TextStyle(
-                            fontSize: 10,
-                            color: PdfColors.grey600,
-                          ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        '${'prepared_by'.tr()}: $_managerName',
+                        style: pw.TextStyle(
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
                         ),
+                      ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            
-            pw.SizedBox(height: 10),
-            pw.Table(
-              border: pw.TableBorder.all(),
-              columnWidths: {
-                0: pw.FixedColumnWidth(25),
-                1: pw.FixedColumnWidth(70),
-                2: pw.FixedColumnWidth(80),
-                3: pw.FixedColumnWidth(70),
-                4: pw.FixedColumnWidth(60),
-                5: pw.FixedColumnWidth(35),
-                6: pw.FixedColumnWidth(70),
-                7: pw.FixedColumnWidth(50),
-                8: pw.FixedColumnWidth(40),
-                9: pw.FixedColumnWidth(45),
-                10: pw.FixedColumnWidth(75),
-                11: pw.FixedColumnWidth(60),
-                12: pw.FixedColumnWidth(60),
-              },
-              children: [
-                pw.TableRow(
-                  decoration: pw.BoxDecoration(
-                    color: PdfColors.blue900,
-                  ),
-                  children: [
-                    _buildHeaderCell('No.'),
-                    _buildHeaderCell('Name'),
-                    _buildHeaderCell('Email'),
-                    _buildHeaderCell('Dept'),
-                    _buildHeaderCell('Date'),
-                    _buildHeaderCell('Days'),
-                    _buildHeaderCell('Reason'),
-                    _buildHeaderCell('Status'),
-                    _buildHeaderCell('Type'),
-                    _buildHeaderCell('Req #'),
-                    _buildHeaderCell('Created'),
-                    _buildHeaderCell('Approved By'),
-                    _buildHeaderCell('Rejection'),
-                  ],
-                ),
-                ...translatedData.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final r = entry.value;
-                  final color = index % 2 == 0 
-                      ? PdfColors.grey100 
-                      : PdfColors.white;
-                  
-                  return pw.TableRow(
-                    decoration: pw.BoxDecoration(
-                      color: color,
-                    ),
-                    children: [
-                      _buildDataCell('${index + 1}'),
-                      _buildDataCell(r.staffName),
-                      _buildDataCell(r.userEmail),
-                      _buildDataCell(r.department ?? 'N/A'),
-                      _buildDataCell(r.startDate),
-                      _buildDataCell('${r.totalDays}'),
-                      _buildDataCell(r.reason),
-                      _buildDataCell(
-                        r.status.toUpperCase(),
-                        color: r.status == 'approved' 
-                            ? PdfColors.green 
-                            : r.status == 'rejected' 
-                                ? PdfColors.red 
-                                : PdfColors.orange,
-                      ),
-                      _buildDataCell(r.autoApproved ? 'Auto' : 'Manual'),
-                      _buildDataCell('${r.requestNumber}'),
-                      _buildDataCell(_formatToCambodiaTime(r.createdAt)),
-                      _buildDataCell(r.approvedByName ?? ''),
-                      _buildDataCell(r.rejectionReason ?? ''),
-                    ],
-                  );
-                }).toList(),
-              ],
-            ),
-            pw.SizedBox(height: 10),
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'Total: ${translatedData.length} request(s)',
-                  style: pw.TextStyle(
-                    fontSize: 11,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue900,
-                  ),
-                ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
-                      style: pw.TextStyle(
-                        fontSize: 9,
-                        color: PdfColors.grey600,
-                      ),
-                    ),
-                    pw.SizedBox(height: 2),
-                    pw.Text(
-                      'Prepared by: $_managerName',
-                      style: pw.TextStyle(
-                        fontSize: 11,
-                        fontWeight: pw.FontWeight.bold,
-                        color: PdfColors.blue900,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ];
-        },
-      ),
-    );
+                ],
+              ),
+            ];
+          },
+        ),
+      );
 
-    final pdfBytes = await pdf.save();
+      final pdfBytes = await pdf.save();
 
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      if (kIsWeb) {
+        _downloadPDFOnWeb(pdfBytes);
+      } else {
+        await _savePDFToFile(pdfBytes);
+      }
+
+      TranslationService.clearCache();
+
+    } catch (e, stackTrace) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      print('PDF Export error: $e');
+      print('StackTrace: $stackTrace');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${'pdf_export_error'.tr()}: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-
-    if (kIsWeb) {
-      _downloadPDFOnWeb(pdfBytes);
-    } else {
-      await _savePDFToFile(pdfBytes);
-    }
-
-    // Clear translation cache after export
-    TranslationService.clearCache();
-
-  } catch (e, stackTrace) {
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
-
-    print('PDF Export error: $e');
-    print('StackTrace: $stackTrace');
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('PDF Export error: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
 
   pw.Widget _buildHeaderCell(String text) {
     return pw.Padding(
@@ -768,7 +764,6 @@ Future<void> _exportToPDF() async {
     );
   }
 
-  // ===== WEB DOWNLOAD PDF =====
   void _downloadPDFOnWeb(List<int> pdfBytes) {
     if (!kIsWeb) return;
     
@@ -797,32 +792,31 @@ Future<void> _exportToPDF() async {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Download Succeeded'),
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Text('download_succeeded'.tr()),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('File: $fileName'),
+            Text('${'file'.tr()}: $fileName'),
             const SizedBox(height: 12),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text('ok'.tr()),
           ),
         ],
       ),
     );
   }
 
-  // ===== SAVE PDF TO FILE (Mobile/Desktop) =====
   Future<void> _savePDFToFile(List<int> pdfBytes) async {
     try {
       final dir = await getTemporaryDirectory();
@@ -839,7 +833,7 @@ Future<void> _exportToPDF() async {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ Exported PDF: $fileName'),
+              content: Text('✅ ${'exported_pdf'.tr()}: $fileName'),
               backgroundColor: Colors.green,
             ),
           );
@@ -851,7 +845,7 @@ Future<void> _exportToPDF() async {
       print('Save PDF error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Save failed: ${e.toString()}'),
+          content: Text('${'save_failed'.tr()}: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -863,18 +857,18 @@ Future<void> _exportToPDF() async {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Export Successful'),
+            const Icon(Icons.check_circle, color: Colors.green),
+            const SizedBox(width: 8),
+            Text('export_successful'.tr()),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('PDF saved: $fileName'),
+            Text('${'pdf_saved'.tr()}: $fileName'),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(8),
@@ -885,9 +879,9 @@ Future<void> _exportToPDF() async {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Location:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  Text(
+                    'location'.tr(),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                   Text(
                     filePath,
@@ -902,367 +896,350 @@ Future<void> _exportToPDF() async {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text('close'.tr()),
           ),
         ],
       ),
     );
   }
 
-  // ================================================================
-  // ===== EXPORT EXCEL =====
-  // ================================================================
-  // ================================================================
-// ===== EXPORT EXCEL =====
-// ================================================================
-Future<void> _exportToExcel() async {
-  final dataToExport = _filteredRequests;
-  
-  if (dataToExport.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('No data to export'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    return;
-  }
+  Future<void> _exportToExcel() async {
+    final dataToExport = _filteredRequests;
+    
+    if (dataToExport.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('no_data_to_export'.tr()),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => const Center(
-      child: Card(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Generating Excel file...'),
-            ],
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('generating_excel'.tr()),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-
-  try {
-    var excelFile = excel.Excel.createExcel();
-    var sheet = excelFile['Sheet1'];
-    if (sheet == null) {
-      throw Exception('No sheet available');
-    }
-
-    int currentRow = 0;
-
-    // ===== HEADER SECTION =====
-    
-    // Row 1: PERMISSION REQUEST REPORT (Title)
-    sheet.merge(
-      excel.CellIndex.indexByString('A1'),
-      excel.CellIndex.indexByString('M1'),
     );
-    var titleCell = sheet.cell(excel.CellIndex.indexByString('A1'));
-    titleCell.value = 'PERMISSION REQUEST REPORT';
-    titleCell.cellStyle = excel.CellStyle(
-      bold: true,
-      fontSize: 16,
-      fontColorHex: '#173B69',
-      horizontalAlign: excel.HorizontalAlign.Center,
-      verticalAlign: excel.VerticalAlign.Center,
-    );
-    currentRow++;
 
-    // Row 2: Period
-    sheet.merge(
-      excel.CellIndex.indexByString('A2'),
-      excel.CellIndex.indexByString('M2'),
-    );
-    var periodCell = sheet.cell(excel.CellIndex.indexByString('A2'));
-    periodCell.value = 'Period: ${_getDateLabel()}';
-    periodCell.cellStyle = excel.CellStyle(
-      bold: true,
-      fontSize: 14,
-      fontColorHex: '#173B69',
-      horizontalAlign: excel.HorizontalAlign.Center,
-      verticalAlign: excel.VerticalAlign.Center,
-    );
-    currentRow++;
+    try {
+      var excelFile = excel.Excel.createExcel();
+      var sheet = excelFile['Sheet1'];
+      if (sheet == null) {
+        throw Exception('No sheet available');
+      }
 
-    // Row 3: Department (if manager)
-    if (_isManager && _managerDepartment.isNotEmpty) {
+      int currentRow = 0;
+
       sheet.merge(
-        excel.CellIndex.indexByString('A3'),
-        excel.CellIndex.indexByString('M3'),
+        excel.CellIndex.indexByString('A1'),
+        excel.CellIndex.indexByString('M1'),
       );
-      var deptCell = sheet.cell(excel.CellIndex.indexByString('A3'));
-      deptCell.value = 'Department: $_managerDepartment';
-      deptCell.cellStyle = excel.CellStyle(
-        italic: true,
-        fontSize: 10,
-        fontColorHex: '#666666',
+      var titleCell = sheet.cell(excel.CellIndex.indexByString('A1'));
+      titleCell.value = 'PERMISSION REQUEST REPORT';
+      titleCell.cellStyle = excel.CellStyle(
+        bold: true,
+        fontSize: 16,
+        fontColorHex: '#173B69',
         horizontalAlign: excel.HorizontalAlign.Center,
         verticalAlign: excel.VerticalAlign.Center,
       );
       currentRow++;
-    }
 
-    // Row: Empty space
-    currentRow++;
-
-    // ===== TABLE HEADERS =====
-    final headers = [
-      'No.',
-      'Staff Name',
-      'Email',
-      'Department',
-      'Date',
-      'Total Days',
-      'Reason',
-      'Status',
-      'Approval Type',
-      'Request #',
-      'Created At',
-      'Approved By',
-      'Rejection Reason',
-    ];
-
-    for (int col = 0; col < headers.length; col++) {
-      var cell = sheet.cell(
-        excel.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow),
+      sheet.merge(
+        excel.CellIndex.indexByString('A2'),
+        excel.CellIndex.indexByString('M2'),
       );
-      cell.value = headers[col];
-      cell.cellStyle = excel.CellStyle(
+      var periodCell = sheet.cell(excel.CellIndex.indexByString('A2'));
+      periodCell.value = '${'period'.tr()}: ${_getDateLabel()}';
+      periodCell.cellStyle = excel.CellStyle(
         bold: true,
-        backgroundColorHex: '#173B69',
-        fontColorHex: '#FFFFFF',
+        fontSize: 14,
+        fontColorHex: '#173B69',
         horizontalAlign: excel.HorizontalAlign.Center,
         verticalAlign: excel.VerticalAlign.Center,
+      );
+      currentRow++;
+
+      if (_isManager && _managerDepartment.isNotEmpty) {
+        sheet.merge(
+          excel.CellIndex.indexByString('A3'),
+          excel.CellIndex.indexByString('M3'),
+        );
+        var deptCell = sheet.cell(excel.CellIndex.indexByString('A3'));
+        deptCell.value = '${'department'.tr()}: $_managerDepartment';
+        deptCell.cellStyle = excel.CellStyle(
+          italic: true,
+          fontSize: 10,
+          fontColorHex: '#666666',
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
+        );
+        currentRow++;
+      }
+
+      currentRow++;
+
+      final headers = [
+        'no'.tr(),
+        'staff_name'.tr(),
+        'email'.tr(),
+        'department'.tr(),
+        'date'.tr(),
+        'total_days'.tr(),
+        'reason'.tr(),
+        'status'.tr(),
+        'approval_type'.tr(),
+        'request_no'.tr(),
+        'created_at'.tr(),
+        'approved_by'.tr(),
+        'rejection_reason'.tr(),
+      ];
+
+      for (int col = 0; col < headers.length; col++) {
+        var cell = sheet.cell(
+          excel.CellIndex.indexByColumnRow(columnIndex: col, rowIndex: currentRow),
+        );
+        cell.value = headers[col];
+        cell.cellStyle = excel.CellStyle(
+          bold: true,
+          backgroundColorHex: '#173B69',
+          fontColorHex: '#FFFFFF',
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 11,
+        );
+      }
+      currentRow++;
+
+      for (int i = 0; i < dataToExport.length; i++) {
+        final r = dataToExport[i];
+        final String cambodiaTime = _formatToCambodiaTime(r.createdAt);
+
+        String fullName = r.staffName;
+        if (r.userId.isNotEmpty && _userNameCache.containsKey(r.userId)) {
+          fullName = _userNameCache[r.userId]!;
+        }
+
+        final rowIndex = currentRow;
+        
+        var cell0 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex));
+        cell0.value = i + 1;
+        cell0.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell1 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex));
+        cell1.value = fullName;
+        cell1.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Left,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell2 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex));
+        cell2.value = r.userEmail;
+        cell2.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Left,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell3 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex));
+        cell3.value = r.department ?? 'N/A';
+        cell3.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Left,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell4 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex));
+        cell4.value = r.startDate;
+        cell4.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell5 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex));
+        cell5.value = r.totalDays;
+        cell5.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell6 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex));
+        cell6.value = r.reason;
+        cell6.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Left,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell7 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex));
+        String statusText = r.status.toUpperCase();
+        cell7.value = statusText;
+        String statusColor = '';
+        switch (r.status.toLowerCase()) {
+          case 'pending': statusColor = '#FFA500'; break;
+          case 'approved': statusColor = '#28A745'; break;
+          case 'rejected': statusColor = '#DC3545'; break;
+          default: statusColor = '#000000';
+        }
+        cell7.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontColorHex: statusColor,
+          bold: true,
+          fontSize: 10,
+        );
+
+        var cell8 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex));
+        cell8.value = r.autoApproved ? 'Auto' : 'Manual';
+        cell8.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell9 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex));
+        cell9.value = r.requestNumber;
+        cell9.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell10 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: rowIndex));
+        cell10.value = cambodiaTime;
+        cell10.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Center,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell11 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: rowIndex));
+        cell11.value = r.approvedByName ?? '';
+        cell11.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Left,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        var cell12 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: rowIndex));
+        cell12.value = r.rejectionReason ?? '';
+        cell12.cellStyle = excel.CellStyle(
+          horizontalAlign: excel.HorizontalAlign.Left,
+          verticalAlign: excel.VerticalAlign.Center,
+          fontSize: 10,
+        );
+
+        currentRow++;
+      }
+
+      int footerStartRow = currentRow + 1;
+
+      sheet.merge(
+        excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
+        excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: footerStartRow),
+      );
+      var summaryCell = sheet.cell(
+        excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
+      );
+      summaryCell.value = '${'total'.tr()}: ${dataToExport.length} ${'requests'.tr()}';
+      summaryCell.cellStyle = excel.CellStyle(
+        bold: true,
         fontSize: 11,
-      );
-    }
-    currentRow++;
-
-    // ===== DATA ROWS =====
-    for (int i = 0; i < dataToExport.length; i++) {
-      final r = dataToExport[i];
-      final String cambodiaTime = _formatToCambodiaTime(r.createdAt);
-
-      String fullName = r.staffName;
-      if (r.userId.isNotEmpty && _userNameCache.containsKey(r.userId)) {
-        fullName = _userNameCache[r.userId]!;
-      }
-
-      final rowIndex = currentRow;
-      
-      var cell0 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex));
-      cell0.value = i + 1;
-      cell0.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Center,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
-      );
-
-      var cell1 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex));
-      cell1.value = fullName;
-      cell1.cellStyle = excel.CellStyle(
+        fontColorHex: '#173B69',
         horizontalAlign: excel.HorizontalAlign.Left,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
       );
 
-      var cell2 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex));
-      cell2.value = r.userEmail;
-      cell2.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Left,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
+      footerStartRow++;
+
+      sheet.merge(
+        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+        excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
+      );
+      var exportDateCell = sheet.cell(
+        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+      );
+      exportDateCell.value = '${'date'.tr()}: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}';
+      exportDateCell.cellStyle = excel.CellStyle(
+        italic: true,
+        fontSize: 9,
+        fontColorHex: '#666666',
+        horizontalAlign: excel.HorizontalAlign.Right,
       );
 
-      var cell3 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex));
-      cell3.value = r.department ?? 'N/A';
-      cell3.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Left,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
-      );
+      footerStartRow++;
 
-      var cell4 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex));
-      cell4.value = r.startDate;
-      cell4.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Center,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
+      sheet.merge(
+        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
+        excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
       );
-
-      var cell5 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex));
-      cell5.value = r.totalDays;
-      cell5.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Center,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
+      var preparedCell = sheet.cell(
+        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
       );
-
-      var cell6 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex));
-      cell6.value = r.reason;
-      cell6.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Left,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
-      );
-
-      var cell7 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex));
-      String statusText = r.status.toUpperCase();
-      cell7.value = statusText;
-      String statusColor = '';
-      switch (r.status.toLowerCase()) {
-        case 'pending': statusColor = '#FFA500'; break;
-        case 'approved': statusColor = '#28A745'; break;
-        case 'rejected': statusColor = '#DC3545'; break;
-        default: statusColor = '#000000';
-      }
-      cell7.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Center,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontColorHex: statusColor,
+      preparedCell.value = '${'prepared_by'.tr()}: $_managerName';
+      preparedCell.cellStyle = excel.CellStyle(
         bold: true,
-        fontSize: 10,
+        fontSize: 11,
+        fontColorHex: '#173B69',
+        horizontalAlign: excel.HorizontalAlign.Right,
       );
 
-      var cell8 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex));
-      cell8.value = r.autoApproved ? 'Auto' : 'Manual';
-      cell8.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Center,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
-      );
+      final colWidths = [6, 22, 28, 20, 18, 14, 28, 16, 14, 14, 28, 20, 28];
+      for (int i = 0; i < colWidths.length; i++) {
+        sheet.setColWidth(i, colWidths[i].toDouble());
+      }
 
-      var cell9 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex));
-      cell9.value = r.requestNumber;
-      cell9.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Center,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
-      );
+      final fileBytes = excelFile.encode();
+      if (fileBytes == null || fileBytes.isEmpty) {
+        throw Exception('Failed to encode Excel file');
+      }
 
-      var cell10 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: rowIndex));
-      cell10.value = cambodiaTime;
-      cell10.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Center,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
-      );
-
-      var cell11 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: rowIndex));
-      cell11.value = r.approvedByName ?? '';
-      cell11.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Left,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
-      );
-
-      var cell12 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: rowIndex));
-      cell12.value = r.rejectionReason ?? '';
-      cell12.cellStyle = excel.CellStyle(
-        horizontalAlign: excel.HorizontalAlign.Left,
-        verticalAlign: excel.VerticalAlign.Center,
-        fontSize: 10,
-      );
-
-      currentRow++;
-    }
-
-    // ===== FOOTER =====
-    int footerStartRow = currentRow + 1;
-
-    sheet.merge(
-      excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
-      excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: footerStartRow),
-    );
-    var summaryCell = sheet.cell(
-      excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
-    );
-    summaryCell.value = 'Total: ${dataToExport.length} request(s)';
-    summaryCell.cellStyle = excel.CellStyle(
-      bold: true,
-      fontSize: 11,
-      fontColorHex: '#173B69',
-      horizontalAlign: excel.HorizontalAlign.Left,
-    );
-
-    footerStartRow++;
-
-    sheet.merge(
-      excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-      excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
-    );
-    var exportDateCell = sheet.cell(
-      excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-    );
-    exportDateCell.value = 'Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}';
-    exportDateCell.cellStyle = excel.CellStyle(
-      italic: true,
-      fontSize: 9,
-      fontColorHex: '#666666',
-      horizontalAlign: excel.HorizontalAlign.Right,
-    );
-
-    footerStartRow++;
-
-    sheet.merge(
-      excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-      excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
-    );
-    var preparedCell = sheet.cell(
-      excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-    );
-    preparedCell.value = 'Prepared by: $_managerName';
-    preparedCell.cellStyle = excel.CellStyle(
-      bold: true,
-      fontSize: 11,
-      fontColorHex: '#173B69',
-      horizontalAlign: excel.HorizontalAlign.Right,
-    );
-
-    // ===== COLUMN WIDTHS =====
-    final colWidths = [6, 22, 28, 20, 18, 14, 28, 16, 14, 14, 28, 20, 28];
-    for (int i = 0; i < colWidths.length; i++) {
-      sheet.setColWidth(i, colWidths[i].toDouble());
-    }
-
-    final fileBytes = excelFile.encode();
-    if (fileBytes == null || fileBytes.isEmpty) {
-      throw Exception('Failed to encode Excel file');
-    }
-
-    Navigator.pop(context);
-
-    if (kIsWeb) {
-      _downloadExcelOnWeb(fileBytes);
-    } else {
-      await _saveExcelToFile(fileBytes);
-    }
-
-  } catch (e, stackTrace) {
-    if (Navigator.canPop(context)) {
       Navigator.pop(context);
+
+      if (kIsWeb) {
+        _downloadExcelOnWeb(fileBytes);
+      } else {
+        await _saveExcelToFile(fileBytes);
+      }
+
+    } catch (e, stackTrace) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      print('Export error: $e');
+      print('StackTrace: $stackTrace');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${'export_error'.tr()}: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-
-    print('Export error: $e');
-    print('StackTrace: $stackTrace');
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Export error: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
 
-  // ===== WEB DOWNLOAD EXCEL =====
   void _downloadExcelOnWeb(List<int> fileBytes) {
     if (!kIsWeb) return;
     
@@ -1286,7 +1263,6 @@ Future<void> _exportToExcel() async {
     }
   }
 
-  // ===== SAVE EXCEL TO FILE (Mobile/Desktop) =====
   Future<void> _saveExcelToFile(List<int> fileBytes) async {
     final dir = await getTemporaryDirectory();
     final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
@@ -1299,14 +1275,14 @@ Future<void> _exportToExcel() async {
     if (result.type != ResultType.done) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Could not open file: ${result.message}'),
+          content: Text('${'could_not_open'.tr()}: ${result.message}'),
           backgroundColor: Colors.red,
         ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(' Exported: $fileName'),
+          content: Text('✅ ${'exported_excel'.tr()}: $fileName'),
           backgroundColor: Colors.green,
         ),
       );
@@ -1315,6 +1291,9 @@ Future<void> _exportToExcel() async {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    EasyLocalization.of(context);
+    
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -1331,44 +1310,18 @@ Future<void> _exportToExcel() async {
         backgroundColor: const Color(0xFF173B69),
         elevation: 2,
         automaticallyImplyLeading: false,
-        title: const Text(
-          'Permission List',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+        title: Text(
+          'permission_list'.tr(),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
         ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          PopupMenuButton<String>(
-            icon: Icon(Icons.file_download, size: iconSize),
-            onSelected: (value) {
-              if (value == 'excel') {
-                _exportToExcel();
-              } else if (value == 'pdf') {
-                _exportToPDF();
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'pdf',
-                child: Row(
-                  children: [
-                    Icon(Icons.picture_as_pdf, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Export PDF'),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'excel',
-                child: Row(
-                  children: [
-                    Icon(Icons.table_chart, color: Colors.green),
-                    SizedBox(width: 8),
-                    Text('Export Excel'),
-                  ],
-                ),
-              ),
-            ],
+          PopupMenuWidget(
+            iconSize: iconSize,
+            onExportExcel: _exportToExcel,
+            onExportPDF: _exportToPDF,
+            fontSize: fontSize,
           ),
         ],
         bottom: PreferredSize(
@@ -1384,6 +1337,7 @@ Future<void> _exportToExcel() async {
               child: Row(
                 children: List.generate(_segmentLabels.length, (index) {
                   final isSelected = _currentSegment == index;
+                  final label = _segmentLabels[index];
                   return Expanded(
                     child: GestureDetector(
                       onTap: () {
@@ -1399,7 +1353,7 @@ Future<void> _exportToExcel() async {
                         ),
                         child: Center(
                           child: Text(
-                            _segmentLabels[index],
+                            label.tr(),
                             style: TextStyle(
                               color: isSelected ? const Color(0xFF173B69) : Colors.white,
                               fontSize: 13,
@@ -1496,7 +1450,7 @@ Future<void> _exportToExcel() async {
                       },
                       style: TextStyle(fontSize: fontSize),
                       decoration: InputDecoration(
-                        hintText: ' Search by name or email...',
+                        hintText: 'search_by_name_email'.tr(),
                         hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade500),
                         prefixIcon: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
                         suffixIcon: _searchQuery.isNotEmpty
@@ -1558,8 +1512,8 @@ Future<void> _exportToExcel() async {
                                 const SizedBox(height: 12),
                                 Text(
                                   _searchQuery.isNotEmpty
-                                      ? 'No results found for "$_searchQuery"'
-                                      : 'No data found',
+                                      ? '${'no_results'.tr()} "$_searchQuery"'
+                                      : 'no_data_found'.tr(),
                                   style: TextStyle(color: Colors.grey.shade500, fontSize: fontSize),
                                 ),
                               ],
@@ -1586,7 +1540,7 @@ Future<void> _exportToExcel() async {
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Text(_showAll ? 'Show Less' : 'See More', style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600, color: const Color(0xFF173B69))),
+                                          Text(_showAll ? 'show_less'.tr() : 'see_more'.tr(), style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600, color: const Color(0xFF173B69))),
                                           const SizedBox(width: 4),
                                           Icon(_showAll ? Icons.expand_less : Icons.expand_more, color: const Color(0xFF173B69), size: iconSize),
                                         ],
@@ -1596,13 +1550,70 @@ Future<void> _exportToExcel() async {
                                 );
                               }
                               final r = visibleItems[index];
-                              return _RequestCard(request: r, isMobile: isMobile, fontSize: fontSize, spacing: spacing);
+                              return _RequestCard(
+                                request: r, 
+                                isMobile: isMobile, 
+                                fontSize: fontSize, 
+                                spacing: spacing,
+                              );
                             },
                           ),
                   ),
                 ],
               ),
       ),
+    );
+  }
+}
+
+// ===== POPUP MENU WIDGET =====
+class PopupMenuWidget extends StatelessWidget {
+  final VoidCallback onExportExcel;
+  final VoidCallback onExportPDF;
+  final double iconSize;
+  final double fontSize;
+
+  const PopupMenuWidget({
+    super.key,
+    required this.onExportExcel,
+    required this.onExportPDF,
+    required this.iconSize,
+    required this.fontSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.file_download, size: iconSize),
+      onSelected: (value) {
+        if (value == 'excel') {
+          onExportExcel();
+        } else if (value == 'pdf') {
+          onExportPDF();
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'pdf',
+          child: Row(
+            children: [
+              const Icon(Icons.picture_as_pdf, color: Colors.red),
+              const SizedBox(width: 8),
+              Text('export_pdf'.tr()),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'excel',
+          child: Row(
+            children: [
+              const Icon(Icons.table_chart, color: Colors.green),
+              const SizedBox(width: 8),
+              Text('export_excel'.tr()),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1685,7 +1696,7 @@ class _RequestCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Reason: ${request.reason}',
+                        '${'reason'.tr()}: ${request.reason}',
                         style: TextStyle(fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.9),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1725,7 +1736,7 @@ class _RequestCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              request.autoApproved ? 'Auto' : 'Manual',
+                              request.autoApproved ? 'auto'.tr() : 'manual'.tr(),
                               style: TextStyle(
                                 fontSize: isMobile ? fontSize * 0.65 : fontSize * 0.8,
                                 color: request.autoApproved ? Colors.purple : Colors.orange,
@@ -1763,7 +1774,7 @@ class _RequestCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
-                  'Rejected: ${request.rejectionReason}',
+                  '${'rejected'.tr()}: ${request.rejectionReason}',
                   style: TextStyle(fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85, color: Colors.red.shade700),
                 ),
               ),
@@ -1771,7 +1782,7 @@ class _RequestCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
-                  'Approved by: ${request.approvedByName}',
+                  '${'approved_by'.tr()}: ${request.approvedByName}',
                   style: TextStyle(fontSize: isMobile ? fontSize * 0.7 : fontSize * 0.85, color: Colors.green.shade700),
                 ),
               ),

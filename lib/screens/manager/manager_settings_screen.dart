@@ -72,7 +72,6 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
 
     if (_isViewingAsStaff) {
-      //  ត្រឡប់ទៅមើលជា Manager វិញ
       await prefs.setBool('view_as_staff', false);
       if (mounted) {
         setState(() {
@@ -80,7 +79,6 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
         });
       }
 
-      //  ត្រឡប់ទៅ Manager Dashboard
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/manager-dashboard');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -92,7 +90,6 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
         );
       }
     } else {
-      //  ប្តូរទៅមើលជា Staff
       await prefs.setBool('view_as_staff', true);
       if (mounted) {
         setState(() {
@@ -100,7 +97,6 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
         });
       }
 
-      //  ទៅកាន់ Staff Dashboard
       if (mounted) {
         Navigator.pushReplacementNamed(context, '/staff-dashboard');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -116,6 +112,9 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    EasyLocalization.of(context);
+    
     // Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -193,7 +192,6 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
                 padding: padding,
                 child: Column(
                   children: [
-                    // ---------- Other Settings Items ----------
                     ..._managerItems.map(
                       (item) => _buildItem(
                         item.icon,
@@ -273,7 +271,6 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
             onPressed: () async {
               Navigator.pop(context);
 
-              //  លុប view_as_staff mode ពេល logout
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('view_as_staff');
 
@@ -309,7 +306,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
     bool isMobile,
     double fontSize,
   ) {
-    // ✅ ប្រសិនបើជា "View as Staff"
+    // ✅ "View as Staff"
     if (title == 'View as Staff') {
       return Card(
         margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
@@ -343,7 +340,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
       );
     }
 
-    // ✅ ប្រសិនបើជា "Language"
+    // ✅ "Language"
     if (title == 'Language') {
       return Card(
         margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
