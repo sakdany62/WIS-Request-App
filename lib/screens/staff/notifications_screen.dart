@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/request_service.dart';
 import 'package:permission_system/app_fonts.dart';
 import '../../utils/responsive.dart';
-import '../../services/telegram_service.dart'; // ✅ បន្ថែម import TelegramService
+import '../../services/telegram_service.dart'; 
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -75,7 +75,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✅ ${snapshot.docs.length} notifications marked as read',
+              ' ${snapshot.docs.length} notifications marked as read',
               style: TextStyle(fontSize: AppFonts.md),
             ),
             backgroundColor: Colors.green,
@@ -102,7 +102,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await _requestService.markNotificationAsRead(notificationId);
   }
 
-  // ✅ បង្ហាញ Notification Detail Dialog និងសម្គាល់ថាបានអានដោយស្វ័យប្រវត្តិ
+  //  បង្ហាញ Notification Detail Dialog និងសម្គាល់ថាបានអានដោយស្វ័យប្រវត្តិ
   void _showNotificationDetail(Map<String, dynamic> data, String notificationId) {
     final isRead = data['isRead'] ?? false;
     final title = data['title'] ?? 'Notification';
@@ -112,7 +112,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final requestId = data['requestId'];
     final metadata = data['metadata'] as Map<String, dynamic>? ?? {};
 
-    // ✅ ប្រសិនបើមិនទាន់បានអាន សម្គាល់ថាបានអានដោយស្វ័យប្រវត្តិ
+    // ប្រសិនបើមិនទាន់បានអាន សម្គាល់ថាបានអានដោយស្វ័យប្រវត្តិ
     if (!isRead) {
       _markAsRead(notificationId);
     }
@@ -471,7 +471,7 @@ class NotificationDetailDialog extends StatefulWidget {
 class _NotificationDetailDialogState extends State<NotificationDetailDialog> {
   final bool _isMarkingRead = false;
 
-  // ✅ ទ្រង់ទ្រាយពេលវេលាជា AM/PM តាមម៉ោងកម្ពុជា
+  // ទ្រង់ទ្រាយពេលវេលាជា AM/PM តាមម៉ោងកម្ពុជា
   String _formatDateTimeAMPM([DateTime? time]) {
     final DateTime now = time ?? DateTime.now();
     final cambodiaTime = now.toUtc().add(const Duration(hours: 7));
@@ -490,7 +490,7 @@ class _NotificationDetailDialogState extends State<NotificationDetailDialog> {
     return '$day/$month/$year ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
   }
 
-  // ✅ ទ្រង់ទ្រាយពេលវេលា submit
+  //  ទ្រង់ទ្រាយពេលវេលា submit
   String _formatSubmitTime(dynamic timestamp) {
     if (timestamp == null) return _formatDateTimeAMPM();
 
@@ -506,15 +506,15 @@ class _NotificationDetailDialogState extends State<NotificationDetailDialog> {
     return _formatDateTimeAMPM(date);
   }
 
-  // ✅ ទ្រង់ទ្រាយ status
+  //  ទ្រង់ទ្រាយ status
   String _formatStatus(String status) {
     switch (status.toLowerCase()) {
       case 'pending':
         return 'PENDING';
       case 'approved':
-        return 'APPROVED ✅';
+        return 'APPROVED ';
       case 'rejected':
-        return 'REJECTED ❌';
+        return 'REJECTED ';
       default:
         return status.toUpperCase();
     }
@@ -565,7 +565,7 @@ class _NotificationDetailDialogState extends State<NotificationDetailDialog> {
     }
   }
 
-  // ✅ Widget សម្រាប់បង្ហាញព័ត៌មាន 1 ជួរ (គ្មាន icon)
+  // Widget សម្រាប់បង្ហាញព័ត៌មាន 1 ជួរ (គ្មាន icon)
   Widget _buildInfoRow(String label, String value, {bool isBold = false}) {
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
@@ -607,29 +607,29 @@ class _NotificationDetailDialogState extends State<NotificationDetailDialog> {
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
 
-    // ✅ ទាញយកទិន្នន័យពី metadata (ដែលជា data ទាំងមូល)
+    // ទាញយកទិន្នន័យពី metadata (ដែលជា data ទាំងមូល)
     final Map<String, dynamic> data = widget.metadata;
 
-    // ✅ ទាញយក Request ID
+    //  ទាញយក Request ID
     final String requestId = widget.requestId ?? data['requestId']?.toString() ?? 'N/A';
 
-    // ✅ ទាញយកឈ្មោះអ្នកអនុម័ត (approvedBy)
+    //  ទាញយកឈ្មោះអ្នកអនុម័ត (approvedBy)
     final String approvedBy = data['approvedBy']?.toString() ?? 'N/A';
 
-    // ✅ ទាញយកឈ្មោះអ្នកស្នើសុំ (userEmail)
+    //  ទាញយកឈ្មោះអ្នកស្នើសុំ (userEmail)
     final String userEmail = data['userEmail']?.toString() ?? 'N/A';
 
-    // ✅ ទាញយកចំនួនថ្ងៃ (totalDays)
+    //  ទាញយកចំនួនថ្ងៃ (totalDays)
     final String totalDays = data['totalDays']?.toString() ?? '1';
 
-    // ✅ ទាញយក Status
+    //  ទាញយក Status
     final String status = data['status']?.toString() ?? widget.type.replaceFirst('request_', '') ?? 'pending';
     final String formattedStatus = _formatStatus(status);
 
-    // ✅ ទាញយក Submit Time - ពី createdAt
+    //  ទាញយក Submit Time - ពី createdAt
     final String submitTime = _formatSubmitTime(widget.createdAt);
 
-    // ✅ ទាញយក User ID
+    //  ទាញយក User ID
     final String userId = data['userId']?.toString() ?? 'N/A';
 
     return Container(
@@ -639,7 +639,7 @@ class _NotificationDetailDialogState extends State<NotificationDetailDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ✅ Header with Icon and Status
+          //  Header with Icon and Status
           Row(
             children: [
               Container(

@@ -168,7 +168,7 @@ class CloudinaryService {
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         final String imageUrl = responseData['secure_url'] ?? responseData['url'];
-        debugPrint('✅ Image uploaded to Cloudinary: $imageUrl');
+        debugPrint(' Image uploaded to Cloudinary: $imageUrl');
         return imageUrl;
       } else {
         debugPrint('❌ Upload failed: ${response.statusCode}');
@@ -209,7 +209,7 @@ class CloudinaryService {
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         final String imageUrl = responseData['secure_url'] ?? responseData['url'];
-        debugPrint('✅ Image uploaded to Cloudinary: $imageUrl');
+        debugPrint(' Image uploaded to Cloudinary: $imageUrl');
         return imageUrl;
       } else {
         debugPrint('❌ Upload failed: ${response.statusCode}');
@@ -300,10 +300,8 @@ class CloudinaryService {
   /// Delete image from Cloudinary (requires public_id)
   Future<bool> deleteImage(String publicId) async {
     try {
-      // Note: Deleting requires API key and secret
-      // You'll need to implement this using Cloudinary Admin API
-      // Example: DELETE https://api.cloudinary.com/v1_1/cloud_name/image/destroy
-      debugPrint('⚠️ Delete image function needs API key/secret');
+      
+      debugPrint(' Delete image function needs API key/secret');
       return false;
     } catch (e) {
       debugPrint('❌ Error deleting image: $e');

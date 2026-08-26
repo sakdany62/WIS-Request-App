@@ -15,7 +15,7 @@ class TermsService {
           .orderBy('version', descending: true)
           .limit(1)
           .get(
-            const GetOptions(source: Source.server), // ✅ Force server to avoid cache
+            const GetOptions(source: Source.server), 
           );
 
       if (querySnapshot.docs.isNotEmpty) {
@@ -80,7 +80,7 @@ class TermsService {
       });
 
       await batch.commit();
-      print('✅ Terms & Conditions created successfully');
+      print(' Terms & Conditions created successfully');
     } catch (e) {
       print('❌ Error creating terms: $e');
       throw Exception('Failed to create terms: $e');
@@ -108,7 +108,7 @@ class TermsService {
       updates['updatedAt'] = FieldValue.serverTimestamp();
 
       await _firestore.collection(_collection).doc(termsId).update(updates);
-      print('✅ Terms updated successfully');
+      print(' Terms updated successfully');
     } catch (e) {
       print('❌ Error updating terms: $e');
       throw Exception('Failed to update terms: $e');
@@ -133,10 +133,10 @@ class TermsService {
           batch.delete(doc.reference);
         }
         await batch.commit();
-        print('✅ Deleted ${readStatusSnapshot.docs.length} read statuses');
+        print(' Deleted ${readStatusSnapshot.docs.length} read statuses');
       }
       
-      print('✅ Terms deleted successfully');
+      print(' Terms deleted successfully');
     } catch (e) {
       print('❌ Error deleting terms: $e');
       throw Exception('Failed to delete terms: $e');
@@ -228,7 +228,7 @@ class TermsService {
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-        print('✅ Created new user document for staff: $staffId ($fullName)');
+        print(' Created new user document for staff: $staffId ($fullName)');
       } else {
         // Update existing user document
         await userDocRef.update({
@@ -258,7 +258,7 @@ class TermsService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
       
-      print('✅ Terms marked as read for staff: $staffId ($fullName)');
+      print(' Terms marked as read for staff: $staffId ($fullName)');
     } catch (e) {
       print('❌ Error marking terms as read: $e');
       rethrow;
@@ -280,7 +280,7 @@ class TermsService {
     }
   }
 
-  // ✅ GET STAFF WHO READ TERMS WITH PROPER ROLE
+  //  GET STAFF WHO READ TERMS WITH PROPER ROLE
   static Future<List<Map<String, dynamic>>> getStaffWhoReadTerms(String termsId) async {
     try {
       final snapshot = await _firestore
@@ -356,7 +356,7 @@ class TermsService {
     }
   }
 
-  // ✅ GET ALL STAFF AND MANAGER (EXCLUDE ADMIN)
+  //  GET ALL STAFF AND MANAGER (EXCLUDE ADMIN)
   static Future<List<Map<String, dynamic>>> getAllStaffAndManagers() async {
     try {
       final snapshot = await _firestore
@@ -400,7 +400,7 @@ class TermsService {
         }
       }
       
-      print('✅ Found ${userList.length} staff and managers');
+      print(' Found ${userList.length} staff and managers');
       return userList;
     } catch (e) {
       print('❌ Error getting all staff and managers: $e');
@@ -408,7 +408,7 @@ class TermsService {
     }
   }
 
-  // ✅ GET TERMS READ STATISTICS (Include Staff and Manager)
+  //  GET TERMS READ STATISTICS (Include Staff and Manager)
   static Future<Map<String, dynamic>> getTermsReadStats(String termsId) async {
     try {
       final allUsers = await getAllStaffAndManagers();
@@ -468,7 +468,7 @@ class TermsService {
         batch.delete(doc.reference);
       }
       await batch.commit();
-      print('✅ Reset read status for terms: $termsId');
+      print(' Reset read status for terms: $termsId');
     } catch (e) {
       print('❌ Error resetting terms read status: $e');
       rethrow;
@@ -537,7 +537,7 @@ class TermsService {
   static Future<void> clearCache() async {
     try {
       await FirebaseFirestore.instance.clearPersistence();
-      print('✅ Cache cleared successfully');
+      print(' Cache cleared successfully');
     } catch (e) {
       print('❌ Error clearing cache: $e');
       rethrow;

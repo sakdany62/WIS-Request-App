@@ -71,13 +71,13 @@ class PolicyService {
     }
   }
 
-  // ✅ Method ថ្មី: ទាញយក Allowed Reasons ពី Policy សកម្ម
+  // ទាញយក Allowed Reasons ពី Policy សកម្ម
   Future<List<String>> getAllowedReasons() async {
     try {
       final policy = await getActivePolicy();
       if (policy != null) {
         final reasons = policy.allowedReasons;
-        // ✅ ធានាថា "Other" តែងតែមាន
+        //  ធានាថា "Other" តែងតែមាន
         if (!reasons.contains('Other')) {
           reasons.add('Other');
         }
@@ -91,7 +91,7 @@ class PolicyService {
     }
   }
 
-  // ✅ Method ថ្មី: Stream សម្រាប់ស្តាប់ការផ្លាស់ប្តូរ Real-time
+  // Stream សម្រាប់ស្តាប់ការផ្លាស់ប្តូរ Real-time
   Stream<List<String>> streamAllowedReasons() {
     return _policiesCollection
         .where('isActive', isEqualTo: true)
@@ -103,7 +103,7 @@ class PolicyService {
       final doc = snapshot.docs.first;
       final data = doc.data() as Map<String, dynamic>;
       final reasons = List<String>.from(data['allowedReasons'] ?? []);
-      // ✅ ធានាថា "Other" តែងតែមាន
+      // ធានាថា "Other" តែងតែមាន
       if (!reasons.contains('Other')) {
         reasons.add('Other');
       }

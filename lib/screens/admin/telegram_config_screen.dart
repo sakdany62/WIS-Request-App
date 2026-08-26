@@ -149,7 +149,7 @@ class _TelegramConfigScreenState extends State<TelegramConfigScreen> {
         if (sent) {
           _showStatus(' Bot is working! Test message sent successfully.', Colors.green);
         } else {
-          _showStatus('⚠️ Bot is working but failed to send test message.', Colors.orange);
+          _showStatus(' Bot is working but failed to send test message.', Colors.orange);
         }
       } else {
         _showStatus('❌ Bot is not working. Please check your Bot Token.', Colors.red);

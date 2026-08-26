@@ -498,9 +498,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         final ByteData imageData = await rootBundle.load('assets/img/logo1.png');
         final Uint8List imageBytes = imageData.buffer.asUint8List();
         logoImage = pw.MemoryImage(imageBytes);
-        print('✅ Logo loaded successfully');
+        print(' Logo loaded successfully');
       } catch (e) {
-        print('⚠️ Logo image not found: $e');
+        print(' Logo image not found: $e');
         logoImage = null;
       }
 

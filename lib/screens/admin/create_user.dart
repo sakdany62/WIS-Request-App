@@ -837,14 +837,14 @@ IMPORTANT:
           email: credentials['email']!,
           password: credentials['password']!,
         );
-        print('✅ Admin auto re-login successful!');
+        print(' Admin auto re-login successful!');
         return true;
       } catch (e) {
         print('❌ Admin auto re-login failed: $e');
         return false;
       }
     }
-    print('⚠️ No admin credentials found');
+    print(' No admin credentials found');
     return false;
   }
 

@@ -60,7 +60,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         _departments = loadedDepartments;
       });
 
-      print('✅ Loaded ${_departments.length} departments from Firestore');
+      print(' Loaded ${_departments.length} departments from Firestore');
     } catch (e) {
       print('❌ Error loading departments: $e');
       setState(() {

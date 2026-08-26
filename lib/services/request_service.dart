@@ -54,15 +54,15 @@ class RequestService {
     DateTime? submitTime,
     String? department,
     String? departmentId,
-    String? userName, // ✅ បន្ថែម
-    String? userEmail, // ✅ បន្ថែម
+    String? userName, 
+    String? userEmail, 
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
     final userDoc = await _firestore.collection('users').where('userId', isEqualTo: user.uid).limit(1).get();
 
-    // ✅ ប្រើ userName និង userEmail ដែលបញ្ជូនមក
+    //  ប្រើ userName និង userEmail ដែលបញ្ជូនមក
     String finalUserName = userName ?? user.email?.split('@').first ?? 'Staff';
     String finalUserEmail = userEmail ?? user.email ?? '';
     String userDepartment = department ?? '';
@@ -71,7 +71,7 @@ class RequestService {
 
     if (userDoc.docs.isNotEmpty) {
       final data = userDoc.docs.first.data();
-      // ✅ ប្រើ userName ដែលបញ្ជូនមកមុន បើមិនមានទើបយកពី Firestore
+      //  ប្រើ userName ដែលបញ្ជូនមកមុន បើមិនមានទើបយកពី Firestore
       if (userName == null || userName.isEmpty) {
         finalUserName = data['fullName'] ?? data['username'] ?? finalUserName;
       }
@@ -87,11 +87,11 @@ class RequestService {
       userRoleId = data['roleId']?.toString() ?? '2';
     }
 
-    print('📝 Submitting request for: $finalUserName');
-    print('📝 Email: $finalUserEmail');
-    print('📝 Department: "$userDepartment"');
-    print('📝 Department ID: "$userDepartmentId"');
-    print('📝 Role: $userRoleId');
+    print(' Submitting request for: $finalUserName');
+    print(' Email: $finalUserEmail');
+    print(' Department: "$userDepartment"');
+    print(' Department ID: "$userDepartmentId"');
+    print(' Role: $userRoleId');
 
     String reasonForValidation = reason;
     String reasonForStorage = reason;
@@ -157,12 +157,12 @@ class RequestService {
     final requestNumberInt = await _generateRequestNumber();
     final requestNumberFormatted = _formatRequestNumber(requestNumberInt);
 
-    print('📝 Request Number: $requestNumberFormatted');
+    print(' Request Number: $requestNumberFormatted');
 
     final requestData = {
       'userId': user.uid,
-      'userEmail': finalUserEmail, // ✅ ប្រើ finalUserEmail
-      'userName': finalUserName, // ✅ ប្រើ finalUserName
+      'userEmail': finalUserEmail, 
+      'userName': finalUserName, 
       'department': userDepartment,
       'departmentId': userDepartmentId,
       'startDate': startDate,
@@ -192,12 +192,12 @@ class RequestService {
       'requestId': requestNumberFormatted,
     });
 
-    print('🔔 ====== SENDING NOTIFICATIONS ======');
-    print('🔔 Request ID: $requestNumberFormatted');
-    print('🔔 Status: $status');
-    print('🔔 Need Manager Approval: $needManagerApproval');
-    print('🔔 Department: "$userDepartment"');
-    print('🔔 Department ID: "$userDepartmentId"');
+    print(' ====== SENDING NOTIFICATIONS ======');
+    print(' Request ID: $requestNumberFormatted');
+    print(' Status: $status');
+    print(' Need Manager Approval: $needManagerApproval');
+    print(' Department: "$userDepartment"');
+    print(' Department ID: "$userDepartmentId"');
 
     await _sendNotificationToUser(
       userId: user.uid,
@@ -223,7 +223,7 @@ class RequestService {
       await _notifyAdminsForAutoApproval(requestData, requestNumberFormatted, submitTimeString);
     }
 
-    print('🔔 ====== NOTIFICATIONS COMPLETED ======');
+    print(' ====== NOTIFICATIONS COMPLETED ======');
 
     return {
       'status': status,
@@ -245,13 +245,13 @@ class RequestService {
     final totalDays = requestData['totalDays'] ?? 0;
     final userEmail = requestData['userEmail'] ?? '';
 
-    print('🔔 ----- Notifying Managers for New Request -----');
-    print('🔔 Department: "$department"');
-    print('🔔 Department ID: "$departmentId"');
-    print('🔔 Staff: $staffName');
-    print('🔔 Request #: $requestNumber');
-    print('🔔 Total Days: $totalDays');
-    print('🔔 Is Auto Approved: $isAutoApproved');
+    print(' ----- Notifying Managers for New Request -----');
+    print(' Department: "$department"');
+    print(' Department ID: "$departmentId"');
+    print(' Staff: $staffName');
+    print(' Request #: $requestNumber');
+    print(' Total Days: $totalDays');
+    print(' Is Auto Approved: $isAutoApproved');
 
     try {
       final managerSnapshot = await _firestore
@@ -304,16 +304,16 @@ class RequestService {
         final roleId = data['roleId']?.toString() ?? '';
 
         if (userId.isEmpty) {
-          print('⚠️ Manager has no userId: $managerEmail');
+          print(' Manager has no userId: $managerEmail');
           continue;
         }
 
         if (userId == requestData['userId']) {
-          print('⚠️ Skipping self notification for: $managerEmail');
+          print(' Skipping self notification for: $managerEmail');
           continue;
         }
 
-        print('📨 Sending to manager: $managerEmail ($managerName) - Dept: $managerDepartment - Role: $roleId');
+        print(' Sending to manager: $managerEmail ($managerName) - Dept: $managerDepartment - Role: $roleId');
 
         String deptInfo = department.isNotEmpty ? ' ($department)' : '';
         String statusText = isAutoApproved ? 'Auto-approved' : 'Needs approval';
@@ -615,8 +615,8 @@ class RequestService {
     Map<String, dynamic>? extraData,
   }) async {
     try {
-      print('📨 Sending notification to: $userEmail');
-      print('📨 Title: $title');
+      print(' Sending notification to: $userEmail');
+      print(' Title: $title');
 
       final notificationRef = _notificationsCollection.doc();
       final notificationData = {
@@ -649,8 +649,8 @@ class RequestService {
     Map<String, dynamic>? extraData,
   }) async {
     try {
-      print('🔔 ----- Notifying Managers in Department -----');
-      print('🔔 Department: "$department"');
+      print(' ----- Notifying Managers in Department -----');
+      print(' Department: "$department"');
 
       Query query = _firestore.collection('users').where('roleId', isEqualTo: '3').where('status', isEqualTo: 'Active');
 
@@ -661,7 +661,7 @@ class RequestService {
       final managerSnapshot = await query.get();
 
       if (managerSnapshot.docs.isEmpty) {
-        print('⚠️ No managers found for department: $department');
+        print(' No managers found for department: $department');
         return;
       }
 
@@ -675,7 +675,7 @@ class RequestService {
         final managerUserId = data['userId'];
 
         if (managerUserId == null || managerUserId.isEmpty) {
-          print('⚠️ Manager has no userId: ${data['email']}');
+          print(' Manager has no userId: ${data['email']}');
           continue;
         }
 
@@ -697,7 +697,7 @@ class RequestService {
         }
         batch.set(notificationRef, notificationData);
         count++;
-        print('📨 Notification prepared for manager: ${data['email']}');
+        print(' Notification prepared for manager: ${data['email']}');
       }
 
       await batch.commit();
@@ -722,7 +722,7 @@ class RequestService {
           .get();
 
       if (adminSnapshot.docs.isEmpty) {
-        print('⚠️ No admins found');
+        print(' No admins found');
         return;
       }
 
@@ -736,7 +736,7 @@ class RequestService {
         final adminUserId = data['userId'];
 
         if (adminUserId == null || adminUserId.isEmpty) {
-          print('⚠️ Admin has no userId: ${data['email']}');
+          print(' Admin has no userId: ${data['email']}');
           continue;
         }
 

@@ -5,7 +5,6 @@ import 'policy_screen.dart';
 import 'warning_management_screen.dart' as warning;
 import 'terms_management_screen.dart';
 import 'telegram_config_screen.dart';
-// Removed: import 'reminder_config_screen.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 

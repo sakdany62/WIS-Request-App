@@ -316,12 +316,12 @@ class TelegramService {
       bool allAdditionalSent = true;
 
       if (additionalChatIds.isNotEmpty) {
-        print('📨 Sending to additional chats:');
+        print(' Sending to additional chats:');
         for (var chat in additionalChatIds) {
           final chatId = chat['chatId'] ?? '';
           final type = chat['type'] ?? 'Other';
           if (chatId.isNotEmpty) {
-            print('   📤 Additional ($type): $chatId');
+            print('    Additional ($type): $chatId');
             final sent = await _sendMessage(chatId, finalMessage);
             if (!sent) allAdditionalSent = false;
           }
@@ -329,7 +329,7 @@ class TelegramService {
       }
 
       print(
-          '📨 Messages sent - Manager: $managerSent, Admin: $adminSent, Group: $groupSent, Additional: $allAdditionalSent');
+          ' Messages sent - Manager: $managerSent, Admin: $adminSent, Group: $groupSent, Additional: $allAdditionalSent');
 
       return managerSent && adminSent && groupSent && allAdditionalSent;
     } catch (e) {
@@ -341,7 +341,7 @@ class TelegramService {
   // ===== Core send message =====
   static Future<bool> _sendMessage(String chatId, String message) async {
     if (chatId.isEmpty || chatId == 'MANAGER_CHAT_ID' || chatId == 'ADMIN_CHAT_ID' || chatId == 'GROUP_CHAT_ID') {
-      print('⚠️ Invalid chat ID: $chatId');
+      print(' Invalid chat ID: $chatId');
       return false;
     }
 
@@ -546,12 +546,12 @@ This is a test message sent to:
         return false;
       }
 
-      print('🔍 Checking bot status...');
+      print(' Checking bot status...');
       final response = await http.get(Uri.parse('$baseUrl/getMe'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final isOk = data['ok'] == true;
-        print('🔍 Bot status: ${isOk ? " OK" : " FAILED"}');
+        print(' Bot status: ${isOk ? " OK" : " FAILED"}');
         return isOk;
       }
       print('❌ Bot status check failed: ${response.statusCode}');
@@ -625,7 +625,7 @@ This is a test message sent to:
   // ===== CORE SEND PHOTO =====
   static Future<bool> _sendPhoto(String chatId, List<int> photoBytes, String? caption) async {
     if (chatId.isEmpty || chatId == 'MANAGER_CHAT_ID' || chatId == 'ADMIN_CHAT_ID' || chatId == 'GROUP_CHAT_ID') {
-      print('⚠️ Invalid chat ID: $chatId');
+      print(' Invalid chat ID: $chatId');
       return false;
     }
 

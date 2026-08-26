@@ -68,7 +68,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
     }
 
     try {
-      print('🔍 Loading manager data for UID: ${user.uid}');
+      print(' Loading manager data for UID: ${user.uid}');
 
       final docSnapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -77,7 +77,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
-        print('✅ Manager data found: $data');
+        print(' Manager data found: $data');
 
         setState(() {
           userData = Map<String, dynamic>.from(data);
@@ -85,7 +85,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
           isLoading = false;
         });
       } else {
-        print('⚠️ No manager document found for UID: ${user.uid}');
+        print(' No manager document found for UID: ${user.uid}');
         setState(() {
           errorMessage = 'profile_not_found'.tr();
           isLoading = false;
@@ -120,7 +120,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             setState(() {
               _uploadProgress = progress;
             });
-            print('📤 Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
+            print(' Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
           },
         );
       } else {

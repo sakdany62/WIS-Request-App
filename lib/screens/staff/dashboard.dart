@@ -68,7 +68,7 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    
     EasyLocalization.of(context);
     
     final bool isMobile = Responsive.isMobile(context);

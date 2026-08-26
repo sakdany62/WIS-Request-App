@@ -50,7 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+  
     EasyLocalization.of(context);
     
     // Responsive
@@ -221,7 +221,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) {
     final isAdmin = _isUserAdmin();
 
-    // ✅ ប្រសិនបើជា "Language"
+    // ប្រសិនបើជា "Language"
     if (title == 'Language') {
       return Card(
         margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
@@ -593,7 +593,7 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    
     EasyLocalization.of(context);
     
     final bool isMobile = Responsive.isMobile(context);
@@ -909,7 +909,7 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+    
     EasyLocalization.of(context);
     
     final bool isMobile = Responsive.isMobile(context);
@@ -979,7 +979,7 @@ class AboutScreen extends StatelessWidget {
             ),
             SizedBox(height: isMobile ? 4 : 6),
             Text(
-              "Version 1.0.1",
+              "Version 1.2.0",
               style: TextStyle(
                 fontSize: isMobile ? fontSize * 0.85 : AppFonts.md,
                 color: Colors.grey,

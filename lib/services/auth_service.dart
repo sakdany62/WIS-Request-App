@@ -37,13 +37,13 @@ class AuthService {
           );
         } else {
           // ប្រសិនបើមិនមានក្នុង Firestore បង្កើតថ្មី
-          debugPrint('⚠️ User exists in Auth but not in Firestore');
+          debugPrint(' User exists in Auth but not in Firestore');
           return null;
         }
       }
       return null;
     } on FirebaseAuthException catch (e) {
-      debugPrint('🔥 Firebase Auth Error: ${e.code} - ${e.message}');
+      debugPrint(' Firebase Auth Error: ${e.code} - ${e.message}');
       // បកប្រែ error message ឱ្យអ្នកប្រើយល់
       throw _handleAuthError(e);
     } catch (e) {
@@ -68,7 +68,7 @@ class AuthService {
             userDoc.id
           );
         } else {
-          debugPrint('⚠️ User ${user.uid} not found in Firestore');
+          debugPrint(' User ${user.uid} not found in Firestore');
           // ប្រហែលជាត្រូវ logout អ្នកប្រើនេះ
           await signOut();
           return null;
@@ -85,7 +85,7 @@ class AuthService {
   Future<void> signOut() async {
     try {
       await _auth.signOut();
-      debugPrint('✅ User signed out successfully');
+      debugPrint(' User signed out successfully');
     } catch (e) {
       debugPrint('❌ Sign out error: $e');
       rethrow;
@@ -96,7 +96,7 @@ class AuthService {
   Future<bool> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email.trim());
-      debugPrint('✅ Password reset email sent to $email');
+      debugPrint(' Password reset email sent to $email');
       return true;
     } on FirebaseAuthException catch (e) {
       debugPrint('❌ Password reset error: ${e.code}');
@@ -124,7 +124,7 @@ class AuthService {
     try {
       // Try to access Firestore
       await _firestore.collection('users').limit(1).get();
-      debugPrint('✅ Firebase connection successful');
+      debugPrint(' Firebase connection successful');
       return true;
     } catch (e) {
       debugPrint('❌ Firebase connection failed: $e');

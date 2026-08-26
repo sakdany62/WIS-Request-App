@@ -26,26 +26,26 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _initializeApp() async {
     try {
-      // ✅ ស្នើសុំ notification permission
+      //  ស្នើសុំ notification permission
       await _requestNotificationPermission();
 
-      // ✅ ពន្យាពេលសម្រាប់ splash animation
+      //  ពន្យាពេលសម្រាប់ splash animation
       await Future.delayed(const Duration(seconds: 2));
 
       if (!mounted) return;
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-      // ✅ ដំឡើងកម្មវិធី - ពិនិត្យមើល user ដែលកំពុង login
+      //  ដំឡើងកម្មវិធី - ពិនិត្យមើល user ដែលកំពុង login
       await authProvider.initializeApp();
 
       if (!mounted) return;
 
-      // ✅ ចូលទៅកាន់ទំព័រសមស្រប
+      //  ចូលទៅកាន់ទំព័រសមស្រប
       _navigateToNextScreen();
     } catch (e, stackTrace) {
       print('❌ Error in SplashScreen: $e');
-      print('📚 Stack trace: $stackTrace');
+      print(' Stack trace: $stackTrace');
 
       if (mounted) {
         setState(() {
@@ -60,9 +60,9 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
       final granted = await NotificationPermissionService.requestPermission();
       if (granted) {
-        print('✅ Notification permission granted');
+        print(' Notification permission granted');
       } else {
-        print('⚠️ Notification permission denied');
+        print(' Notification permission denied');
       }
     } catch (e) {
       print('❌ Error requesting notification permission: $e');
@@ -117,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // ✅ Logo
+              //  Logo
               SizedBox(
                 width: logoSize,
                 height: logoSize,
@@ -144,7 +144,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               SizedBox(height: spacing * 3),
 
-              // ✅ Loading or Error
+              //  Loading or Error
               if (_errorMessage != null)
                 Column(
                   children: [

@@ -7,7 +7,6 @@ import '../../utils/responsive.dart';
 import 'admin_home_screen.dart';
 import 'admin_setting.dart';
 import 'report_screen.dart';
-// Removed: import 'reminder_config_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});

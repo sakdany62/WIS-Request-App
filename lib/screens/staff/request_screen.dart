@@ -255,7 +255,7 @@ class _RequestScreenState extends State<RequestScreen> {
         });
 
         _showSuccess('image_selected'.tr(args: [image.name]));
-        print('✅ Image selected: ${image.path}, size: ${await image.length()} bytes');
+        print(' Image selected: ${image.path}, size: ${await image.length()} bytes');
       }
     } catch (e) {
       _showError('failed_to_pick_image'.tr());
@@ -434,7 +434,7 @@ class _RequestScreenState extends State<RequestScreen> {
         try {
           photoBytes = await _selectedImage!.readAsBytes();
           imageUrl = 'sent_to_telegram_${DateTime.now().millisecondsSinceEpoch}';
-          print('✅ Image read successfully from XFile, size: ${photoBytes.length} bytes');
+          print('Image read successfully from XFile, size: ${photoBytes.length} bytes');
         } catch (e) {
           print('❌ Error reading image from XFile: $e');
           setState(() {
@@ -732,7 +732,7 @@ Status: PENDING
 
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរពី Settings
+   
     final locale = context.locale;
     
     final bool isMobile = Responsive.isMobile(context);

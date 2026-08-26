@@ -138,11 +138,11 @@ class ManagerTelegramService {
     required String requestId,
     String status = 'pending',
   }) async {
-    // ✅ Check if viewing as staff and is manager
+    //  Check if viewing as staff and is manager
     final bool isViewing = await _isViewingAsStaff();
     final bool isManagerUser = await _isManager();
 
-    // ✅ If not manager view as staff, don't use this service
+    //  If not manager view as staff, don't use this service
     if (!isViewing || !isManagerUser) {
       return '';
     }

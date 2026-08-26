@@ -44,7 +44,7 @@ class NotificationPermissionService {
     );
     
     _isInitialized = true;
-    print('✅ Notification service initialized');
+    print(' Notification service initialized');
   }
 
   // Request notification permission
@@ -159,7 +159,7 @@ class NotificationPermissionService {
     );
   }
 
-  // ✅ Schedule notification - ប្រើ zonedSchedule
+  //  Schedule notification - ប្រើ zonedSchedule
   static Future<void> scheduleNotification({
     required int id,
     required String title,
@@ -196,7 +196,7 @@ class NotificationPermissionService {
         iOS: iosPlatformChannelSpecifics,
       );
 
-      // ✅ ប្រើ zonedSchedule
+      //  ប្រើ zonedSchedule
       await _flutterLocalNotificationsPlugin.zonedSchedule(
         id,
         title,
@@ -208,13 +208,13 @@ class NotificationPermissionService {
         payload: payload,
       );
       
-      print('✅ Notification scheduled for: $scheduledTime');
+      print(' Notification scheduled for: $scheduledTime');
     } catch (e) {
       print('❌ Error scheduling notification: $e');
     }
   }
 
-  // ✅ Schedule periodic notification - រាល់ X នាទី
+  //  Schedule periodic notification - រាល់ X នាទី
   static Future<void> schedulePeriodicNotification({
     required int id,
     required String title,
@@ -255,7 +255,7 @@ class NotificationPermissionService {
         iOS: iosPlatformChannelSpecifics,
       );
 
-      // ✅ ប្រើ zonedSchedule
+      //  ប្រើ zonedSchedule
       await _flutterLocalNotificationsPlugin.zonedSchedule(
         id,
         title,
@@ -267,7 +267,7 @@ class NotificationPermissionService {
         payload: payload,
       );
       
-      print('✅ Periodic notification scheduled every ${interval.inMinutes} minutes');
+      print(' Periodic notification scheduled every ${interval.inMinutes} minutes');
     } catch (e) {
       print('❌ Error scheduling periodic notification: $e');
     }
@@ -277,7 +277,7 @@ class NotificationPermissionService {
   static Future<void> cancelNotification(int id) async {
     try {
       await _flutterLocalNotificationsPlugin.cancel(id);
-      print('✅ Notification cancelled: $id');
+      print(' Notification cancelled: $id');
     } catch (e) {
       print('❌ Error cancelling notification: $e');
     }
@@ -287,7 +287,7 @@ class NotificationPermissionService {
   static Future<void> cancelAllNotifications() async {
     try {
       await _flutterLocalNotificationsPlugin.cancelAll();
-      print('✅ All notifications cancelled');
+      print(' All notifications cancelled');
     } catch (e) {
       print('❌ Error cancelling all notifications: $e');
     }

@@ -59,7 +59,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
     }
 
     try {
-      print('🔍 Loading staff data for UID: ${user.uid}');
+      print('Loading staff data for UID: ${user.uid}');
 
       final docSnapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -68,7 +68,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
-        print('✅ Staff data found: $data');
+        print(' Staff data found: $data');
 
         setState(() {
           userData = Map<String, dynamic>.from(data);
@@ -76,7 +76,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
           isLoading = false;
         });
       } else {
-        print('⚠️ No staff document found for UID: ${user.uid}');
+        print(' No staff document found for UID: ${user.uid}');
         setState(() {
           errorMessage = 'profile_not_found'.tr();
           isLoading = false;
@@ -867,7 +867,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
   // =============================================
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+   
     EasyLocalization.of(context);
     
     final bool isMobile = Responsive.isMobile(context);

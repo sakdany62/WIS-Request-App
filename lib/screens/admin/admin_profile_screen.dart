@@ -67,7 +67,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
     }
 
     try {
-      print('🔍 Loading admin data for UID: ${user.uid}');
+      print(' Loading admin data for UID: ${user.uid}');
 
       final docSnapshot = await FirebaseFirestore.instance
           .collection('users')
@@ -76,7 +76,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
 
       if (docSnapshot.exists) {
         final data = docSnapshot.data()!;
-        print('✅ Admin data found: $data');
+        print(' Admin data found: $data');
 
         setState(() {
           userData = Map<String, dynamic>.from(data);
@@ -84,7 +84,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
           isLoading = false;
         });
       } else {
-        print('⚠️ No admin document found for UID: ${user.uid}');
+        print(' No admin document found for UID: ${user.uid}');
         setState(() {
           errorMessage = 'Admin profile not found in database';
           isLoading = false;
@@ -119,7 +119,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             setState(() {
               _uploadProgress = progress;
             });
-            print('📤 Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
+            print(' Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
           },
         );
       } else {
@@ -128,7 +128,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
             setState(() {
               _uploadProgress = progress;
             });
-            print('📤 Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
+            print(' Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
           },
         );
       }
@@ -143,7 +143,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen> {
           userData?['profileImageUrl'] = imageUrl;
         });
         _showSnackBar(' Profile image uploaded successfully!', Colors.green);
-        print('✅ Image uploaded to Cloudinary: $imageUrl');
+        print(' Image uploaded to Cloudinary: $imageUrl');
       } else {
         _showSnackBar('❌ Failed to upload image. Please try again.', Colors.red);
       }

@@ -10,8 +10,8 @@ class UserService {
   // ============================================================
   Future<void> updateUser(UserModel user) async {
     try {
-      print('📝 Updating user: ${user.id}');
-      print('📝 Position: ${user.position}');
+      print(' Updating user: ${user.id}');
+      print(' Position: ${user.position}');
 
       await _firestore.collection('users').doc(user.id).update({
         'fullName': user.fullName,
@@ -21,11 +21,11 @@ class UserService {
         'status': user.status,
         'departmentId': user.departmentId ?? '',
         'department': user.department ?? '',
-        'position': user.position, // 👈 បន្ថែមបន្ទាត់នេះ!
+        'position': user.position, 
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      print('✅ User updated successfully');
+      print(' User updated successfully');
     } catch (e) {
       print('❌ Failed to update user: $e');
       throw Exception('Failed to update user: $e');
@@ -39,7 +39,7 @@ class UserService {
     try {
       // 1. Delete from Firestore
       await _firestore.collection('users').doc(userId).delete();
-      print('✅ User deleted from Firestore');
+      print(' User deleted from Firestore');
 
       // 2. Delete from Firebase Auth
       if (authUid != null) {
@@ -48,16 +48,16 @@ class UserService {
         // If deleting current user
         if (currentUser != null && currentUser.uid == authUid) {
           await currentUser.delete();
-          print('✅ Current user deleted from Firebase Auth');
+          print(' Current user deleted from Firebase Auth');
         } else {
           // If deleting other user, we need admin privileges
           // For client-side, we can't delete other users
-          print('⚠️ Cannot delete other user from Auth without admin privileges');
-          print('ℹ️ Please use Firebase Console or Admin SDK to delete auth users');
+          print(' Cannot delete other user from Auth without admin privileges');
+          print('ℹ Please use Firebase Console or Admin SDK to delete auth users');
         }
       }
 
-      print('✅ User deletion process completed');
+      print(' User deletion process completed');
     } catch (e) {
       print('❌ Failed to delete user: $e');
       throw Exception('Failed to delete user: $e');
@@ -85,11 +85,11 @@ class UserService {
 
       // Delete from Firestore
       await _firestore.collection('users').doc(userId).delete();
-      print('✅ User deleted from Firestore');
+      print(' User deleted from Firestore');
 
       // Delete from Firebase Auth
       await currentUser.delete();
-      print('✅ User deleted from Firebase Auth');
+      print(' User deleted from Firebase Auth');
     } catch (e) {
       print('❌ Failed to delete user: $e');
       throw Exception('Failed to delete user: $e');

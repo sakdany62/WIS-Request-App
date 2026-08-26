@@ -112,7 +112,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+  
     EasyLocalization.of(context);
     
     // Responsive
@@ -306,7 +306,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
     bool isMobile,
     double fontSize,
   ) {
-    // ✅ "View as Staff"
+    // "View as Staff"
     if (title == 'View as Staff') {
       return Card(
         margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
@@ -340,7 +340,7 @@ class _ManagerSettingsScreenState extends State<ManagerSettingsScreen> {
       );
     }
 
-    // ✅ "Language"
+    //  "Language"
     if (title == 'Language') {
       return Card(
         margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),

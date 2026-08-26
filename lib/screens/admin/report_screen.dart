@@ -506,9 +506,9 @@ class _ReportScreenState extends State<ReportScreen> {
         final ByteData imageData = await rootBundle.load('assets/img/logo1.png');
         final Uint8List imageBytes = imageData.buffer.asUint8List();
         logoImage = pw.MemoryImage(imageBytes);
-        print('✅ Logo loaded successfully');
+        print(' Logo loaded successfully');
       } catch (e) {
-        print('⚠️ Logo image not found: $e');
+        print(' Logo image not found: $e');
         logoImage = null;
       }
 
@@ -859,7 +859,7 @@ class _ReportScreenState extends State<ReportScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ Exported PDF: $fileName'),
+              content: Text(' Exported PDF: $fileName'),
               backgroundColor: Colors.green,
             ),
           );
@@ -1237,7 +1237,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '📁 File saved to Desktop:',
+                    ' File saved to Desktop:',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
@@ -1247,7 +1247,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    '💡 Double-click the file on your Desktop to open it.',
+                    ' Double-click the file on your Desktop to open it.',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
