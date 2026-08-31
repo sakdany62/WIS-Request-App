@@ -1110,14 +1110,7 @@ class _StaffProfileScreenState extends State<StaffProfileScreen> {
             ),
           ),
           SizedBox(height: spacing / 2),
-          Text(
-            userData?['email'] ?? user?.email ?? 'staff@westland.com',
-            style: TextStyle(
-              fontSize: isMobile ? fontSize * 0.85 : fontSize,
-              color: Colors.grey,
-            ),
-          ),
-          SizedBox(height: spacing),
+          
           Container(
             padding: EdgeInsets.symmetric(
               horizontal: spacing * 1.5,

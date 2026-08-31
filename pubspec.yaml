@@ -68,7 +68,7 @@ flutter:
     - assets/icon/
     - assets/img/logo1.png
     - assets/translations/          
- 
+
   fonts:
     - family: Battambang
       fonts:
@@ -79,20 +79,30 @@ flutter_launcher_icons:
   android: true  
   ios: true
   image_path: "assets/icon/app_icon.png"
+  
+  # ===== IMPORTANT: For full icon on Android =====
   adaptive_icon_background: "#173B69"
   adaptive_icon_foreground: "assets/icon/app_icon.png"
-  adaptive_icon_padding: 0  
+  adaptive_icon_padding: 0          
+  
+  # ===== Round Icon =====
+  round_icon: true                  
+  android_round_icon: true         
+  
   remove_alpha_ios: false  
   ios_content_mode: scaleAspectFill 
+  
   web:
     generate: true
     image_path: "assets/icon/app_icon.png"
     background_color: "#173B69"  
     theme_color: "#173B69"
+    
   windows:
     generate: true
     image_path: "assets/icon/app_icon.png"
     icon_size: 48  
+    
   macos:
     generate: true
     image_path: "assets/icon/app_icon.png"

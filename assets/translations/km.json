@@ -286,5 +286,17 @@
   "exit_app_message": "តើអ្នកចង់ចាកចេញពីកម្មវិធី?",
   "exit": "ចាកចេញ",
   "returned_to_manager_view": "បានត្រឡប់ទៅមើលជាអ្នកគ្រប់គ្រង",
-  "return_to_manager_view": "ត្រឡប់ទៅមើលជាអ្នកគ្រប់គ្រង"
+  "return_to_manager_view": "ត្រឡប់ទៅមើលជាអ្នកគ្រប់គ្រង",
+  "warning_popup": "ការព្រមាន Popup",
+  "error_loading_warnings": "កំហុសក្នុងការផ្ទុកការព្រមាន",
+  "refresh": "ធ្វើឱ្យស្រស់",
+  "no_active_warnings": "គ្មានការព្រមានសកម្ម",
+  "all_caught_up": "អ្នកបានអានទាំងអស់ហើយ!",
+  "warning": "ការព្រមាន",
+  "critical": "ធ្ងន់ធ្ងរ",
+  "info": "ព័ត៌មាន",
+  "no_message": "គ្មានសារ",
+  "severity_label": "កម្រិត៖ {0}",
+  "expires_label": "ផុតកំណត់៖ {0}",
+  "close": "បិទ"
 }

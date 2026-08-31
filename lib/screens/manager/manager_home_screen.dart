@@ -432,37 +432,7 @@ class _ManagerHomeScreenState extends State<ManagerHomeScreen> {
                   ),
                 ],
               ),
-              if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                SizedBox(height: spacing * 1.5),
-                GestureDetector(
-                  onTap: _openTelegram,
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: spacing * 1.5, vertical: spacing),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.image, color: Colors.blue.shade700, size: 20),
-                        SizedBox(width: spacing),
-                        Expanded(
-                          child: Text(
-                            '📎 Tap to view attachment in Telegram',
-                            style: TextStyle(
-                              fontSize: isMobile ? fontSize * 0.8 : fontSize,
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        Icon(Icons.open_in_new, color: Colors.blue.shade400, size: 18),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              
               SizedBox(height: spacing * 2.5),
               Row(
                 children: [

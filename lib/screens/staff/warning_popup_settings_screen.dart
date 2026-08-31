@@ -1,6 +1,7 @@
 // lib/screens/staff/warning_popup_settings_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../services/warning_service.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
@@ -32,7 +33,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      _showSnackBar('Error loading warnings: $e', Colors.red);
+      _showSnackBar('error_loading_warnings'.tr(), Colors.red);
     }
   }
 
@@ -50,6 +51,8 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
 
   @override
   Widget build(BuildContext context) {
+    EasyLocalization.of(context);
+    
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, AppFonts.md);
     final double spacing = Responsive.spacing(context);
@@ -59,7 +62,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Warning Popup',
+          'warning_popup'.tr(),
           style: TextStyle(
             fontSize: isMobile ? AppFonts.md : AppFonts.md + 2,
             color: Colors.white,
@@ -72,7 +75,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
           IconButton(
             icon: Icon(Icons.refresh, size: iconSize),
             onPressed: _loadWarnings,
-            tooltip: 'Refresh',
+            tooltip: 'refresh'.tr(),
           ),
         ],
       ),
@@ -94,7 +97,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                       ),
                       SizedBox(height: spacing * 2),
                       Text(
-                        'No active warnings',
+                        'no_active_warnings'.tr(),
                         style: TextStyle(
                           fontSize: fontSize + 2,
                           color: Colors.grey.shade600,
@@ -102,7 +105,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                       ),
                       SizedBox(height: spacing),
                       Text(
-                        'You\'re all caught up!',
+                        'all_caught_up'.tr(),
                         style: TextStyle(
                           fontSize: fontSize,
                           color: Colors.grey.shade400,
@@ -112,7 +115,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                       TextButton(
                         onPressed: _loadWarnings,
                         child: Text(
-                          'Refresh',
+                          'refresh'.tr(),
                           style: TextStyle(
                             fontSize: fontSize,
                             color: const Color(0xFF173B69),
@@ -146,7 +149,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                           ),
                         ),
                         title: Text(
-                          warning['title'] ?? 'Warning',
+                          warning['title'] ?? 'warning'.tr(),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: fontSize,
@@ -163,7 +166,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                         ),
                         trailing: Chip(
                           label: Text(
-                            severity.toUpperCase(),
+                            _getSeverityLabel(severity),
                             style: TextStyle(
                               fontSize: fontSize * 0.7,
                               color: color,
@@ -182,6 +185,19 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                   },
                 ),
     );
+  }
+
+  String _getSeverityLabel(String severity) {
+    switch (severity.toLowerCase()) {
+      case 'critical':
+        return 'critical'.tr();
+      case 'warning':
+        return 'warning'.tr();
+      case 'info':
+        return 'info'.tr();
+      default:
+        return 'info'.tr();
+    }
   }
 
   void _showWarningDetails(Map<String, dynamic> warning) {
@@ -207,7 +223,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
             SizedBox(width: spacing),
             Expanded(
               child: Text(
-                warning['title'] ?? 'Warning',
+                warning['title'] ?? 'warning'.tr(),
                 style: TextStyle(
                   fontSize: fontSize + 2,
                   fontWeight: FontWeight.bold,
@@ -221,7 +237,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              warning['message'] ?? 'No message',
+              warning['message'] ?? 'no_message'.tr(),
               style: TextStyle(
                 fontSize: fontSize,
                 height: 1.5,
@@ -243,7 +259,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                   ),
                   SizedBox(width: spacing),
                   Text(
-                    'Severity: ${severity.toUpperCase()}',
+                    'severity_label'.tr(args: [_getSeverityLabel(severity)]),
                     style: TextStyle(
                       fontSize: fontSize,
                       color: color,
@@ -264,7 +280,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
                   ),
                   SizedBox(width: spacing),
                   Text(
-                    'Expires: ${_formatDate(warning['expiresAt'])}',
+                    'expires_label'.tr(args: [_formatDate(warning['expiresAt'])]),
                     style: TextStyle(
                       fontSize: fontSize,
                       color: Colors.grey.shade600,
@@ -282,7 +298,7 @@ class _WarningPopupSettingsScreenState extends State<WarningPopupSettingsScreen>
               foregroundColor: const Color(0xFF173B69),
             ),
             child: Text(
-              'Close',
+              'close'.tr(),
               style: TextStyle(
                 fontSize: fontSize,
                 fontWeight: FontWeight.w500,

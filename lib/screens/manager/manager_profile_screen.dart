@@ -866,7 +866,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
+  
     EasyLocalization.of(context);
     
     final bool isMobile = Responsive.isMobile(context);
@@ -1111,14 +1111,7 @@ class _ManagerProfileScreenState extends State<ManagerProfileScreen> {
             ),
           ),
           SizedBox(height: spacing / 2),
-          Text(
-            userData?['email'] ?? user?.email ?? 'manager@westland.com',
-            style: TextStyle(
-              fontSize: isMobile ? fontSize * 0.85 : fontSize,
-              color: Colors.grey,
-            ),
-          ),
-          SizedBox(height: spacing),
+          
           Container(
             padding: EdgeInsets.symmetric(
               horizontal: spacing * 1.5,

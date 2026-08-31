@@ -277,5 +277,17 @@
   "exit_app_message": "Do you want to exit the app?",
   "exit": "Exit",
   "returned_to_manager_view": "Returned to Manager view",
-  "return_to_manager_view": "Return to Manager View"
+  "return_to_manager_view": "Return to Manager View",
+  "warning_popup": "Warning Popup",
+  "error_loading_warnings": "Error loading warnings",
+  "refresh": "Refresh",
+  "no_active_warnings": "No active warnings",
+  "all_caught_up": "You're all caught up!",
+  "warning": "Warning",
+  "critical": "Critical",
+  "info": "Info",
+  "no_message": "No message",
+  "severity_label": "Severity: {0}",
+  "expires_label": "Expires: {0}",
+  "close": "Close"
 }

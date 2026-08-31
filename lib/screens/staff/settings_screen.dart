@@ -9,8 +9,8 @@ import '../../providers/auth_provider.dart' as app_auth;
 import '../../utils/responsive.dart';
 import '../../services/terms_service.dart';
 import '../../services/warning_service.dart';
+import '../../services/language_service.dart';
 import '../../widgets/warning_popup.dart';
-import '../../widgets/language_picker.dart';
 import 'warning_popup_settings_screen.dart';
 import '../admin/warning_management_screen.dart' as warning;
 import '../admin/terms_read_tracking_screen.dart';
@@ -24,6 +24,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final Color primary = const Color(0xFF1A3B68);
+  bool _isKhmer = false;
 
   final List<SettingsItem> _allItems = const [
     SettingsItem(
@@ -49,14 +50,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final isKhmer = await LanguageService.isKhmer();
+    if (mounted) {
+      setState(() {
+        _isKhmer = isKhmer;
+      });
+    }
+  }
+
+  Future<void> _toggleLanguage() async {
+    final newLocale = _isKhmer ? Locale('en', 'US') : Locale('km', 'KH');
+    final newLang = _isKhmer ? 'en' : 'km';
+    
+    await context.setLocale(newLocale);
+    await LanguageService.setLanguage(newLang);
+    
+    setState(() {
+      _isKhmer = !_isKhmer;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _isKhmer ? 'បានប្តូរទៅជាភាសាខ្មែរ' : 'Switched to English',
+          style: TextStyle(fontSize: Responsive.fontSize(context, 14)),
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-  
     EasyLocalization.of(context);
     
-    // Responsive
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
-    final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 40);
     final EdgeInsets padding = Responsive.padding(context);
 
@@ -107,7 +143,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: padding,
                 child: Column(
                   children: [
-                    // ---------- Other Settings Items ----------
                     ..._allItems.map(
                       (item) => _buildItem(
                         item.icon,
@@ -117,7 +152,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         fontSize,
                       ),
                     ),
-                    // ---------- Logout ----------
                     _buildLogoutItem(context, isMobile, fontSize),
                   ],
                 ),
@@ -221,7 +255,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ) {
     final isAdmin = _isUserAdmin();
 
-    // ប្រសិនបើជា "Language"
+    // ✅ Language Toggle Switch
     if (title == 'Language') {
       return Card(
         margin: EdgeInsets.only(bottom: isMobile ? 6 : 8),
@@ -230,34 +264,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
           borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
         ),
         color: Colors.white,
-        child: ListTile(
-          leading: Icon(
+        child: SwitchListTile(
+          contentPadding: EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+          secondary: Icon(
             Icons.language,
             color: primary,
-            size: isMobile ? 20 : 24,
+            size: isMobile ? 24 : 28,
           ),
           title: Text(
             'language'.tr(),
             style: TextStyle(
               fontSize: isMobile ? fontSize : AppFonts.md,
               color: Colors.black,
+              fontWeight: FontWeight.w500,
             ),
           ),
           subtitle: Text(
-            context.locale.languageCode == 'en' ? 'English' : 'ភាសាខ្មែរ',
+            _isKhmer ? 'ភាសាខ្មែរ' : 'English',
             style: TextStyle(
               fontSize: isMobile ? fontSize * 0.8 : AppFonts.md * 0.8,
               color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
             ),
           ),
-          trailing: Icon(
-            Icons.arrow_forward_ios,
-            size: isMobile ? 14 : 16,
-            color: Colors.grey,
-          ),
-          onTap: () {
-            _showLanguagePicker(context, isMobile, fontSize);
-          },
+          value: _isKhmer,
+          onChanged: (_) => _toggleLanguage(),
+          activeColor: const Color(0xFF173B69),
+          activeTrackColor: const Color(0xFF173B69).withValues(alpha: 0.3),
+          inactiveThumbColor: Colors.white,
+          inactiveTrackColor: Colors.grey.shade300,
         ),
       );
     }
@@ -340,25 +375,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ---------- Show Language Picker ----------
-  void _showLanguagePicker(BuildContext context, bool isMobile, double fontSize) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => LanguagePicker(
-        isMobile: isMobile,
-        fontSize: fontSize,
-      ),
-    );
-  }
-
   // Check if current user is admin
   bool _isUserAdmin() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
-    // Implement your admin check logic here
     return false;
   }
 
@@ -593,7 +613,6 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    
     EasyLocalization.of(context);
     
     final bool isMobile = Responsive.isMobile(context);
@@ -720,7 +739,6 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Header
                           Container(
                             width: double.infinity,
                             padding: EdgeInsets.all(isMobile ? 12 : 16),
@@ -763,7 +781,6 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
 
                           SizedBox(height: isMobile ? 16 : 24),
 
-                          // Sections
                           ...(_termsData!['sections'] as List<dynamic>).map((section) {
                             return _buildSection(
                               title: section['title'] ?? '',
@@ -775,7 +792,6 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
 
                           SizedBox(height: isMobile ? 24 : 32),
 
-                          // Confirmation Checkbox
                           if (_staffId != null)
                             Container(
                               width: double.infinity,
@@ -830,7 +846,6 @@ class _TermsConditionsScreenState extends State<TermsConditionsScreen> {
                               ),
                             ),
 
-                          // Back to Settings Button
                           SizedBox(
                             width: double.infinity,
                             height: Responsive.buttonHeight(context),
@@ -909,7 +924,6 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
     EasyLocalization.of(context);
     
     final bool isMobile = Responsive.isMobile(context);
