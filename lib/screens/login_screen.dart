@@ -123,12 +123,12 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         // បង្ហាញសារកំហុសតែមួយ
         setState(() {
-          _errorMessage = 'Please check your email and password again, then try logging again';
+          _errorMessage = 'Please check your email,password and network again, then try logging again!';
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Please check your email and password again, then try logging again';
+        _errorMessage = 'Please check your email,password and network again, then try logging again!';
       });
     } finally {
       if (mounted) setState(() => isLoading = false);

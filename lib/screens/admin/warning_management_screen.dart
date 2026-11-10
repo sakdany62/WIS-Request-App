@@ -2,7 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_khmer_chankitec/flutter_khmer_chankitec.dart';
 import '../../services/warning_service.dart';
+import '../../services/telegram_service.dart';
+import '../../services/holiday_service.dart';
 import '../../app_fonts.dart';
 import '../../utils/responsive.dart';
 
@@ -13,7 +16,8 @@ class WarningManagementScreen extends StatefulWidget {
   State<WarningManagementScreen> createState() => _WarningManagementScreenState();
 }
 
-class _WarningManagementScreenState extends State<WarningManagementScreen> with SingleTickerProviderStateMixin {
+class _WarningManagementScreenState extends State<WarningManagementScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _expiresAtController = TextEditingController();
@@ -21,7 +25,12 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
   String _selectedSeverity = 'info';
   String _selectedAudience = 'all';
   DateTime? _expiresAt;
+  String _lunarDateText = '';
   bool _isCreating = false;
+
+  // ✅ State សម្រាប់ Holidays
+  List<Map<String, dynamic>> _holidays = [];
+  bool _isLoadingHolidays = false;
 
   late TabController _tabController;
   int _currentTabIndex = 0;
@@ -38,6 +47,9 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
         _currentTabIndex = _tabController.index;
       });
     });
+
+    // ✅ ទាញយកថ្ងៃឈប់សម្រាកពី Calendarific
+    _loadHolidays();
   }
 
   @override
@@ -49,6 +61,30 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
     super.dispose();
   }
 
+  // ============================================================
+  // ✅ ទាញយកថ្ងៃឈប់សម្រាកពី Calendarific
+  // ============================================================
+  Future<void> _loadHolidays() async {
+    setState(() => _isLoadingHolidays = true);
+    try {
+      final currentYear = DateTime.now().year;
+      final holidays = await HolidayService.getCambodiaHolidays(currentYear);
+      if (mounted) {
+        setState(() {
+          _holidays = holidays;
+          _isLoadingHolidays = false;
+        });
+        print('📅 Loaded ${holidays.length} holidays from Calendarific');
+      }
+    } catch (e) {
+      print('❌ Error loading holidays: $e');
+      if (mounted) setState(() => _isLoadingHolidays = false);
+    }
+  }
+
+  // ============================================================
+  // ✅ បង្កើត Warning + ផ្ញើទៅ Telegram
+  // ============================================================
   Future<void> _createWarning() async {
     if (_titleController.text.trim().isEmpty) {
       _showSnackBar('Please enter a title', Colors.red);
@@ -62,6 +98,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
     setState(() => _isCreating = true);
 
     try {
+      // ===== 1. បង្កើត Warning ក្នុង Firestore =====
       await WarningService.createWarning(
         title: _titleController.text.trim(),
         message: _messageController.text.trim(),
@@ -70,13 +107,33 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
         expiresAt: _expiresAt,
       );
 
-      _showSnackBar(' Warning created successfully!', Colors.green);
+      // ===== 2. ផ្ញើទៅ Telegram =====
+      final telegramSent = await TelegramService.sendWarningToTelegram(
+        title: _titleController.text.trim(),
+        message: _messageController.text.trim(),
+        severity: _selectedSeverity,
+        targetAudience: _selectedAudience,
+        expiresAt: _expiresAt,
+        lunarDateText: _lunarDateText,
+      );
 
+      // ===== 3. បង្ហាញលទ្ធផល =====
+      if (telegramSent) {
+        _showSnackBar(' Warning created & sent to Telegram!', Colors.green);
+      } else {
+        _showSnackBar(
+          '⚠️ Warning created but Telegram notification failed',
+          Colors.orange,
+        );
+      }
+
+      // ===== 4. សម្អាត Form =====
       _titleController.clear();
       _messageController.clear();
       _expiresAtController.clear();
       setState(() {
         _expiresAt = null;
+        _lunarDateText = '';
         _selectedSeverity = 'info';
         _selectedAudience = 'all';
       });
@@ -89,6 +146,9 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
     }
   }
 
+  // ============================================================
+  // ✅ ជ្រើសរើសថ្ងៃ + បម្លែងទៅចន្ទគតិ
+  // ============================================================
   Future<void> _pickExpiryDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -98,10 +158,144 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
     );
 
     if (picked != null) {
+      String lunarText = '';
+      try {
+        final lunar = Chhankitek.fromDate(picked);
+        lunarText = lunar.toString();
+        print('🌙 Lunar date: $lunarText');
+      } catch (e) {
+        print('⚠️ Lunar conversion error: $e');
+      }
+
       setState(() {
         _expiresAt = picked;
         _expiresAtController.text = DateFormat('dd MMM yyyy').format(picked);
+        _lunarDateText = lunarText;
       });
+    }
+  }
+
+  // ============================================================
+  // ✅ ជ្រើសរើសថ្ងៃឈប់សម្រាកពី Calendarific
+  //    (បង្ហាញតែថ្ងៃដែលមិនទាន់កន្លងផុត)
+  // ============================================================
+  Future<void> _pickHolidayDate() async {
+    // ✅ ច្រ筛选ថ្ងៃឈប់សម្រាកដែលមិនទាន់កន្លងផុត (iso >= ថ្ងៃនេះ)
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day); // ដកពេលវេលាចេញ
+
+    final upcomingHolidays = _holidays.where((h) {
+      final iso = h['iso'] as String? ?? '';
+      if (iso.isEmpty) return false;
+      try {
+        final date = DateTime.parse(iso);
+        // ✅ រក្សាទុកតែថ្ងៃដែល >= ថ្ងៃនេះ
+        return !date.isBefore(today);
+      } catch (e) {
+        return false;
+      }
+    }).toList();
+
+    // ✅ តម្រៀបតាមកាលបរិច្ឆេទ (ថ្ងៃខាងមុខមុន)
+    upcomingHolidays.sort((a, b) {
+      final dateA = DateTime.tryParse(a['iso'] ?? '') ?? DateTime(2100);
+      final dateB = DateTime.tryParse(b['iso'] ?? '') ?? DateTime(2100);
+      return dateA.compareTo(dateB);
+    });
+
+    if (upcomingHolidays.isEmpty) {
+      _showSnackBar(
+        'No upcoming holidays available for this year',
+        Colors.orange,
+      );
+      return;
+    }
+
+    final selected = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.celebration, color: Color(0xFF173B69)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Select Holiday (${upcomingHolidays.length})',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: ListView.builder(
+            itemCount: upcomingHolidays.length,
+            itemBuilder: (context, index) {
+              final h = upcomingHolidays[index];
+              final iso = h['iso'] ?? '';
+              final name = h['name'] ?? 'Unknown';
+              final type = h['type'] ?? '';
+              return ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: const Color(0xFF173B69).withValues(alpha: 0.1),
+                  child: const Icon(
+                    Icons.calendar_month,
+                    color: Color(0xFF173B69),
+                    size: 20,
+                  ),
+                ),
+                title: Text(
+                  name,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                ),
+                subtitle: Text(
+                  '$iso · $type',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+                onTap: () => Navigator.pop(context, h),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      final iso = selected['iso'] as String? ?? '';
+      if (iso.isNotEmpty) {
+        try {
+          final date = DateTime.parse(iso);
+          String lunarText = '';
+          try {
+            lunarText = Chhankitek.fromDate(date).toString();
+          } catch (e) {
+            print('⚠️ Lunar error: $e');
+          }
+
+          setState(() {
+            _expiresAt = date;
+            _expiresAtController.text = DateFormat('dd MMM yyyy').format(date);
+            _lunarDateText = lunarText;
+
+            // ✅ បើ Title ទទេ សូមបំពេញដោយឈ្មោះថ្ងៃឈប់សម្រាក
+            if (_titleController.text.trim().isEmpty) {
+              _titleController.text = selected['name'] ?? '';
+            }
+          });
+
+          print('✅ Selected holiday: ${selected['name']} on $iso');
+        } catch (e) {
+          _showSnackBar('Invalid date format: $iso', Colors.red);
+        }
+      }
     }
   }
 
@@ -226,43 +420,28 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
           ),
           SizedBox(height: spacing * 2.5),
 
-          // Title Field
+          // ===== Title Field =====
           Text(
             'Title *',
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500),
           ),
           SizedBox(height: spacing),
           TextField(
             controller: _titleController,
             decoration: InputDecoration(
               hintText: 'Enter warning title',
-              hintStyle: TextStyle(
-                fontSize: fontSize,
-                color: Colors.grey.shade400,
-              ),
+              hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1.5,
-                ),
+                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1.5,
-                ),
+                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: Color(0xFF173B69),
-                  width: 2,
-                ),
+                borderSide: const BorderSide(color: Color(0xFF173B69), width: 2),
               ),
               filled: true,
               fillColor: Colors.white,
@@ -271,20 +450,14 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                 vertical: isMobile ? 12 : 16,
               ),
             ),
-            style: TextStyle(
-              fontSize: fontSize,
-              color: Colors.black87,
-            ),
+            style: TextStyle(fontSize: fontSize, color: Colors.black87),
           ),
           SizedBox(height: spacing * 2),
 
-          // Message Field
+          // ===== Message Field =====
           Text(
             'Message *',
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500),
           ),
           SizedBox(height: spacing),
           TextField(
@@ -292,30 +465,18 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
             maxLines: isMobile ? 4 : 5,
             decoration: InputDecoration(
               hintText: 'Enter warning message',
-              hintStyle: TextStyle(
-                fontSize: fontSize,
-                color: Colors.grey.shade400,
-              ),
+              hintStyle: TextStyle(fontSize: fontSize, color: Colors.grey.shade400),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1.5,
-                ),
+                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1.5,
-                ),
+                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: Color(0xFF173B69),
-                  width: 2,
-                ),
+                borderSide: const BorderSide(color: Color(0xFF173B69), width: 2),
               ),
               filled: true,
               fillColor: Colors.white,
@@ -324,29 +485,20 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                 vertical: isMobile ? 12 : 16,
               ),
             ),
-            style: TextStyle(
-              fontSize: fontSize,
-              color: Colors.black87,
-            ),
+            style: TextStyle(fontSize: fontSize, color: Colors.black87),
           ),
           SizedBox(height: spacing * 2),
 
-          // Severity Dropdown
+          // ===== Severity Dropdown =====
           Text(
             'Severity',
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500),
           ),
           SizedBox(height: spacing),
           Container(
             padding: EdgeInsets.symmetric(horizontal: spacing * 2),
             decoration: BoxDecoration(
-              border: Border.all(
-                color: Colors.grey.shade300,
-                width: 1.5,
-              ),
+              border: Border.all(color: Colors.grey.shade300, width: 1.5),
               borderRadius: BorderRadius.circular(12),
               color: Colors.white,
             ),
@@ -383,31 +535,22 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                 },
                 isExpanded: true,
                 dropdownColor: Colors.white,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  color: Colors.black87,
-                ),
+                style: TextStyle(fontSize: fontSize, color: Colors.black87),
               ),
             ),
           ),
           SizedBox(height: spacing * 2),
 
-          // Audience Dropdown
+          // ===== Audience Dropdown =====
           Text(
             'Target Audience',
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500),
           ),
           SizedBox(height: spacing),
           Container(
             padding: EdgeInsets.symmetric(horizontal: spacing * 2),
             decoration: BoxDecoration(
-              border: Border.all(
-                color: Colors.grey.shade300,
-                width: 1.5,
-              ),
+              border: Border.all(color: Colors.grey.shade300, width: 1.5),
               borderRadius: BorderRadius.circular(12),
               color: Colors.white,
             ),
@@ -419,10 +562,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                     value: audience,
                     child: Text(
                       audience.toUpperCase(),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: fontSize,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w500, fontSize: fontSize),
                     ),
                   );
                 }).toList(),
@@ -433,33 +573,54 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                 },
                 isExpanded: true,
                 dropdownColor: Colors.white,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  color: Colors.black87,
-                ),
+                style: TextStyle(fontSize: fontSize, color: Colors.black87),
               ),
             ),
           ),
           SizedBox(height: spacing * 2),
 
-          // Expiry Date
-          Text(
-            'Expiry Date (Optional)',
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w500,
-            ),
+          // ===== Expiry Date (Gregorian + Khmer Lunar) =====
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Expiry Date (Optional)',
+                  style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500),
+                ),
+              ),
+              // ✅ ប៊ូតុងជ្រើសរើសថ្ងៃឈប់សម្រាកពី Calendarific
+              TextButton.icon(
+                onPressed: _isLoadingHolidays ? null : _pickHolidayDate,
+                icon: _isLoadingHolidays
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.celebration, size: 18),
+                label: Text(
+                  _isLoadingHolidays
+                      ? 'Loading...'
+                      : 'Pick Holiday (${_holidays.length})',
+                  style: TextStyle(fontSize: fontSize * 0.8),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF173B69),
+                  padding: EdgeInsets.symmetric(horizontal: spacing, vertical: 4),
+                ),
+              ),
+            ],
           ),
           SizedBox(height: spacing),
           GestureDetector(
             onTap: _pickExpiryDate,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: spacing * 2, vertical: isMobile ? 12 : 16),
+              padding: EdgeInsets.symmetric(
+                horizontal: spacing * 2,
+                vertical: isMobile ? 12 : 16,
+              ),
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.grey.shade300,
-                  width: 1.5,
-                ),
+                border: Border.all(color: Colors.grey.shade300, width: 1.5),
                 borderRadius: BorderRadius.circular(12),
                 color: Colors.white,
               ),
@@ -473,10 +634,14 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                   SizedBox(width: spacing * 1.5),
                   Expanded(
                     child: Text(
-                      _expiresAtController.text.isEmpty ? 'No expiry date set' : _expiresAtController.text,
+                      _expiresAtController.text.isEmpty
+                          ? 'No expiry date set'
+                          : _expiresAtController.text,
                       style: TextStyle(
                         fontSize: fontSize,
-                        color: _expiresAtController.text.isEmpty ? Colors.grey.shade500 : Colors.black87,
+                        color: _expiresAtController.text.isEmpty
+                            ? Colors.grey.shade500
+                            : Colors.black87,
                       ),
                     ),
                   ),
@@ -491,6 +656,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                         setState(() {
                           _expiresAt = null;
                           _expiresAtController.clear();
+                          _lunarDateText = '';
                         });
                       },
                       padding: EdgeInsets.zero,
@@ -500,9 +666,47 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
               ),
             ),
           ),
+
+          // ✅ បង្ហាញកាលបរិច្ឆេទចន្ទគតិ
+          if (_lunarDateText.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: spacing),
+              child: Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: spacing * 1.5,
+                  vertical: spacing * 0.8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.nightlight_round,
+                      size: 16,
+                      color: Colors.amber.shade800,
+                    ),
+                    SizedBox(width: spacing / 2),
+                    Expanded(
+                      child: Text(
+                        ' $_lunarDateText',
+                        style: TextStyle(
+                          fontSize: fontSize * 0.85,
+                          color: Colors.amber.shade900,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           SizedBox(height: spacing * 3),
 
-          // Create Button
+          // ===== Create Button =====
           SizedBox(
             width: double.infinity,
             height: buttonHeight,
@@ -511,9 +715,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF173B69),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 2,
                 disabledBackgroundColor: Colors.grey.shade400,
               ),
@@ -533,10 +735,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                         SizedBox(width: spacing),
                         Text(
                           'Create Warning',
-                          style: TextStyle(
-                            fontSize: fontSize,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -548,6 +747,9 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
     );
   }
 
+  // ============================================================
+  // ===== ACTIVE WARNINGS TAB =====
+  // ============================================================
   Widget _buildActiveWarningsTab(
     BuildContext context,
     double fontSize,
@@ -573,20 +775,13 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () {
-                    setState(() {});
-                  },
+                  onPressed: () => setState(() {}),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF173B69),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  child: Text(
-                    'Retry',
-                    style: TextStyle(fontSize: fontSize),
-                  ),
+                  child: Text('Retry', style: TextStyle(fontSize: fontSize)),
                 ),
               ],
             ),
@@ -594,11 +789,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(
-              color: Color(0xFF173B69),
-            ),
-          );
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF173B69)));
         }
 
         final warnings = snapshot.data?.docs ?? [];
@@ -632,10 +823,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                 SizedBox(height: spacing),
                 Text(
                   'Start by creating your first warning',
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: fontSize,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade400, fontSize: fontSize),
                 ),
               ],
             ),
@@ -754,15 +942,12 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                                 isActive ? Colors.green.shade50 : Colors.red.shade50,
                                 isActive ? Colors.green.shade700 : Colors.red.shade700,
                               ),
-                              //  REMOVED: Read count chip
                             ],
                           ),
                         ],
                       ),
                       trailing: PopupMenuButton(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         itemBuilder: (context) => [
                           PopupMenuItem(
                             value: 'toggle',
@@ -776,10 +961,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
                                 SizedBox(width: spacing),
                                 Text(
                                   isActive ? 'Deactivate' : 'Activate',
-                                  style: TextStyle(
-                                    fontSize: fontSize,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                  style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500),
                                 ),
                               ],
                             ),
@@ -840,10 +1022,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: textColor.withValues(alpha: 0.2),
-          width: 0.5,
-        ),
+        border: Border.all(color: textColor.withValues(alpha: 0.2), width: 0.5),
       ),
       child: Text(
         label,
@@ -863,9 +1042,7 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Delete Warning',
           style: TextStyle(
@@ -876,34 +1053,17 @@ class _WarningManagementScreenState extends State<WarningManagementScreen> with 
         ),
         content: Text(
           'Are you sure you want to delete this warning? This action cannot be undone.',
-          style: TextStyle(
-            fontSize: fontSize,
-            height: 1.5,
-          ),
+          style: TextStyle(fontSize: fontSize, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'Cancel',
-              style: TextStyle(
-                fontSize: fontSize,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            child: Text('Cancel', style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: Text(
-              'Delete',
-              style: TextStyle(
-                fontSize: fontSize,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Delete', style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

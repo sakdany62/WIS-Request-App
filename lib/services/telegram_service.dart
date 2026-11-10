@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_khmer_chankitec/flutter_khmer_chankitec.dart';
 import 'telegram_config_service.dart';
 
 class TelegramService {
@@ -282,6 +283,16 @@ class TelegramService {
     if (submitTime is String && submitTime.isNotEmpty) return submitTime;
     if (submitTime is DateTime) return formatTimeOnlyAMPM(submitTime);
     return formatTimeOnlyAMPM();
+  }
+
+  // ===== Get Lunar Date for a DateTime =====
+  static String _getLunarDateText(DateTime date) {
+    try {
+      return Chhankitek.fromDate(date).toString();
+    } catch (e) {
+      print('⚠️ Lunar conversion error: $e');
+      return '';
+    }
   }
 
   // ===== Send message =====
@@ -659,6 +670,142 @@ This is a test message sent to:
       }
     } catch (e) {
       print('❌ Error sending photo to $chatId: $e');
+      return false;
+    }
+  }
+
+  // ================================================================
+  // ✅ ផ្ញើ Warning ទៅ Telegram ជាមួយ Admin Info + Lunar Date
+  //    (ទាំងថ្ងៃបង្កើត និងថ្ងៃផុតកំណត់)
+  // ================================================================
+  static Future<bool> sendWarningToTelegram({
+    required String title,
+    required String message,
+    required String severity,
+    required String targetAudience,
+    DateTime? expiresAt,
+    String? lunarDateText,  // ✅ បន្ថែម parameter ថ្មី
+  }) async {
+    try {
+      // ===== ទាញព័ត៌មាន Admin ពី Firebase =====
+      final user = FirebaseAuth.instance.currentUser;
+      String adminName = 'Admin';
+      String adminEmail = 'N/A';
+      String adminRole = 'Admin';
+
+      if (user != null) {
+        adminEmail = user.email ?? 'N/A';
+
+        try {
+          final querySnapshot = await FirebaseFirestore.instance
+              .collection('users')
+              .where('email', isEqualTo: user.email)
+              .limit(1)
+              .get();
+
+          if (querySnapshot.docs.isNotEmpty) {
+            final data = querySnapshot.docs.first.data();
+            adminName = data['fullName'] ?? data['username'] ?? user.displayName ?? 'Admin';
+
+            final roleId = data['roleId']?.toString() ?? '1';
+            final roleMap = {'1': 'Admin', '2': 'Staff', '3': 'Manager', '4': 'Manager'};
+            adminRole = roleMap[roleId] ?? 'Admin';
+          } else {
+            adminName = user.displayName ?? 'Admin';
+          }
+        } catch (e) {
+          print('⚠️ Error loading admin data: $e');
+          adminName = user.displayName ?? 'Admin';
+        }
+      }
+
+      // ===== កំណត់ Icon តាម Severity =====
+      String severityIcon = ' ';
+      String severityText = 'INFO';
+
+      switch (severity.toLowerCase()) {
+        case 'critical':
+          severityIcon = ' ';
+          severityText = 'CRITICAL';
+          break;
+        case 'warning':
+          severityIcon = ' ';
+          severityText = 'WARNING';
+          break;
+        case 'emergency':
+          severityIcon = ' ';
+          severityText = 'EMERGENCY';
+          break;
+        case 'info':
+        default:
+          severityIcon = '';
+          severityText = 'INFO';
+          break;
+      }
+
+      // ===== ពេលវេលាបច្ចុប្បន្ន (Cambodia Time) =====
+      final now = DateTime.now().toUtc().add(const Duration(hours: 7));
+      final createdDay = now.day.toString().padLeft(2, '0');
+      final createdMonth = now.month.toString().padLeft(2, '0');
+      final createdYear = now.year;
+      int createdHour = now.hour;
+      final int createdMinute = now.minute;
+      final String createdPeriod = createdHour >= 12 ? 'PM' : 'AM';
+      if (createdHour == 0) createdHour = 12;
+      else if (createdHour > 12) createdHour -= 12;
+      final createdTimeStr =
+          '$createdDay/$createdMonth/$createdYear ${createdHour.toString().padLeft(2, '0')}:${createdMinute.toString().padLeft(2, '0')} $createdPeriod';
+
+      // ✅ ចន្ទគតិថ្ងៃបង្កើត (ថ្ងៃនេះ)
+      final createdDate = DateTime(now.year, now.month, now.day);
+      final createdLunarText = _getLunarDateText(createdDate);
+
+      // ===== Format ថ្ងៃផុតកំណត់ + ចន្ទគតិ =====
+      String expiryText = 'No expiry date';
+      String expiryLunarLine = '';
+      if (expiresAt != null) {
+        final expDay = expiresAt.day.toString().padLeft(2, '0');
+        final expMonth = expiresAt.month.toString().padLeft(2, '0');
+        final expYear = expiresAt.year;
+        expiryText = '$expDay/$expMonth/$expYear';
+
+        // ✅ ប្រើ lunarDateText បើមាន (ពី UI) បើអត់ បម្លែងខ្លួនឯង
+        String expiryLunarText = lunarDateText ?? '';
+        if (expiryLunarText.isEmpty) {
+          expiryLunarText = _getLunarDateText(expiresAt);
+        }
+        if (expiryLunarText.isNotEmpty) {
+          expiryLunarLine = '\n $expiryLunarText';
+        }
+      }
+
+      //  ចន្ទគតិថ្ងៃបង្កើត
+      String createdLunarLine = '';
+      if (createdLunarText.isNotEmpty) {
+        createdLunarLine = '\n $createdLunarText';
+      }
+
+      // ===== បង្កើតសារ =====
+      final String warningMessage = '''
+$severityIcon NEW $severityText $severityIcon
+
+$title
+$message
+
+Expires: $expiryText
+    ''';
+
+      print('📨 Sending warning to Telegram by: $adminName ($adminEmail)');
+      if (createdLunarText.isNotEmpty) {
+        print('🌙 Created lunar: $createdLunarText');
+      }
+      if (expiresAt != null) {
+        print('🌙 Expiry lunar included for: $expiryText');
+      }
+
+      return await sendToAll(warningMessage);
+    } catch (e) {
+      print('❌ Error sending warning to Telegram: $e');
       return false;
     }
   }

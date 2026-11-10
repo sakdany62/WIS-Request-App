@@ -358,6 +358,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.4.2"
+  flutter_khmer_chankitec:
+    dependency: "direct main"
+    description:
+      name: flutter_khmer_chankitec
+      sha256: "0b27c28e847ba236c7834497d7149f553eaaca708b4be0be6f9c8be1284b1528"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.0"
   flutter_launcher_icons:
     dependency: "direct dev"
     description:

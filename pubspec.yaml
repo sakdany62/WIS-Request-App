@@ -7,10 +7,11 @@ environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
+  flutter_khmer_chankitec: ^0.1.0
   translator: ^1.0.0
   flutter:
     sdk: flutter
-
+  
   # --- State Management & Core ---
   provider: ^6.1.2
   timezone: ^0.9.4

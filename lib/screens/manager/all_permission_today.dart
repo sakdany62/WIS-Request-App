@@ -1,4 +1,4 @@
-// lib/screens/manager/list_staff_screen.dart
+// lib/screens/manager/all_permission_today.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -22,6 +22,9 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:permission_system/utils/web_utils.dart';
 
+// ============================================================
+// MODEL
+// ============================================================
 class TodayRequest {
   final String requestId;
   final String userId;
@@ -42,6 +45,7 @@ class TodayRequest {
   final String? approvedBy;
   final String? approvedByName;
   final String? department;
+  final String? departmentId;
   final String? submitTime;
 
   TodayRequest({
@@ -64,6 +68,7 @@ class TodayRequest {
     this.approvedBy,
     this.approvedByName,
     this.department,
+    this.departmentId,
     this.submitTime,
   });
 
@@ -71,27 +76,19 @@ class TodayRequest {
     final data = doc.data() as Map<String, dynamic>;
 
     int requestNumber = 0;
-    final requestNumberValue = data['requestNumber'];
-    if (requestNumberValue != null) {
-      if (requestNumberValue is int) {
-        requestNumber = requestNumberValue;
-      } else if (requestNumberValue is String) {
-        requestNumber = int.tryParse(requestNumberValue) ?? 0;
-      } else if (requestNumberValue is num) {
-        requestNumber = requestNumberValue.toInt();
-      }
+    final rn = data['requestNumber'];
+    if (rn != null) {
+      if (rn is int) requestNumber = rn;
+      else if (rn is String) requestNumber = int.tryParse(rn) ?? 0;
+      else if (rn is num) requestNumber = rn.toInt();
     }
 
     int totalDays = 0;
-    final totalDaysValue = data['totalDays'];
-    if (totalDaysValue != null) {
-      if (totalDaysValue is int) {
-        totalDays = totalDaysValue;
-      } else if (totalDaysValue is String) {
-        totalDays = int.tryParse(totalDaysValue) ?? 0;
-      } else if (totalDaysValue is num) {
-        totalDays = totalDaysValue.toInt();
-      }
+    final td = data['totalDays'];
+    if (td != null) {
+      if (td is int) totalDays = td;
+      else if (td is String) totalDays = int.tryParse(td) ?? 0;
+      else if (td is num) totalDays = td.toInt();
     }
 
     return TodayRequest(
@@ -114,11 +111,15 @@ class TodayRequest {
       approvedBy: data['approvedBy'],
       approvedByName: data['approvedByName'],
       department: data['department'] ?? '',
+      departmentId: data['departmentId']?.toString(),
       submitTime: data['submitTime'],
     );
   }
 }
 
+// ============================================================
+// SCREEN
+// ============================================================
 class ListStaffScreen extends StatefulWidget {
   const ListStaffScreen({super.key});
 
@@ -139,6 +140,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   DateTime _selectedDate = DateTime.now();
 
   String _managerDepartment = '';
+  String _managerDepartmentId = '';
   String _managerName = '';
   bool _isManager = false;
 
@@ -148,6 +150,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   final Map<String, String> _userNameCache = {};
 
   String _searchQuery = '';
+
+  // ✅ Dropdown សម្រាប់ជ្រើសរើសបុគ្គលិក
+  String? _selectedStaffId;
+  String? _selectedStaffName;
+  List<Map<String, String>> _staffList = [];
 
   final List<String> _segmentLabels = [
     'all',
@@ -163,6 +170,24 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     _checkManagerDepartment();
   }
 
+  // ✅ Data ដែលត្រូវបង្ហាញ (filter តាម staff ដែលបានជ្រើសរើស)
+  List<TodayRequest> get _displayRequests {
+    var base = _filteredRequests;
+    if (_selectedStaffId != null) {
+      base = base.where((r) => r.userId == _selectedStaffId).toList();
+    }
+    return base;
+  }
+
+  String _normalizeDept(String dept) {
+    return dept
+        .toLowerCase()
+        .trim()
+        .replaceAll(' department', '')
+        .replaceAll('dept', '')
+        .replaceAll(' ', '');
+  }
+
   Future<String> _getUserFullName(String userId) async {
     if (userId.isEmpty) return 'unknown'.tr();
     try {
@@ -175,64 +200,6 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     } catch (e) {
       return 'unknown'.tr();
     }
-  }
-
-  Future<String> _getUserFullNameCached(String userId) async {
-    if (userId.isEmpty) return 'unknown'.tr();
-    if (_userNameCache.containsKey(userId)) {
-      return _userNameCache[userId]!;
-    }
-    final name = await _getUserFullName(userId);
-    _userNameCache[userId] = name;
-    return name;
-  }
-
-  String _formatSubmitTime(dynamic submitTime) {
-    if (submitTime == null) return 'N/A';
-    try {
-      if (submitTime is String && (submitTime.contains('AM') || submitTime.contains('PM'))) {
-        return submitTime;
-      }
-      DateTime? parsedDateTime;
-      bool isUTC = false;
-      if (submitTime is String) {
-        String cleaned = submitTime.trim();
-        if (cleaned.contains('T') && cleaned.endsWith('Z')) {
-          try { parsedDateTime = DateTime.parse(cleaned); isUTC = true; } catch (_) {}
-        } else if (cleaned.contains('T')) {
-          try { parsedDateTime = DateTime.parse(cleaned); } catch (_) {}
-        } else if (cleaned.contains(' ') && cleaned.contains('-')) {
-          final parts = cleaned.split(' ');
-          if (parts.length == 2) {
-            final dateParts = parts[0].split('-');
-            final timeParts = parts[1].split(':');
-            if (dateParts.length == 3 && timeParts.length >= 2) {
-              parsedDateTime = DateTime(
-                int.parse(dateParts[0]),
-                int.parse(dateParts[1]),
-                int.parse(dateParts[2]),
-                int.parse(timeParts[0]),
-                int.parse(timeParts[1]),
-              );
-            }
-          }
-        }
-      } else if (submitTime is Timestamp) {
-        parsedDateTime = submitTime.toDate();
-        isUTC = true;
-      } else if (submitTime is DateTime) {
-        parsedDateTime = submitTime;
-        isUTC = submitTime.isUtc;
-      }
-      if (parsedDateTime == null) return submitTime.toString();
-      DateTime cambodiaTime = isUTC ? parsedDateTime.toUtc().add(const Duration(hours: 7)) : parsedDateTime;
-      int hour = cambodiaTime.hour;
-      final int minute = cambodiaTime.minute;
-      final String period = hour >= 12 ? 'PM' : 'AM';
-      if (hour == 0) hour = 12;
-      else if (hour > 12) hour -= 12;
-      return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} $period';
-    } catch (_) { return 'N/A'; }
   }
 
   String _formatToCambodiaTime(dynamic timestamp) {
@@ -299,21 +266,144 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       if (mounted) Navigator.pushReplacementNamed(context, '/login');
       return;
     }
+
     try {
-      final querySnapshot = await _firestore.collection('users').where('userId', isEqualTo: user.uid).limit(1).get();
-      if (querySnapshot.docs.isNotEmpty) {
-        final data = querySnapshot.docs.first.data();
-        final roleId = data['roleId']?.toString() ?? '2';
-        if (roleId == '3' || roleId == '4') {
-          _isManager = true;
-          _managerDepartment = data['department'] ?? '';
-          _managerName = data['fullName'] ?? data['username'] ?? 'manager'.tr();
+      DocumentSnapshot? userDoc;
+
+      try {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        if (doc.exists) userDoc = doc;
+      } catch (_) {}
+
+      if (userDoc == null) {
+        try {
+          final q = await _firestore
+              .collection('users')
+              .where('userId', isEqualTo: user.uid)
+              .limit(1)
+              .get();
+          if (q.docs.isNotEmpty) userDoc = q.docs.first;
+        } catch (_) {}
+      }
+
+      if (userDoc == null) {
+        try {
+          final q = await _firestore
+              .collection('users')
+              .where('uid', isEqualTo: user.uid)
+              .limit(1)
+              .get();
+          if (q.docs.isNotEmpty) userDoc = q.docs.first;
+        } catch (_) {}
+      }
+
+      if (userDoc == null && user.email != null) {
+        try {
+          final q = await _firestore
+              .collection('users')
+              .where('email', isEqualTo: user.email)
+              .limit(1)
+              .get();
+          if (q.docs.isNotEmpty) userDoc = q.docs.first;
+        } catch (_) {}
+      }
+
+      if (userDoc == null) {
+        _loadAllRequests();
+        return;
+      }
+
+      final data = userDoc.data() as Map<String, dynamic>?;
+      if (data == null) {
+        _loadAllRequests();
+        return;
+      }
+
+      final roleId = data['roleId']?.toString() ?? '2';
+      final roleInt = int.tryParse(roleId.replaceAll('.0', '')) ?? 2;
+      final isManagerRole = roleInt == 3 || roleInt == 4;
+
+      if (isManagerRole) {
+        _isManager = true;
+        _managerDepartment = data['department']?.toString() ?? '';
+        _managerDepartmentId = data['departmentId']?.toString() ?? '';
+        _managerName = data['fullName'] ?? data['username'] ?? 'manager'.tr();
+
+        if (_managerDepartmentId.isEmpty && _managerDepartment.isNotEmpty) {
+          try {
+            final deptSnapshot = await _firestore
+                .collection('departments')
+                .where('name', isEqualTo: _managerDepartment)
+                .limit(1)
+                .get();
+            if (deptSnapshot.docs.isNotEmpty) {
+              _managerDepartmentId = deptSnapshot.docs.first.id;
+            }
+          } catch (_) {}
         }
       }
     } catch (e) {
       print('Error checking manager department: $e');
     }
+
+    await _loadStaffList();
     _loadAllRequests();
+  }
+
+  // ============================================================
+  // ✅ ទាញបញ្ជីបុគ្គលិកក្នុង department របស់ Manager
+  //    (បន្ថែម profileImageUrl)
+  // ============================================================
+  Future<void> _loadStaffList() async {
+    if (_managerDepartmentId.isEmpty && _managerDepartment.isEmpty) return;
+
+    print('🔍 Loading staff list for dept: "$_managerDepartment" (id: "$_managerDepartmentId")');
+
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('roleId', isEqualTo: '2')
+          .get();
+
+      final staffList = <Map<String, String>>[];
+      final managerKey = _normalizeDept(_managerDepartment);
+      final mDeptId = _managerDepartmentId.trim();
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final staffDeptId = data['departmentId']?.toString() ?? '';
+        final staffDeptName = data['department']?.toString() ?? '';
+        final staffStatus = data['status']?.toString() ?? 'Active';
+
+        if (staffStatus != 'Active') continue;
+
+        bool match = false;
+        if (mDeptId.isNotEmpty && staffDeptId.isNotEmpty) {
+          match = staffDeptId == mDeptId;
+        } else {
+          match = _normalizeDept(staffDeptName) == managerKey;
+        }
+
+        if (match) {
+          staffList.add({
+            'id': doc.id,
+            'name': data['fullName'] ?? data['username'] ?? 'Unknown',
+            'email': data['email'] ?? '',
+            'profileImageUrl': data['profileImageUrl'] ?? '', // ✅ បន្ថែម
+          });
+        }
+      }
+
+      staffList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+
+      print('✅ Loaded ${staffList.length} staff for manager dept');
+
+      if (mounted) {
+        setState(() => _staffList = staffList);
+      }
+    } catch (e) {
+      print('❌ Error loading staff list: $e');
+    }
   }
 
   Future<void> _loadAllRequests() async {
@@ -322,6 +412,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       _showAll = false;
       _visibleCount = 3;
       _searchQuery = '';
+      _selectedStaffId = null;
+      _selectedStaffName = null;
     });
     try {
       DateTime startDate, endDate;
@@ -353,10 +445,22 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           .where('createdAt', isLessThan: Timestamp.fromDate(endDate))
           .get();
 
-      List<TodayRequest> allRequests = querySnapshot.docs.map((doc) => TodayRequest.fromFirestore(doc)).toList();
+      List<TodayRequest> allRequests =
+          querySnapshot.docs.map((doc) => TodayRequest.fromFirestore(doc)).toList();
 
-      if (_isManager && _managerDepartment.isNotEmpty) {
-        allRequests = allRequests.where((r) => r.department == _managerDepartment).toList();
+      if (_isManager && (_managerDepartmentId.isNotEmpty || _managerDepartment.isNotEmpty)) {
+        final managerKey = _normalizeDept(_managerDepartment);
+        final mDeptId = _managerDepartmentId.trim();
+
+        allRequests = allRequests.where((r) {
+          final rDeptId = (r.departmentId ?? '').trim();
+          final rDeptKey = _normalizeDept(r.department ?? '');
+
+          if (mDeptId.isNotEmpty && rDeptId.isNotEmpty) {
+            return rDeptId == mDeptId;
+          }
+          return rDeptKey == managerKey;
+        }).toList();
       }
 
       allRequests.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -379,7 +483,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   void _applyFilters() {
     var filtered = _allRequests;
-    
+
     if (_currentSegment != 0) {
       switch (_currentSegment) {
         case 1: filtered = filtered.where((r) => r.status == 'pending').toList(); break;
@@ -388,7 +492,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         case 4: filtered = filtered.where((r) => r.autoApproved == true).toList(); break;
       }
     }
-    
+
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase().trim();
       filtered = filtered.where((item) {
@@ -397,7 +501,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         return name.contains(query) || email.contains(query);
       }).toList();
     }
-    
+
     setState(() {
       _filteredRequests = filtered;
       _visibleCount = 3;
@@ -405,7 +509,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     });
   }
 
-  void _showMore() => setState(() { _showAll = true; _visibleCount = _filteredRequests.length; });
+  void _showMore() => setState(() { _showAll = true; _visibleCount = _displayRequests.length; });
   void _showLess() => setState(() { _showAll = false; _visibleCount = 3; });
 
   Map<String, dynamic> _calculateSummary(List<TodayRequest> data) {
@@ -419,9 +523,663 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     };
   }
 
+  // ============================================================
+  // ✅ Summary Banner ពេលជ្រើសរើសបុគ្គលិក
+  // ============================================================
+  Widget _buildSelectedStaffSummary(bool isMobile, double fontSize, double spacing) {
+    if (_selectedStaffId == null) return const SizedBox.shrink();
+
+    final staffReqs = _allRequests.where((r) => r.userId == _selectedStaffId).toList();
+    final summary = _calculateSummary(staffReqs);
+
+    final selectedStaff = _staffList.firstWhere(
+      (s) => s['id'] == _selectedStaffId,
+      orElse: () => {'name': '', 'profileImageUrl': '', 'email': ''},
+    );
+
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.all(spacing * 1.2),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF173B69), Color(0xFF2C5F8A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ProfileAvatar(
+                userId: _selectedStaffId!,
+                imageUrl: selectedStaff['profileImageUrl'], // ✅ បន្ថែម
+                name: _selectedStaffName ?? '',
+                radius: isMobile ? 18 : 22,
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                textColor: Colors.white,
+              ),
+              SizedBox(width: spacing),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _selectedStaffName ?? '',
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize + 1 : fontSize + 3,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '📊 ${staffReqs.length} request(s) · ${summary['totalDays']} day(s)',
+                      style: TextStyle(
+                        fontSize: isMobile ? fontSize * 0.75 : fontSize * 0.85,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedStaffId = null;
+                    _selectedStaffName = null;
+                  });
+                },
+                icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                tooltip: 'Clear selection',
+              ),
+            ],
+          ),
+          SizedBox(height: spacing),
+          Row(
+            children: [
+              _buildMiniStat('Total', '${summary['total']}', Colors.white, isMobile, fontSize),
+              _buildMiniStat('Pending', '${summary['pending']}', Colors.orangeAccent, isMobile, fontSize),
+              _buildMiniStat('Approved', '${summary['approved']}', Colors.greenAccent, isMobile, fontSize),
+              _buildMiniStat('Rejected', '${summary['rejected']}', Colors.redAccent, isMobile, fontSize),
+              _buildMiniStat('Auto', '${summary['autoApproved']}', Colors.purpleAccent, isMobile, fontSize),
+            ],
+          ),
+          SizedBox(height: spacing),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                _exportStaffSummaryToPDF(
+                  _selectedStaffId!,
+                  _selectedStaffName ?? '',
+                  staffReqs,
+                  summary,
+                );
+              },
+              icon: const Icon(Icons.picture_as_pdf, size: 18),
+              label: const Text('Export PDF for this staff'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF173B69),
+                padding: EdgeInsets.symmetric(vertical: spacing),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStat(String label, String value, Color color, bool isMobile, double fontSize) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: isMobile ? 16 : 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: isMobile ? 9 : 11,
+              color: Colors.white70,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportStaffSummaryToPDF(
+    String userId,
+    String staffName,
+    List<TodayRequest> requests,
+    Map<String, dynamic> summary,
+  ) async {
+    if (requests.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No data to export'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Generating PDF...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      List<TodayRequest> translatedData = [];
+      for (var request in requests) {
+        final translatedName = await TranslationService.translateToEnglish(request.staffName);
+        final translatedReason = await TranslationService.translateToEnglish(request.reason);
+        final translatedDepartment = request.department != null
+            ? await TranslationService.translateToEnglish(request.department!)
+            : '';
+        final translatedStatus = await TranslationService.translateToEnglish(request.status);
+        final translatedApprovedBy = request.approvedByName != null
+            ? await TranslationService.translateToEnglish(request.approvedByName!)
+            : '';
+        final translatedRejectionReason = request.rejectionReason != null
+            ? await TranslationService.translateToEnglish(request.rejectionReason!)
+            : '';
+
+        translatedData.add(TodayRequest(
+          requestId: request.requestId,
+          userId: request.userId,
+          staffName: translatedName,
+          userEmail: request.userEmail,
+          reason: translatedReason,
+          startDate: request.startDate,
+          endDate: request.endDate,
+          totalDays: request.totalDays,
+          status: translatedStatus,
+          approvalType: request.approvalType,
+          createdAt: request.createdAt,
+          autoApproved: request.autoApproved,
+          requestNumber: request.requestNumber,
+          fileUrl: request.fileUrl,
+          imageUrl: request.imageUrl,
+          rejectionReason: translatedRejectionReason,
+          approvedBy: request.approvedBy,
+          approvedByName: translatedApprovedBy,
+          department: translatedDepartment,
+          departmentId: request.departmentId,
+          submitTime: request.submitTime,
+        ));
+      }
+
+      pw.ImageProvider? logoImage;
+      try {
+        final ByteData imageData = await rootBundle.load('assets/img/logo1.png');
+        final Uint8List imageBytes = imageData.buffer.asUint8List();
+        logoImage = pw.MemoryImage(imageBytes);
+      } catch (_) {}
+
+      final pdf = pw.Document();
+      final pageFormat = PdfPageFormat.a4.landscape;
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: pageFormat,
+          margin: pw.EdgeInsets.all(20),
+          build: (pw.Context context) {
+            return [
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Container(
+                    width: 80,
+                    height: 80,
+                    child: pw.Center(
+                      child: logoImage != null
+                          ? pw.Image(logoImage!, width: 70, height: 70, fit: pw.BoxFit.contain)
+                          : pw.Text('🏫', style: pw.TextStyle(fontSize: 30)),
+                    ),
+                  ),
+                  pw.SizedBox(width: 16),
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text(
+                          'KINGDOM OF CAMBODIA',
+                          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Nation  Religion  King',
+                          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
+                        ),
+                        pw.SizedBox(height: 20),
+                        pw.Text(
+                          'STAFF SUMMARY REPORT',
+                          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
+                        ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          'Staff: $staffName',
+                          style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                        ),
+                        pw.Text(
+                          'Period: ${_getDateLabel()}',
+                          style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                        ),
+                        pw.Text(
+                          'Department: $_managerDepartment',
+                          style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 15),
+              pw.Container(
+                padding: pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  borderRadius: pw.BorderRadius.circular(8),
+                  border: pw.Border.all(color: PdfColors.grey300),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildPdfSummaryItem('Total', '${summary['total']}', PdfColors.blue900),
+                    _buildPdfSummaryItem('Pending', '${summary['pending']}', PdfColors.orange),
+                    _buildPdfSummaryItem('Approved', '${summary['approved']}', PdfColors.green),
+                    _buildPdfSummaryItem('Rejected', '${summary['rejected']}', PdfColors.red),
+                    _buildPdfSummaryItem('Auto', '${summary['autoApproved']}', PdfColors.purple),
+                    _buildPdfSummaryItem('Days', '${summary['totalDays']}', PdfColors.blue),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 15),
+              pw.Table(
+                border: pw.TableBorder.all(),
+                columnWidths: {
+                  0: pw.FixedColumnWidth(25),
+                  1: pw.FixedColumnWidth(50),
+                  2: pw.FixedColumnWidth(60),
+                  3: pw.FixedColumnWidth(75),
+                  4: pw.FixedColumnWidth(60),
+                  5: pw.FixedColumnWidth(35),
+                  6: pw.FixedColumnWidth(100),
+                  7: pw.FixedColumnWidth(55),
+                  8: pw.FixedColumnWidth(40),
+                  9: pw.FixedColumnWidth(40),
+                  10: pw.FixedColumnWidth(80),
+                },
+                children: [
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.blue900),
+                    children: [
+                      _buildPdfHeaderCell('No.'),
+                      _buildPdfHeaderCell('Date'),
+                      _buildPdfHeaderCell('End Date'),
+                      _buildPdfHeaderCell('Reason'),
+                      _buildPdfHeaderCell('Department'),
+                      _buildPdfHeaderCell('Days'),
+                      _buildPdfHeaderCell('Status'),
+                      _buildPdfHeaderCell('Type'),
+                      _buildPdfHeaderCell('Req #'),
+                      _buildPdfHeaderCell('Created'),
+                      _buildPdfHeaderCell('Approved/Rejection'),
+                    ],
+                  ),
+                  ...translatedData.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final r = entry.value;
+                    final color = index % 2 == 0 ? PdfColors.grey100 : PdfColors.white;
+
+                    return pw.TableRow(
+                      decoration: pw.BoxDecoration(color: color),
+                      children: [
+                        _buildPdfDataCell('${index + 1}'),
+                        _buildPdfDataCell(r.startDate),
+                        _buildPdfDataCell(r.endDate),
+                        _buildPdfDataCell(r.reason),
+                        _buildPdfDataCell(r.department ?? 'N/A'),
+                        _buildPdfDataCell('${r.totalDays}'),
+                        _buildPdfDataCell(
+                          r.status.toUpperCase(),
+                          color: r.status == 'approved'
+                              ? PdfColors.green
+                              : r.status == 'rejected'
+                                  ? PdfColors.red
+                                  : PdfColors.orange,
+                        ),
+                        _buildPdfDataCell(r.autoApproved ? 'Auto' : 'Manual'),
+                        _buildPdfDataCell('${r.requestNumber}'),
+                        _buildPdfDataCell(_formatToCambodiaTime(r.createdAt)),
+                        _buildPdfDataCell(
+                          r.approvedByName?.isNotEmpty == true
+                              ? 'By: ${r.approvedByName}'
+                              : r.rejectionReason?.isNotEmpty == true
+                                  ? 'Rej: ${r.rejectionReason}'
+                                  : '',
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    'Total: ${translatedData.length} request(s)',
+                    style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        'Date: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
+                        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        'Prepared by: $_managerName',
+                        style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ];
+          },
+        ),
+      );
+
+      final pdfBytes = await pdf.save();
+      if (Navigator.canPop(context)) Navigator.pop(context);
+
+      final fileName = 'staff_${staffName.replaceAll(' ', '_')}_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
+
+      if (kIsWeb) {
+        downloadFileWeb(pdfBytes, fileName, 'application/pdf');
+        _showWebSuccessDialog(fileName);
+      } else {
+        final dir = await getTemporaryDirectory();
+        final filePath = '${dir.path}/$fileName';
+        final file = File(filePath);
+        await file.writeAsBytes(pdfBytes, flush: true);
+        try {
+          final result = await OpenFile.open(filePath);
+          if (result.type != ResultType.done) {
+            _showMobileSuccessDialog(filePath, fileName);
+          }
+        } catch (_) {
+          _showMobileSuccessDialog(filePath, fileName);
+        }
+      }
+
+      TranslationService.clearCache();
+    } catch (e) {
+      if (Navigator.canPop(context)) Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('PDF Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  pw.Widget _buildPdfSummaryItem(String label, String value, PdfColor color) {
+    return pw.Column(
+      children: [
+        pw.Text(
+          value,
+          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: color),
+        ),
+        pw.Text(
+          label,
+          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildPdfHeaderCell(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(4),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 8),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfDataCell(String text, {PdfColor? color}) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(3),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(color: color ?? PdfColors.black, fontSize: 7),
+        textAlign: pw.TextAlign.center,
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅ Dropdown បង្ហាញរូបថត + ឈ្មោះ + អ៊ីមែល
+  // ============================================================
+  Widget _buildStaffDropdown(bool isMobile, double fontSize, double spacing) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: _selectedStaffId,
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+          isExpanded: true,
+          dropdownColor: const Color(0xFF173B69),
+          menuMaxHeight: 400,
+
+          // ✅ បង្ហាញក្នុងប្រអប់បិទ
+          selectedItemBuilder: (context) {
+            return [
+              // All Staff
+              Row(
+                children: [
+                  Container(
+                    width: isMobile ? 24 : 28,
+                    height: isMobile ? 24 : 28,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.people, color: Colors.white, size: isMobile ? 14 : 16),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'All Staff (${_staffList.length})',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              // Individual staff
+              ..._staffList.map((staff) {
+                final isSelected = staff['id'] == _selectedStaffId;
+                if (!isSelected) return const SizedBox.shrink();
+                return Row(
+                  children: [
+                    ProfileAvatar(
+                      userId: staff['id'] ?? '',
+                      imageUrl: staff['profileImageUrl'],
+                      name: staff['name'] ?? '',
+                      radius: isMobile ? 12 : 14,
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      textColor: Colors.white,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        staff['name'] ?? '',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                );
+              }),
+            ];
+          },
+
+          // ✅ បង្ហាញក្នុងប្រអប់បើក (dropdown list)
+          items: [
+            // All Staff
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Row(
+                children: [
+                  Container(
+                    width: isMobile ? 28 : 32,
+                    height: isMobile ? 28 : 32,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.people, color: Colors.white, size: isMobile ? 16 : 18),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'All Staff (${_staffList.length})',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Individual staff (រូបថត + ឈ្មោះ + អ៊ីមែល)
+            ..._staffList.map((staff) {
+              return DropdownMenuItem<String?>(
+                value: staff['id'],
+                child: Row(
+                  children: [
+                    ProfileAvatar(
+                      userId: staff['id'] ?? '',
+                      imageUrl: staff['profileImageUrl'],
+                      name: staff['name'] ?? '',
+                      radius: isMobile ? 14 : 16,
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                      textColor: Colors.white,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            staff['name'] ?? '',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: fontSize,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if ((staff['email'] ?? '').isNotEmpty)
+                            Text(
+                              staff['email'] ?? '',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: fontSize * 0.7,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+
+          onChanged: (value) {
+            setState(() {
+              _selectedStaffId = value;
+              _selectedStaffName = value == null
+                  ? null
+                  : _staffList.firstWhere(
+                      (s) => s['id'] == value,
+                      orElse: () => {'name': ''},
+                    )['name'];
+              _showAll = false;
+              _visibleCount = 3;
+            });
+          },
+          style: TextStyle(fontSize: fontSize),
+        ),
+      ),
+    );
+  }
+
   Future<void> _exportToPDF() async {
-    final dataToExport = _filteredRequests;
-    
+    final dataToExport = _displayRequests;
+
     if (dataToExport.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -454,21 +1212,21 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
     try {
       List<TodayRequest> translatedData = [];
-      
+
       for (var request in dataToExport) {
         final translatedName = await TranslationService.translateToEnglish(request.staffName);
         final translatedReason = await TranslationService.translateToEnglish(request.reason);
-        final translatedDepartment = request.department != null 
+        final translatedDepartment = request.department != null
             ? await TranslationService.translateToEnglish(request.department!)
             : '';
         final translatedStatus = await TranslationService.translateToEnglish(request.status);
-        final translatedApprovedBy = request.approvedByName != null 
+        final translatedApprovedBy = request.approvedByName != null
             ? await TranslationService.translateToEnglish(request.approvedByName!)
             : '';
-        final translatedRejectionReason = request.rejectionReason != null 
+        final translatedRejectionReason = request.rejectionReason != null
             ? await TranslationService.translateToEnglish(request.rejectionReason!)
             : '';
-        
+
         translatedData.add(TodayRequest(
           requestId: request.requestId,
           userId: request.userId,
@@ -489,6 +1247,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           approvedBy: request.approvedBy,
           approvedByName: translatedApprovedBy,
           department: translatedDepartment,
+          departmentId: request.departmentId,
           submitTime: request.submitTime,
         ));
       }
@@ -498,11 +1257,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         final ByteData imageData = await rootBundle.load('assets/img/logo1.png');
         final Uint8List imageBytes = imageData.buffer.asUint8List();
         logoImage = pw.MemoryImage(imageBytes);
-        print(' Logo loaded successfully');
-      } catch (e) {
-        print(' Logo image not found: $e');
-        logoImage = null;
-      }
+      } catch (_) {}
 
       final pdf = pw.Document();
       final pageFormat = PdfPageFormat.a4.landscape;
@@ -521,18 +1276,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                     height: 100,
                     child: pw.Center(
                       child: logoImage != null
-                          ? pw.Image(
-                              logoImage!,
-                              width: 90,
-                              height: 90,
-                              fit: pw.BoxFit.contain,
-                            )
-                          : pw.Text(
-                              '🏫',
-                              style: pw.TextStyle(
-                                fontSize: 40,
-                              ),
-                            ),
+                          ? pw.Image(logoImage!, width: 90, height: 90, fit: pw.BoxFit.contain)
+                          : pw.Text('🏫', style: pw.TextStyle(fontSize: 40)),
                     ),
                   ),
                   pw.SizedBox(width: 16),
@@ -542,52 +1287,38 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                       children: [
                         pw.Text(
                           'KINGDOM OF CAMBODIA',
-                          style: pw.TextStyle(
-                            fontSize: 16,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue900,
-                          ),
+                          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
                         ),
                         pw.SizedBox(height: 2),
                         pw.Text(
                           'Nation  Religion  King',
-                          style: pw.TextStyle(
-                            fontSize: 14,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue900,
-                          ),
+                          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
                         ),
                         pw.SizedBox(height: 35),
                         pw.Text(
                           'permission_request_report'.tr(),
-                          style: pw.TextStyle(
-                            fontSize: 11,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.grey800,
-                          ),
+                          style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.grey800),
                         ),
                         pw.SizedBox(height: 2),
                         pw.Text(
                           '${'period'.tr()}: ${_getDateLabel()}',
-                          style: pw.TextStyle(
-                            fontSize: 9,
-                            color: PdfColors.grey600,
-                          ),
+                          style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
                         ),
                         if (_isManager && _managerDepartment.isNotEmpty)
                           pw.Text(
                             '${'department'.tr()}: $_managerDepartment',
-                            style: pw.TextStyle(
-                              fontSize: 10,
-                              color: PdfColors.grey600,
-                            ),
+                            style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+                          ),
+                        if (_selectedStaffName != null)
+                          pw.Text(
+                            'Staff: $_selectedStaffName',
+                            style: pw.TextStyle(fontSize: 10, color: PdfColors.blue900, fontWeight: pw.FontWeight.bold),
                           ),
                       ],
                     ),
                   ),
                 ],
               ),
-              
               pw.SizedBox(height: 10),
               pw.Table(
                 border: pw.TableBorder.all(),
@@ -608,9 +1339,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                 },
                 children: [
                   pw.TableRow(
-                    decoration: pw.BoxDecoration(
-                      color: PdfColors.blue900,
-                    ),
+                    decoration: pw.BoxDecoration(color: PdfColors.blue900),
                     children: [
                       _buildHeaderCell('no'.tr()),
                       _buildHeaderCell('staff_name'.tr()),
@@ -630,14 +1359,10 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                   ...translatedData.asMap().entries.map((entry) {
                     final index = entry.key;
                     final r = entry.value;
-                    final color = index % 2 == 0 
-                        ? PdfColors.grey100 
-                        : PdfColors.white;
-                    
+                    final color = index % 2 == 0 ? PdfColors.grey100 : PdfColors.white;
+
                     return pw.TableRow(
-                      decoration: pw.BoxDecoration(
-                        color: color,
-                      ),
+                      decoration: pw.BoxDecoration(color: color),
                       children: [
                         _buildDataCell('${index + 1}'),
                         _buildDataCell(r.staffName),
@@ -648,10 +1373,10 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                         _buildDataCell(r.reason),
                         _buildDataCell(
                           r.status.toUpperCase(),
-                          color: r.status == 'approved' 
-                              ? PdfColors.green 
-                              : r.status == 'rejected' 
-                                  ? PdfColors.red 
+                          color: r.status == 'approved'
+                              ? PdfColors.green
+                              : r.status == 'rejected'
+                                  ? PdfColors.red
                                   : PdfColors.orange,
                         ),
                         _buildDataCell(r.autoApproved ? 'Auto' : 'Manual'),
@@ -670,30 +1395,19 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                 children: [
                   pw.Text(
                     '${'total'.tr()}: ${translatedData.length} ${'requests'.tr()}',
-                    style: pw.TextStyle(
-                      fontSize: 11,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.blue900,
-                    ),
+                    style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text(
                         '${'date'.tr()}: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}',
-                        style: pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.grey600,
-                        ),
+                        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
                       ),
                       pw.SizedBox(height: 2),
                       pw.Text(
                         '${'prepared_by'.tr()}: $_managerName',
-                        style: pw.TextStyle(
-                          fontSize: 11,
-                          fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue900,
-                        ),
+                        style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900),
                       ),
                     ],
                   ),
@@ -717,15 +1431,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       }
 
       TranslationService.clearCache();
-
     } catch (e, stackTrace) {
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
       }
-
       print('PDF Export error: $e');
       print('StackTrace: $stackTrace');
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${'pdf_export_error'.tr()}: $e'),
@@ -766,18 +1477,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   void _downloadPDFOnWeb(List<int> pdfBytes) {
     if (!kIsWeb) return;
-    
     final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.pdf';
-
     try {
-      downloadFileWeb(
-        pdfBytes, 
-        fileName, 
-        'application/pdf'
-      );
+      downloadFileWeb(pdfBytes, fileName, 'application/pdf');
       _showWebSuccessDialog(fileName);
     } catch (e) {
-      print('Web PDF download error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Download failed. Please try again.'),
@@ -838,11 +1542,10 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
             ),
           );
         }
-      } catch (e) {
+      } catch (_) {
         _showMobileSuccessDialog(filePath, fileName);
       }
     } catch (e) {
-      print('Save PDF error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${'save_failed'.tr()}: ${e.toString()}'),
@@ -904,8 +1607,8 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
   }
 
   Future<void> _exportToExcel() async {
-    final dataToExport = _filteredRequests;
-    
+    final dataToExport = _displayRequests;
+
     if (dataToExport.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -939,9 +1642,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
     try {
       var excelFile = excel.Excel.createExcel();
       var sheet = excelFile['Sheet1'];
-      if (sheet == null) {
-        throw Exception('No sheet available');
-      }
+      if (sheet == null) throw Exception('No sheet available');
 
       int currentRow = 0;
 
@@ -1036,66 +1737,37 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         }
 
         final rowIndex = currentRow;
-        
+
         var cell0 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex));
         cell0.value = i + 1;
-        cell0.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell0.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell1 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex));
         cell1.value = fullName;
-        cell1.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell1.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell2 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex));
         cell2.value = r.userEmail;
-        cell2.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell2.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell3 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex));
         cell3.value = r.department ?? 'N/A';
-        cell3.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell3.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell4 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex));
         cell4.value = r.startDate;
-        cell4.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell4.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell5 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex));
         cell5.value = r.totalDays;
-        cell5.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell5.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell6 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex));
         cell6.value = r.reason;
-        cell6.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell6.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell7 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: rowIndex));
-        String statusText = r.status.toUpperCase();
-        cell7.value = statusText;
+        cell7.value = r.status.toUpperCase();
         String statusColor = '';
         switch (r.status.toLowerCase()) {
           case 'pending': statusColor = '#FFA500'; break;
@@ -1113,43 +1785,23 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
         var cell8 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIndex));
         cell8.value = r.autoApproved ? 'Auto' : 'Manual';
-        cell8.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell8.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell9 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: rowIndex));
         cell9.value = r.requestNumber;
-        cell9.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell9.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell10 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: rowIndex));
         cell10.value = cambodiaTime;
-        cell10.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Center,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell10.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Center, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell11 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 11, rowIndex: rowIndex));
         cell11.value = r.approvedByName ?? '';
-        cell11.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell11.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         var cell12 = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: rowIndex));
         cell12.value = r.rejectionReason ?? '';
-        cell12.cellStyle = excel.CellStyle(
-          horizontalAlign: excel.HorizontalAlign.Left,
-          verticalAlign: excel.VerticalAlign.Center,
-          fontSize: 10,
-        );
+        cell12.cellStyle = excel.CellStyle(horizontalAlign: excel.HorizontalAlign.Left, verticalAlign: excel.VerticalAlign.Center, fontSize: 10);
 
         currentRow++;
       }
@@ -1160,16 +1812,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
         excel.CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: footerStartRow),
       );
-      var summaryCell = sheet.cell(
-        excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow),
-      );
+      var summaryCell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: footerStartRow));
       summaryCell.value = '${'total'.tr()}: ${dataToExport.length} ${'requests'.tr()}';
-      summaryCell.cellStyle = excel.CellStyle(
-        bold: true,
-        fontSize: 11,
-        fontColorHex: '#173B69',
-        horizontalAlign: excel.HorizontalAlign.Left,
-      );
+      summaryCell.cellStyle = excel.CellStyle(bold: true, fontSize: 11, fontColorHex: '#173B69', horizontalAlign: excel.HorizontalAlign.Left);
 
       footerStartRow++;
 
@@ -1177,16 +1822,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
         excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
       );
-      var exportDateCell = sheet.cell(
-        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-      );
+      var exportDateCell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow));
       exportDateCell.value = '${'date'.tr()}: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now())}';
-      exportDateCell.cellStyle = excel.CellStyle(
-        italic: true,
-        fontSize: 9,
-        fontColorHex: '#666666',
-        horizontalAlign: excel.HorizontalAlign.Right,
-      );
+      exportDateCell.cellStyle = excel.CellStyle(italic: true, fontSize: 9, fontColorHex: '#666666', horizontalAlign: excel.HorizontalAlign.Right);
 
       footerStartRow++;
 
@@ -1194,16 +1832,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
         excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
         excel.CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: footerStartRow),
       );
-      var preparedCell = sheet.cell(
-        excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow),
-      );
+      var preparedCell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 9, rowIndex: footerStartRow));
       preparedCell.value = '${'prepared_by'.tr()}: $_managerName';
-      preparedCell.cellStyle = excel.CellStyle(
-        bold: true,
-        fontSize: 11,
-        fontColorHex: '#173B69',
-        horizontalAlign: excel.HorizontalAlign.Right,
-      );
+      preparedCell.cellStyle = excel.CellStyle(bold: true, fontSize: 11, fontColorHex: '#173B69', horizontalAlign: excel.HorizontalAlign.Right);
 
       final colWidths = [6, 22, 28, 20, 18, 14, 28, 16, 14, 14, 28, 20, 28];
       for (int i = 0; i < colWidths.length; i++) {
@@ -1222,15 +1853,12 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
       } else {
         await _saveExcelToFile(fileBytes);
       }
-
     } catch (e, stackTrace) {
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
       }
-
       print('Export error: $e');
       print('StackTrace: $stackTrace');
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${'export_error'.tr()}: $e'),
@@ -1242,18 +1870,15 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   void _downloadExcelOnWeb(List<int> fileBytes) {
     if (!kIsWeb) return;
-    
     final fileName = 'permission_list_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.xlsx';
-
     try {
       downloadFileWeb(
-        fileBytes, 
-        fileName, 
+        fileBytes,
+        fileName,
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
       );
       _showWebSuccessDialog(fileName);
     } catch (e) {
-      print('Web download error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Download failed. Please try again.'),
@@ -1291,18 +1916,16 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ បន្ថែមនេះដើម្បីឲ្យ Rebuild ពេលភាសាប្តូរ
     EasyLocalization.of(context);
-    
+
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
     final double iconSize = Responsive.iconSize(context, 20);
     double bottomPadding = MediaQuery.of(context).padding.bottom + 24;
 
-    final filtered = _filteredRequests;
-    final summary = _calculateSummary(filtered);
-    final List<TodayRequest> visibleItems = _showAll ? filtered : filtered.take(_visibleCount).toList();
+    final displayList = _displayRequests;
+    final List<TodayRequest> visibleItems = _showAll ? displayList : displayList.take(_visibleCount).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -1325,48 +1948,53 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(50),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                children: List.generate(_segmentLabels.length, (index) {
-                  final isSelected = _currentSegment == index;
-                  final label = _segmentLabels[index];
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() => _currentSegment = index);
-                        _applyFilters();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.white : Colors.transparent,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))] : null,
-                        ),
-                        child: Center(
-                          child: Text(
-                            label.tr(),
-                            style: TextStyle(
-                              color: isSelected ? const Color(0xFF173B69) : Colors.white,
-                              fontSize: 13,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          preferredSize: const Size.fromHeight(110),
+          child: Column(
+            children: [
+              _buildStaffDropdown(isMobile, fontSize, spacing),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    children: List.generate(_segmentLabels.length, (index) {
+                      final isSelected = _currentSegment == index;
+                      final label = _segmentLabels[index];
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() => _currentSegment = index);
+                            _applyFilters();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isSelected ? Colors.white : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: isSelected ? [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))] : null,
+                            ),
+                            child: Center(
+                              child: Text(
+                                label.tr(),
+                                style: TextStyle(
+                                  color: isSelected ? const Color(0xFF173B69) : Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  );
-                }),
+                      );
+                    }),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -1438,7 +2066,7 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                       ],
                     ),
                   ),
-                  
+
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: TextField(
@@ -1477,33 +2105,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                       ),
                     ),
                   ),
-                  
-                  if (_isManager && _managerDepartment.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.business, size: 14, color: Colors.green[700]),
-                            const SizedBox(width: 4),
-                            Text(
-                              _managerDepartment,
-                              style: TextStyle(fontSize: fontSize * 0.85, color: Colors.green[700], fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  
+
+                  _buildSelectedStaffSummary(isMobile, fontSize, spacing),
+
                   Expanded(
-                    child: filtered.isEmpty
+                    child: displayList.isEmpty
                         ? Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -1511,9 +2117,11 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                                 Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
                                 const SizedBox(height: 12),
                                 Text(
-                                  _searchQuery.isNotEmpty
-                                      ? '${'no_results'.tr()} "$_searchQuery"'
-                                      : 'no_data_found'.tr(),
+                                  _selectedStaffId != null
+                                      ? 'No requests for ${_selectedStaffName ?? ''}'
+                                      : _searchQuery.isNotEmpty
+                                          ? '${'no_results'.tr()} "$_searchQuery"'
+                                          : 'no_data_found'.tr(),
                                   style: TextStyle(color: Colors.grey.shade500, fontSize: fontSize),
                                 ),
                               ],
@@ -1521,9 +2129,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                           )
                         : ListView.builder(
                             padding: EdgeInsets.only(left: 16, right: 16, top: 8, bottom: bottomPadding),
-                            itemCount: visibleItems.length + (filtered.length > 3 ? 1 : 0),
+                            itemCount: visibleItems.length + (displayList.length > 3 ? 1 : 0),
                             itemBuilder: (context, index) {
-                              if (index == visibleItems.length && filtered.length > 3) {
+                              if (index == visibleItems.length && displayList.length > 3) {
                                 return Padding(
                                   padding: EdgeInsets.symmetric(vertical: spacing),
                                   child: Center(
@@ -1551,9 +2159,9 @@ class _ListStaffScreenState extends State<ListStaffScreen> {
                               }
                               final r = visibleItems[index];
                               return _RequestCard(
-                                request: r, 
-                                isMobile: isMobile, 
-                                fontSize: fontSize, 
+                                request: r,
+                                isMobile: isMobile,
+                                fontSize: fontSize,
                                 spacing: spacing,
                               );
                             },
@@ -1618,13 +2226,19 @@ class PopupMenuWidget extends StatelessWidget {
   }
 }
 
+// ===== REQUEST CARD =====
 class _RequestCard extends StatelessWidget {
   final TodayRequest request;
   final bool isMobile;
   final double fontSize;
   final double spacing;
 
-  const _RequestCard({required this.request, required this.isMobile, required this.fontSize, required this.spacing});
+  const _RequestCard({
+    required this.request,
+    required this.isMobile,
+    required this.fontSize,
+    required this.spacing,
+  });
 
   Color get _statusColor {
     if (request.status == 'approved') return Colors.green;

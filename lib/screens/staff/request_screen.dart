@@ -54,6 +54,9 @@ class _RequestScreenState extends State<RequestScreen> {
   bool _isLoadingReasons = true;
   StreamSubscription<List<String>>? _reasonsSubscription;
 
+  // ✅ ថ្ងៃដែលឈប់រួច (cache)
+  Set<String> _usedDates = {};
+
   static const Color appBarColor = Color(0xFF1A3B68);
 
   String _getDepartmentId(String deptName) {
@@ -78,6 +81,7 @@ class _RequestScreenState extends State<RequestScreen> {
 
     _loadUserData();
     _listenToPolicyChanges();
+    _loadUsedDates(); // ✅ ទាញថ្ងៃដែលឈប់រួច
   }
 
   @override
@@ -102,7 +106,7 @@ class _RequestScreenState extends State<RequestScreen> {
         if (mounted) {
           setState(() {
             _allowedReasons = reasons;
-            if (_allowedReasons.isNotEmpty && 
+            if (_allowedReasons.isNotEmpty &&
                 (selectedReason == null || !_allowedReasons.contains(selectedReason))) {
               // Keep null if no selection
             }
@@ -120,6 +124,66 @@ class _RequestScreenState extends State<RequestScreen> {
     );
   }
 
+  // ============================================================
+  // ✅ ទាញថ្ងៃដែលឈប់រួច (pending + approved)
+  // ============================================================
+  Future<void> _loadUsedDates() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('leave_requests')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      final Set<String> usedDates = {};
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final status = data['status']?.toString() ?? '';
+        final startDateStr = data['startDate']?.toString() ?? '';
+        final endDateStr = data['endDate']?.toString() ?? '';
+
+        // ✅ រាប់បញ្ចូលតែ pending និង approved (មិនរាប់ rejected)
+        if (status == 'rejected') continue;
+
+        final start = _parseDateString(startDateStr);
+        final end = _parseDateString(endDateStr);
+
+        if (start != null && end != null) {
+          DateTime current = start;
+          while (!current.isAfter(end)) {
+            usedDates.add(_formatDateKey(current));
+            current = current.add(const Duration(days: 1));
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _usedDates = usedDates;
+        });
+      }
+
+      print('📅 Loaded ${usedDates.length} used dates for user');
+    } catch (e) {
+      print('❌ Error loading used dates: $e');
+    }
+  }
+
+  DateTime? _parseDateString(String dateStr) {
+    try {
+      return DateFormat('dd MMM yyyy').parse(dateStr);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  String _formatDateKey(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _loadUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -128,7 +192,10 @@ class _RequestScreenState extends State<RequestScreen> {
       QuerySnapshot? querySnapshot;
 
       try {
-        querySnapshot = await FirebaseFirestore.instance.collection('users').where('userId', isEqualTo: user.uid).get();
+        querySnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userId', isEqualTo: user.uid)
+            .get();
       } catch (e) {
         // ignore
       }
@@ -217,15 +284,37 @@ class _RequestScreenState extends State<RequestScreen> {
     return DateTime.now().toUtc().add(const Duration(hours: 7));
   }
 
+  // ============================================================
+  // ✅ ជ្រើសរើសថ្ងៃ (បិទថ្ងៃដែលឈប់រួច)
+  // ============================================================
   Future<void> pickStartDate() async {
+    // ✅ Refresh ថ្ងៃដែលឈប់រួច មុនពេលបង្ហាញ Date Picker
+    await _loadUsedDates();
+
+    if (!mounted) return;
+
     DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime(2030),
+      // ✅ បិទថ្ងៃដែលឈប់រួច
+      selectableDayPredicate: (DateTime date) {
+        final dateKey = _formatDateKey(date);
+        return !_usedDates.contains(dateKey);
+      },
+      
     );
 
     if (picked != null) {
+      final dateKey = _formatDateKey(picked);
+
+      // ✅ ពិនិត្យម្តងទៀត (សុវត្ថិភាព)
+      if (_usedDates.contains(dateKey)) {
+        _showError('អ្នកបានឈប់សម្រាកនៅថ្ងៃនេះរួចហើយ');
+        return;
+      }
+
       setState(() {
         startDate = picked;
         endDate = picked;
@@ -393,6 +482,13 @@ class _RequestScreenState extends State<RequestScreen> {
       return;
     }
 
+    // ✅ ពិនិត្យថ្ងៃដែលឈប់រួច មុនពេល submit
+    final dateKey = _formatDateKey(startDate!);
+    if (_usedDates.contains(dateKey)) {
+      _showError('អ្នកបានឈប់សម្រាកនៅថ្ងៃនេះរួចហើយ មិនអាចដាក់សំណើម្តងទៀតបានទេ');
+      return;
+    }
+
     final now = _getCurrentCambodiaTime();
     _submitTime = now;
     _submitTimeString = _formatTimeWithAMPM(now);
@@ -478,6 +574,9 @@ class _RequestScreenState extends State<RequestScreen> {
           _isSubmitting = false;
         });
 
+        // ✅ Refresh ថ្ងៃដែលឈប់រួច បន្ទាប់ពី submit ជោគជ័យ
+        _loadUsedDates();
+
         if (status == 'approved') {
           _showSuccessAndNavigate('request_auto_approved'.tr() + timeDisplay);
         } else if (message?.contains('contact') == true) {
@@ -542,7 +641,7 @@ Status: PENDING
           photoBytes: photoBytes,
           caption: fullCaption,
         );
-        
+
         if (photoSent) {
           print(' Photo with full caption sent successfully');
         } else {
@@ -630,8 +729,11 @@ Status: PENDING
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
-      final querySnapshot =
-          await FirebaseFirestore.instance.collection('users').where('userId', isEqualTo: user.uid).limit(1).get();
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('userId', isEqualTo: user.uid)
+          .limit(1)
+          .get();
 
       if (querySnapshot.docs.isNotEmpty) {
         final data = querySnapshot.docs.first.data();
@@ -732,9 +834,8 @@ Status: PENDING
 
   @override
   Widget build(BuildContext context) {
-   
     final locale = context.locale;
-    
+
     final bool isMobile = Responsive.isMobile(context);
     final double fontSize = Responsive.fontSize(context, 14);
     final double spacing = Responsive.spacing(context);
@@ -1071,7 +1172,7 @@ Status: PENDING
 
   Widget _buildRadio(BuildContext context, String title, double spacing) {
     final isSelected = selectedReason == title;
-    
+
     return InkWell(
       onTap: () {
         setState(() {
